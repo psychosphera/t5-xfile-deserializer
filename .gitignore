@@ -2,3 +2,5 @@
 **/Cargo.lock
 **/*.ff
 **/*.cache
+**/.vscode
+**/.vs
