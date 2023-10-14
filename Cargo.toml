@@ -10,4 +10,3 @@ edition = "2021"
 bincode = "1.3.3"
 inflate = "0.4.5"
 serde = { version = "1.0.188", features = ["serde_derive"] }
-static_assertions = "1.1.0"
