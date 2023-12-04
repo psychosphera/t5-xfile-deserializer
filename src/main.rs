@@ -14,9 +14,9 @@ use std::{
     fs::File,
     io::{BufReader, Read, Seek, Write},
     marker::PhantomData,
-    mem::{size_of, transmute, size_of_val},
+    mem::{size_of, transmute},
     path::Path,
-    str::FromStr, sync::OnceLock, hint::unreachable_unchecked,
+    str::FromStr, sync::OnceLock,
 };
 
 // FastFiles (internally known as XFiles) are structured as follows:
@@ -787,7 +787,7 @@ struct MaterialPass {
 impl<'a> XFileInto<MaterialPass> for MaterialPassRaw<'a> {
     fn xfile_into(&self, mut xfile: impl Read + Seek) -> MaterialPass {
         //dbg!(*self);
-        let pos = xfile.stream_position().unwrap();
+        //let pos = xfile.stream_position().unwrap();
         //dbg!(pos);
 
         let vertex_decl = self.vertex_decl.xfile_get(&mut xfile).map(Box::new);
@@ -805,10 +805,10 @@ impl<'a> XFileInto<MaterialPass> for MaterialPassRaw<'a> {
 
         if self.args != 0 {
             for _ in 0..argc {
-                let pos = xfile.stream_position().unwrap();
+                //let pos = xfile.stream_position().unwrap();
                 //dbg!(pos);
                 let arg_raw = load_from_xfile::<MaterialShaderArgumentRaw>(&mut xfile);
-                let pos = xfile.stream_position().unwrap();
+                //let pos = xfile.stream_position().unwrap();
                 //dbg!(pos);
                 let arg = arg_raw.xfile_into(&mut xfile);
                 args.push(arg);
@@ -874,7 +874,7 @@ struct MaterialVertexShader {
 impl<'a> XFileInto<MaterialVertexShader> for MaterialVertexShaderRaw<'a> {
     fn xfile_into(&self, mut xfile: impl Read + Seek) -> MaterialVertexShader {
         //dbg!(*self);
-        let pos = xfile.stream_position().unwrap();
+        //let pos = xfile.stream_position().unwrap();
         //dbg!(pos);
 
         let name = self.name;
@@ -1004,9 +1004,9 @@ struct GfxPixelShaderLoadDef {
 }
 
 impl<'a> XFileInto<GfxPixelShaderLoadDef> for GfxPixelShaderLoadDefRaw<'a> {
-    fn xfile_into(&self, mut xfile: impl Read + Seek) -> GfxPixelShaderLoadDef {
+    fn xfile_into(&self, xfile: impl Read + Seek) -> GfxPixelShaderLoadDef {
         //dbg!(*self);
-        let pos = xfile.stream_position().unwrap();
+        //let pos = xfile.stream_position().unwrap();
         //dbg!(pos);
 
         let program = self.program.to_vec(xfile);
@@ -1040,8 +1040,8 @@ struct MaterialShaderArgument {
 }
 
 impl XFileInto<MaterialShaderArgument> for MaterialShaderArgumentRaw {
-    fn xfile_into(&self, mut xfile: impl Read + Seek) -> MaterialShaderArgument {
-        let pos = xfile.stream_position().unwrap();
+    fn xfile_into(&self, xfile: impl Read + Seek) -> MaterialShaderArgument {
+        //let pos = xfile.stream_position().unwrap();
         //dbg!(pos);
 
         //dbg!(*self);
