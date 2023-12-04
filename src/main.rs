@@ -1,6 +1,8 @@
 #![allow(dead_code)]
 #![allow(non_camel_case_types)]
 
+#![feature(seek_stream_len)]
+
 use core::panic;
 use serde::{
     de::{DeserializeOwned, Error, SeqAccess, Visitor},
@@ -12,9 +14,9 @@ use std::{
     fs::File,
     io::{BufReader, Read, Seek, Write},
     marker::PhantomData,
-    mem::{size_of, transmute},
+    mem::{size_of, transmute, size_of_val},
     path::Path,
-    str::FromStr,
+    str::FromStr, sync::OnceLock, hint::unreachable_unchecked,
 };
 
 // FastFiles (internally known as XFiles) are structured as follows:
@@ -221,18 +223,29 @@ trait SeekAnd: Read + Seek {
     ) -> std::io::Result<T> {
         let pos = self.stream_position()?;
 
-        if let std::io::SeekFrom::Current(p) = from {
+        if let std::io::SeekFrom::Start(p) = from {
             if p != 0xFFFFFFFF {
-                self.seek(from)?;
+                let (_, off) = convert_offset_to_ptr(p as _);
+                assert!(off as u64 <= self.stream_len().unwrap(), "p = {p:#08X}");
+                self.seek(std::io::SeekFrom::Start(off as _))?;
             }
+        } else if let std::io::SeekFrom::Current(p) = from {
+            assert!(pos as i64 + p <= self.stream_len().unwrap() as i64, "p = {p:#08X}");
+            self.seek(from)?;
+        } else {
+            unimplemented!()
         }
 
         let t = predicate(self);
 
-        if let std::io::SeekFrom::Current(p) = from {
+        if let std::io::SeekFrom::Start(p) = from {
             if p != 0xFFFFFFFF {
                 self.seek(std::io::SeekFrom::Start(pos))?;
             }
+        } else if let std::io::SeekFrom::Current(p) = from {
+            self.seek(std::io::SeekFrom::Current(-p))?;
+        } else {
+            unimplemented!()
         }
 
         Ok(t)
@@ -246,6 +259,11 @@ impl<'a, T: DeserializeOwned + Clone + Copy + Debug + XFileInto<U>, U> XFileInto
 {
     fn xfile_into(&self, mut xfile: impl Read + Seek) -> Option<U> {
         if self.0 == 0x00000000 {
+            return None;
+        }
+
+        if self.0 != 0xFFFFFFFF {
+            println!("ignoring offset");
             return None;
         }
 
@@ -264,6 +282,11 @@ impl<'a, T: DeserializeOwned + Debug> Ptr32<'a, T> {
     /// conversion.
     fn xfile_get(self, mut xfile: impl Read + Seek) -> Option<T> {
         if self.0 == 0x00000000 {
+            return None;
+        }
+
+        if self.0 != 0xFFFFFFFF {
+            println!("ignoring offset");
             return None;
         }
 
@@ -517,7 +540,6 @@ struct XFileHeader {
 assert_size!(XFileHeader, 12);
 
 #[derive(Copy, Clone, Debug, Deserialize)]
-#[repr(C, packed)]
 struct XFile {
     size: u32,
     external_size: u32,
@@ -527,7 +549,6 @@ struct XFile {
 assert_size!(XFile, 36);
 
 #[derive(Deserialize)]
-#[repr(C, packed)]
 struct XAssetList {
     string_count: u32,
     strings: u32,
@@ -622,25 +643,14 @@ assert_size!(XString, 4);
 
 impl XFileInto<String> for XString {
     fn xfile_into(&self, mut xfile: impl Read + Seek) -> String {
-        if self.0 == 0x00000000 {
-            return String::new();
+        //dbg!(*self);
+
+        if self.0 != 0xFFFFFFFF && self.0 != 0x00000000 {
+            println!("ignoring offset");
+            String::new()
+        } else {
+            xfile.seek_and(std::io::SeekFrom::Start(self.0 as _), |f| file_read_string(f)).unwrap()
         }
-
-        dbg!(*self);
-
-        let pos = xfile.stream_position().unwrap();
-
-        if self.0 != 0xFFFFFFFF {
-            xfile.seek(std::io::SeekFrom::Start(self.0 as _)).unwrap();
-        }
-
-        let s = file_read_string(&mut xfile);
-
-        if self.0 != 0xFFFFFFFF {
-            xfile.seek(std::io::SeekFrom::Start(pos as _)).unwrap();
-        }
-
-        s
     }
 }
 
@@ -674,16 +684,16 @@ struct MaterialTechniqueSet {
     world_vert_format: u8,
     unused: u8,
     techset_flags: u16,
-    techniques: [Box<MaterialTechnique>; 130],
+    techniques: Vec<Box<MaterialTechnique>>,
 }
 
 impl<'a> XFileInto<MaterialTechniqueSet> for MaterialTechniqueSetRaw<'a> {
     fn xfile_into(&self, mut xfile: impl Read + Seek) -> MaterialTechniqueSet {
-        dbg!(*self);
+        //dbg!(*self);
 
         let name = self.name;
         let name = name.xfile_into(&mut xfile);
-        dbg!(&name);
+        //dbg!(&name);
 
         let techniques = self.techniques;
         let techniques = techniques
@@ -692,14 +702,15 @@ impl<'a> XFileInto<MaterialTechniqueSet> for MaterialTechniqueSetRaw<'a> {
             .map(|p| Box::new(p))
             .collect::<Vec<_>>();
 
-        dbg!(&techniques);
+        assert!(techniques.len() <= 130);
+        //dbg!(techniques);
 
         MaterialTechniqueSet {
             name,
             world_vert_format: self.world_vert_format,
             unused: self.unused,
             techset_flags: self.techset_flags,
-            techniques: techniques.try_into().unwrap(),
+            techniques,
         }
     }
 }
@@ -722,9 +733,9 @@ struct MaterialTechnique {
 
 impl<'a> XFileInto<MaterialTechnique> for MaterialTechniqueRaw<'a> {
     fn xfile_into(&self, mut xfile: impl Read + Seek) -> MaterialTechnique {
-        dbg!(*self);
+        //dbg!(*self);
 
-        dbg!(self.passes);
+        //dbg!(self.passes);
 
         // passes must be deserialized first since its a flexible array (part of the MaterialTechnique), not a pointer.
         let passes = self
@@ -733,11 +744,11 @@ impl<'a> XFileInto<MaterialTechnique> for MaterialTechniqueRaw<'a> {
             .iter()
             .map(|t| t.xfile_into(&mut xfile))
             .collect();
-        // dbg!(&passes);
+        //dbg!(&passes);
 
         let name = self.name;
         let name = name.xfile_into(&mut xfile);
-        dbg!(&name);
+        //dbg!(&name);
 
         MaterialTechnique {
             name,
@@ -775,31 +786,36 @@ struct MaterialPass {
 
 impl<'a> XFileInto<MaterialPass> for MaterialPassRaw<'a> {
     fn xfile_into(&self, mut xfile: impl Read + Seek) -> MaterialPass {
-        dbg!(*self);
+        //dbg!(*self);
         let pos = xfile.stream_position().unwrap();
-        dbg!(pos);
+        //dbg!(pos);
 
         let vertex_decl = self.vertex_decl.xfile_get(&mut xfile).map(Box::new);
-        dbg!(&vertex_decl);
+        //dbg!(&vertex_decl);
         let vertex_shader = self.vertex_shader;
         let vertex_shader = vertex_shader.xfile_into(&mut xfile).map(Box::new);
-        dbg!(&vertex_shader);
+        //dbg!(&vertex_shader);
         let pixel_shader = self.pixel_shader;
         let pixel_shader = pixel_shader.xfile_into(&mut xfile).map(Box::new);
-        dbg!(&pixel_shader);
+        //dbg!(&pixel_shader);
 
-        let argc = self.per_obj_arg_count + self.per_obj_arg_count + self.stable_arg_count;
+        let argc = self.per_prim_arg_count as u16 + self.per_obj_arg_count as u16 + self.stable_arg_count as u16;
 
         let mut args = Vec::with_capacity(argc as _);
-        for _ in 0..argc {
-            let pos = xfile.stream_position().unwrap();
-            dbg!(pos);
-            let arg_raw = load_from_xfile::<MaterialShaderArgumentRaw>(&mut xfile);
-            let pos = xfile.stream_position().unwrap();
-            dbg!(pos);
-            let arg = arg_raw.xfile_into(&mut xfile);
-            args.push(arg);
+
+        if self.args != 0 {
+            for _ in 0..argc {
+                let pos = xfile.stream_position().unwrap();
+                //dbg!(pos);
+                let arg_raw = load_from_xfile::<MaterialShaderArgumentRaw>(&mut xfile);
+                let pos = xfile.stream_position().unwrap();
+                //dbg!(pos);
+                let arg = arg_raw.xfile_into(&mut xfile);
+                args.push(arg);
+            }
         }
+
+        //dbg!(&args);
 
         MaterialPass {
             vertex_decl,
@@ -857,13 +873,13 @@ struct MaterialVertexShader {
 
 impl<'a> XFileInto<MaterialVertexShader> for MaterialVertexShaderRaw<'a> {
     fn xfile_into(&self, mut xfile: impl Read + Seek) -> MaterialVertexShader {
-        dbg!(*self);
+        //dbg!(*self);
         let pos = xfile.stream_position().unwrap();
-        dbg!(pos);
+        //dbg!(pos);
 
         let name = self.name;
         let name = name.xfile_into(&mut xfile);
-        dbg!(&name);
+        //dbg!(&name);
 
         MaterialVertexShader {
             name,
@@ -888,7 +904,7 @@ struct MaterialVertexShaderProgram {
 
 impl<'a> XFileInto<MaterialVertexShaderProgram> for MaterialVertexShaderProgramRaw<'a> {
     fn xfile_into(&self, mut xfile: impl Read + Seek) -> MaterialVertexShaderProgram {
-        dbg!(*self);
+        //dbg!(*self);
 
         MaterialVertexShaderProgram {
             vs: None,
@@ -911,11 +927,11 @@ struct GfxVertexShaderLoadDef {
 
 impl<'a> XFileInto<GfxVertexShaderLoadDef> for GfxVertexShaderLoadDefRaw<'a> {
     fn xfile_into(&self, xfile: impl Read + Seek) -> GfxVertexShaderLoadDef {
-        dbg!(*self);
+        //dbg!(*self);
 
         let program = self.program.to_vec(xfile);
-        dbg!(&program[0]);
-        assert!(program[0] == 0xFFFE0300);
+        //dbg!(&program[0]);
+        assert!(program[0] == 0xFFFE0300, "program[0] != 0xFFFE0300 ({})", program[0]);
 
         GfxVertexShaderLoadDef { program }
     }
@@ -937,11 +953,11 @@ struct MaterialPixelShader {
 
 impl<'a> XFileInto<MaterialPixelShader> for MaterialPixelShaderRaw<'a> {
     fn xfile_into(&self, mut xfile: impl Read + Seek) -> MaterialPixelShader {
-        dbg!(*self);
+        //dbg!(*self);
 
         let name = self.name;
         let name = name.xfile_into(&mut xfile);
-        dbg!(&name);
+        //dbg!(&name);
 
         MaterialPixelShader {
             name,
@@ -966,7 +982,7 @@ struct MaterialPixelShaderProgram {
 
 impl<'a> XFileInto<MaterialPixelShaderProgram> for MaterialPixelShaderProgramRaw<'a> {
     fn xfile_into(&self, mut xfile: impl Read + Seek) -> MaterialPixelShaderProgram {
-        dbg!(*self);
+        //dbg!(*self);
 
         MaterialPixelShaderProgram {
             ps: None,
@@ -989,9 +1005,9 @@ struct GfxPixelShaderLoadDef {
 
 impl<'a> XFileInto<GfxPixelShaderLoadDef> for GfxPixelShaderLoadDefRaw<'a> {
     fn xfile_into(&self, mut xfile: impl Read + Seek) -> GfxPixelShaderLoadDef {
-        dbg!(*self);
+        //dbg!(*self);
         let pos = xfile.stream_position().unwrap();
-        dbg!(pos);
+        //dbg!(pos);
 
         let program = self.program.to_vec(xfile);
 
@@ -1026,23 +1042,21 @@ struct MaterialShaderArgument {
 impl XFileInto<MaterialShaderArgument> for MaterialShaderArgumentRaw {
     fn xfile_into(&self, mut xfile: impl Read + Seek) -> MaterialShaderArgument {
         let pos = xfile.stream_position().unwrap();
-        dbg!(pos);
+        //dbg!(pos);
 
-        dbg!(*self);
+        //dbg!(*self);
 
-        assert!(self.arg_type <= 7 && self.arg_type != 6);
+        assert!(self.arg_type <= 7);
 
         let u = match self.arg_type {
-            MTL_ARG_LITERAL_PIXEL_CONST | MTL_ARG_LITERAL_VERTEX_CONST => {
-                MaterialArgumentDef::LiteralConst(load_from_xfile(xfile))
-            }
-            MTL_ARG_CODE_PIXEL_CONST | MTL_ARG_CODE_VERTEX_CONST => {
-                MaterialArgumentDef::CodeConst(unsafe { transmute(self.u) })
-            }
-            MTL_ARG_CODE_PIXEL_SAMPLER | MTL_ARG_MATERIAL_PIXEL_SAMPLER | MTL_ARG_MATERIAL_VERTEX_CONST => {
-                MaterialArgumentDef::CodeSampler(self.u)
-            }
-            _ => unimplemented!(),
+            MTL_ARG_LITERAL_PIXEL_CONST | MTL_ARG_LITERAL_VERTEX_CONST => 
+                MaterialArgumentDef::LiteralConst(load_from_xfile(xfile)),
+            MTL_ARG_CODE_PIXEL_CONST | MTL_ARG_CODE_VERTEX_CONST =>
+                MaterialArgumentDef::CodeConst(MaterialArgumentCodeConst::from_u32(self.u)),
+            MTL_ARG_CODE_PIXEL_SAMPLER | MTL_ARG_MATERIAL_PIXEL_SAMPLER | MTL_ARG_MATERIAL_VERTEX_CONST =>
+                MaterialArgumentDef::CodeSampler(self.u),
+            6 => MaterialArgumentDef::NameHash(self.u),
+            _ => unreachable!(),
         };
 
         MaterialShaderArgument {
@@ -1061,6 +1075,12 @@ struct MaterialArgumentCodeConst {
     row_count: u8,
 }
 assert_size!(MaterialArgumentCodeConst, 4);
+
+impl MaterialArgumentCodeConst {
+    fn from_u32(u: u32) -> Self {
+        unsafe { transmute(u) }
+    }
+}
 
 const MTL_ARG_MATERIAL_VERTEX_CONST: u16 = 0;
 const MTL_ARG_LITERAL_VERTEX_CONST: u16 = 1;
@@ -1095,11 +1115,26 @@ fn file_read_string(mut xfile: impl Read + Seek) -> String {
         }
     }
 
-    dbg!(xfile.stream_position().unwrap());
+    //dbg!(xfile.stream_position().unwrap());
     CString::from_vec_with_nul(string_buf)
         .unwrap()
         .to_string_lossy()
         .to_string()
+}
+
+static XFILE: OnceLock<XFile> = OnceLock::new();
+
+fn convert_offset_to_ptr(offset: u32) -> (u8, u32) {
+    let block = ((offset - 1) >> 29) as u8;
+    let off = (offset - 1) & 0x1FFFFFFF;
+
+    let block_sizes = XFILE.get().unwrap().block_size;
+    let start = block_sizes[0..block as usize].iter().sum::<u32>();
+    let p = start + off;
+
+    //dbg!(block_sizes, block, off, start, p);
+    
+    (block, p)
 }
 
 fn main() {
@@ -1124,7 +1159,10 @@ fn main() {
         BufReader::with_capacity(0x8000, file)
     };
 
-    let _xfile = bincode::deserialize_from::<_, XFile>(&mut file).unwrap();
+    let xfile = bincode::deserialize_from::<_, XFile>(&mut file).unwrap();
+    dbg!(xfile);
+    dbg!(file.stream_len()).unwrap();
+    XFILE.set(xfile).unwrap();
 
     dbg!(file.stream_position().unwrap());
 
@@ -1171,6 +1209,7 @@ fn main() {
     }
 
     dbg!(file.stream_position().unwrap());
+    let mut deserialized_assets = Vec::new();
 
     for asset in assets {
         assert!(asset.asset_type == 7);
@@ -1179,9 +1218,11 @@ fn main() {
 
         let p = Ptr32::<MaterialTechniqueSetRaw>(asset.asset_data.0, PhantomData::default());
 
-        dbg!(p);
+        //dbg!(p);
 
         let a = p.xfile_into(&mut file);
-        dbg!(a);
+        //dbg!(a);
+
+        deserialized_assets.push(a);
     }
 }
