@@ -1053,9 +1053,10 @@ impl XFileInto<MaterialShaderArgument> for MaterialShaderArgumentRaw {
                 MaterialArgumentDef::LiteralConst(load_from_xfile(xfile)),
             MTL_ARG_CODE_PIXEL_CONST | MTL_ARG_CODE_VERTEX_CONST =>
                 MaterialArgumentDef::CodeConst(MaterialArgumentCodeConst::from_u32(self.u)),
-            MTL_ARG_CODE_PIXEL_SAMPLER | MTL_ARG_MATERIAL_PIXEL_SAMPLER | MTL_ARG_MATERIAL_VERTEX_CONST =>
+            MTL_ARG_CODE_PIXEL_SAMPLER =>
                 MaterialArgumentDef::CodeSampler(self.u),
-            6 => MaterialArgumentDef::NameHash(self.u),
+            MTL_ARG_MATERIAL_VERTEX_CONST | MTL_ARG_MATERIAL_PIXEL_SAMPLER | MTL_ARG_MATERIAL_PRIM_END => 
+                MaterialArgumentDef::NameHash(self.u),
             _ => unreachable!(),
         };
 
@@ -1087,6 +1088,7 @@ const MTL_ARG_LITERAL_VERTEX_CONST: u16 = 1;
 const MTL_ARG_MATERIAL_PIXEL_SAMPLER: u16 = 2;
 const MTL_ARG_CODE_VERTEX_CONST: u16 = 3;
 const MTL_ARG_CODE_PIXEL_SAMPLER: u16 = 4;
+const MTL_ARG_MATERIAL_PRIM_END: u16 = 6;
 const MTL_ARG_CODE_PIXEL_CONST: u16 = 5;
 const MTL_ARG_LITERAL_PIXEL_CONST: u16 = 7;
 
@@ -1099,6 +1101,7 @@ enum MtlArg {
     CODE_VERTEX_CONST = 3,
     CODE_PIXEL_SAMPLER = 4,
     CODE_PIXEL_CONST = 5,
+    MATERIAL_PRIM_END = 6,
     LITERAL_PIXEL_CONST = 7,
 }
 
