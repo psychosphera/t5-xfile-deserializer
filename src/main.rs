@@ -3,6 +3,8 @@
 
 #![feature(seek_stream_len)]
 
+mod techset;
+
 use core::panic;
 use serde::{
     de::{DeserializeOwned, Error, SeqAccess, Visitor},
@@ -93,6 +95,7 @@ trait BigArray<'de>: Sized {
         D: Deserializer<'de>;
 }
 
+#[macro_export]
 macro_rules! big_array {
     ($($len:expr,)+) => {
         $(
@@ -153,6 +156,7 @@ big_array! {
 
 /// Helper macro to ensure the structs we're deserializing are the correct
 /// size.
+#[macro_export]
 macro_rules! assert_size {
     ($t:ty, $n:literal) => {
         const _: fn() = || {
@@ -162,7 +166,7 @@ macro_rules! assert_size {
 }
 
 /// Helper function to deserialze [`T`] from [`xfile`].
-fn load_from_xfile<T: DeserializeOwned>(xfile: impl Read + Seek) -> T {
+pub fn load_from_xfile<T: DeserializeOwned>(xfile: impl Read + Seek) -> T {
     bincode::deserialize_from::<_, T>(xfile).unwrap()
 }
 
@@ -212,6 +216,12 @@ struct Ptr32<'a, T>(u32, PhantomData<&'a mut T>);
 impl<'a, T> Default for Ptr32<'a, T> {
     fn default() -> Self {
         Self(0, PhantomData::default())
+    }
+}
+
+impl<'a, T> Ptr32<'a, T> {
+    fn cast<U>(self) -> Ptr32<'a, U> {
+        Ptr32::<'a, U>(self.0, PhantomData)
     }
 }
 
@@ -638,10 +648,10 @@ assert_size!(XAsset, 8);
 
 #[repr(transparent)]
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
-struct XString(u32);
+struct XString<'a>(u32, PhantomData<&'a ()>);
 assert_size!(XString, 4);
 
-impl XFileInto<String> for XString {
+impl<'a> XFileInto<String> for XString<'a> {
     fn xfile_into(&self, mut xfile: impl Read + Seek) -> String {
         //dbg!(*self);
 
@@ -654,456 +664,6 @@ impl XFileInto<String> for XString {
     }
 }
 
-#[derive(Copy, Clone, Debug, Deserialize)]
-#[repr(C, packed)]
-struct MaterialTechniqueSetRaw<'a> {
-    name: XString,
-    world_vert_format: u8,
-    unused: u8,
-    techset_flags: u16,
-    #[serde(with = "BigArray")]
-    techniques: [Ptr32<'a, MaterialTechniqueRaw<'a>>; 130],
-}
-assert_size!(MaterialTechniqueSetRaw, 528);
-
-impl<'a> Default for MaterialTechniqueSetRaw<'a> {
-    fn default() -> Self {
-        MaterialTechniqueSetRaw {
-            name: XString::default(),
-            world_vert_format: u8::default(),
-            unused: u8::default(),
-            techset_flags: u16::default(),
-            techniques: [Ptr32::default(); 130],
-        }
-    }
-}
-
-#[derive(Clone, Debug)]
-struct MaterialTechniqueSet {
-    name: String,
-    world_vert_format: u8,
-    unused: u8,
-    techset_flags: u16,
-    techniques: Vec<Box<MaterialTechnique>>,
-}
-
-impl<'a> XFileInto<MaterialTechniqueSet> for MaterialTechniqueSetRaw<'a> {
-    fn xfile_into(&self, mut xfile: impl Read + Seek) -> MaterialTechniqueSet {
-        //dbg!(*self);
-
-        let name = self.name;
-        let name = name.xfile_into(&mut xfile);
-        //dbg!(&name);
-
-        let techniques = self.techniques;
-        let techniques = techniques
-            .iter()
-            .flat_map(|p| p.xfile_into(&mut xfile))
-            .map(|p| Box::new(p))
-            .collect::<Vec<_>>();
-
-        assert!(techniques.len() <= 130);
-        //dbg!(techniques);
-
-        MaterialTechniqueSet {
-            name,
-            world_vert_format: self.world_vert_format,
-            unused: self.unused,
-            techset_flags: self.techset_flags,
-            techniques,
-        }
-    }
-}
-
-#[derive(Copy, Clone, Debug, Deserialize)]
-#[repr(C, packed)]
-struct MaterialTechniqueRaw<'a> {
-    name: XString,
-    flags: u16,
-    passes: FlexibleArrayU16<MaterialPassRaw<'a>>,
-}
-assert_size!(MaterialTechniqueRaw, 8);
-
-#[derive(Clone, Debug)]
-struct MaterialTechnique {
-    name: String,
-    flags: u16,
-    passes: Vec<MaterialPass>,
-}
-
-impl<'a> XFileInto<MaterialTechnique> for MaterialTechniqueRaw<'a> {
-    fn xfile_into(&self, mut xfile: impl Read + Seek) -> MaterialTechnique {
-        //dbg!(*self);
-
-        //dbg!(self.passes);
-
-        // passes must be deserialized first since its a flexible array (part of the MaterialTechnique), not a pointer.
-        let passes = self
-            .passes
-            .to_vec(&mut xfile)
-            .iter()
-            .map(|t| t.xfile_into(&mut xfile))
-            .collect();
-        //dbg!(&passes);
-
-        let name = self.name;
-        let name = name.xfile_into(&mut xfile);
-        //dbg!(&name);
-
-        MaterialTechnique {
-            name,
-            flags: self.flags,
-            passes,
-        }
-    }
-}
-
-#[derive(Copy, Clone, Debug, Deserialize)]
-#[repr(C, packed)]
-struct MaterialPassRaw<'a> {
-    vertex_decl: Ptr32<'a, MaterialVertexDeclaration>,
-    vertex_shader: Ptr32<'a, MaterialVertexShaderRaw<'a>>,
-    pixel_shader: Ptr32<'a, MaterialPixelShaderRaw<'a>>,
-    per_prim_arg_count: u8,
-    per_obj_arg_count: u8,
-    stable_arg_count: u8,
-    custom_sampler_flags: u8,
-    args: u32,
-}
-assert_size!(MaterialPassRaw, 20);
-
-#[derive(Clone, Debug)]
-struct MaterialPass {
-    vertex_decl: Option<Box<MaterialVertexDeclaration>>,
-    vertex_shader: Option<Box<MaterialVertexShader>>,
-    pixel_shader: Option<Box<MaterialPixelShader>>,
-    per_prim_arg_count: u8,
-    per_obj_arg_count: u8,
-    stable_arg_count: u8,
-    custom_sampler_flags: u8,
-    args: Vec<MaterialShaderArgument>,
-}
-
-impl<'a> XFileInto<MaterialPass> for MaterialPassRaw<'a> {
-    fn xfile_into(&self, mut xfile: impl Read + Seek) -> MaterialPass {
-        //dbg!(*self);
-        //let pos = xfile.stream_position().unwrap();
-        //dbg!(pos);
-
-        let vertex_decl = self.vertex_decl.xfile_get(&mut xfile).map(Box::new);
-        //dbg!(&vertex_decl);
-        let vertex_shader = self.vertex_shader;
-        let vertex_shader = vertex_shader.xfile_into(&mut xfile).map(Box::new);
-        //dbg!(&vertex_shader);
-        let pixel_shader = self.pixel_shader;
-        let pixel_shader = pixel_shader.xfile_into(&mut xfile).map(Box::new);
-        //dbg!(&pixel_shader);
-
-        let argc = self.per_prim_arg_count as u16 + self.per_obj_arg_count as u16 + self.stable_arg_count as u16;
-
-        let mut args = Vec::with_capacity(argc as _);
-
-        if self.args != 0 {
-            for _ in 0..argc {
-                //let pos = xfile.stream_position().unwrap();
-                //dbg!(pos);
-                let arg_raw = load_from_xfile::<MaterialShaderArgumentRaw>(&mut xfile);
-                //let pos = xfile.stream_position().unwrap();
-                //dbg!(pos);
-                let arg = arg_raw.xfile_into(&mut xfile);
-                args.push(arg);
-            }
-        }
-
-        //dbg!(&args);
-
-        MaterialPass {
-            vertex_decl,
-            vertex_shader,
-            pixel_shader,
-            per_prim_arg_count: self.per_prim_arg_count,
-            per_obj_arg_count: self.per_obj_arg_count,
-            stable_arg_count: self.stable_arg_count,
-            custom_sampler_flags: self.custom_sampler_flags,
-            args,
-        }
-    }
-}
-
-#[derive(Copy, Clone, Debug, Deserialize)]
-#[repr(C, packed)]
-struct MaterialVertexDeclaration {
-    stream_count: u8,
-    has_optional_source: bool,
-    is_loaded: bool,
-    unused: u8,
-    routing: MaterialVertexStreamRouting,
-}
-assert_size!(MaterialVertexDeclaration, 108);
-
-#[derive(Copy, Clone, Debug, Deserialize)]
-#[repr(C, packed)]
-struct MaterialVertexStreamRouting {
-    data: [MaterialStreamRouting; 16],
-    decl: [u32; 18],
-}
-assert_size!(MaterialVertexStreamRouting, 104);
-
-#[derive(Copy, Clone, Debug, Deserialize)]
-#[repr(C, packed)]
-struct MaterialStreamRouting {
-    source: u8,
-    data: u8,
-}
-assert_size!(MaterialStreamRouting, 2);
-
-#[derive(Copy, Clone, Debug, Deserialize)]
-#[repr(C, packed)]
-struct MaterialVertexShaderRaw<'a> {
-    name: XString,
-    prog: MaterialVertexShaderProgramRaw<'a>,
-}
-assert_size!(MaterialVertexShaderRaw, 16);
-
-#[derive(Clone, Debug)]
-struct MaterialVertexShader {
-    name: String,
-    prog: MaterialVertexShaderProgram,
-}
-
-impl<'a> XFileInto<MaterialVertexShader> for MaterialVertexShaderRaw<'a> {
-    fn xfile_into(&self, mut xfile: impl Read + Seek) -> MaterialVertexShader {
-        //dbg!(*self);
-        //let pos = xfile.stream_position().unwrap();
-        //dbg!(pos);
-
-        let name = self.name;
-        let name = name.xfile_into(&mut xfile);
-        //dbg!(&name);
-
-        MaterialVertexShader {
-            name,
-            prog: self.prog.xfile_into(&mut xfile),
-        }
-    }
-}
-
-#[derive(Copy, Clone, Debug, Deserialize)]
-#[repr(C, packed)]
-struct MaterialVertexShaderProgramRaw<'a> {
-    vs: Ptr32<'a, ()>,
-    load_def: GfxVertexShaderLoadDefRaw<'a>,
-}
-assert_size!(MaterialVertexShaderProgramRaw, 12);
-
-#[derive(Clone, Debug)]
-struct MaterialVertexShaderProgram {
-    vs: Option<*mut ()>,
-    load_def: GfxVertexShaderLoadDef,
-}
-
-impl<'a> XFileInto<MaterialVertexShaderProgram> for MaterialVertexShaderProgramRaw<'a> {
-    fn xfile_into(&self, mut xfile: impl Read + Seek) -> MaterialVertexShaderProgram {
-        //dbg!(*self);
-
-        MaterialVertexShaderProgram {
-            vs: None,
-            load_def: self.load_def.xfile_into(&mut xfile),
-        }
-    }
-}
-
-#[derive(Copy, Clone, Debug, Deserialize)]
-#[repr(C, packed)]
-struct GfxVertexShaderLoadDefRaw<'a> {
-    program: FatPointerCountLastU32<'a, u32>,
-}
-assert_size!(GfxVertexShaderLoadDefRaw, 8);
-
-#[derive(Clone, Debug)]
-struct GfxVertexShaderLoadDef {
-    program: Vec<u32>,
-}
-
-impl<'a> XFileInto<GfxVertexShaderLoadDef> for GfxVertexShaderLoadDefRaw<'a> {
-    fn xfile_into(&self, xfile: impl Read + Seek) -> GfxVertexShaderLoadDef {
-        //dbg!(*self);
-
-        let program = self.program.to_vec(xfile);
-        //dbg!(&program[0]);
-        assert!(program[0] == 0xFFFE0300, "program[0] != 0xFFFE0300 ({})", program[0]);
-
-        GfxVertexShaderLoadDef { program }
-    }
-}
-
-#[derive(Copy, Clone, Debug, Deserialize)]
-#[repr(C, packed)]
-struct MaterialPixelShaderRaw<'a> {
-    name: XString,
-    prog: MaterialPixelShaderProgramRaw<'a>,
-}
-assert_size!(MaterialPixelShaderRaw, 16);
-
-#[derive(Clone, Debug)]
-struct MaterialPixelShader {
-    name: String,
-    prog: MaterialPixelShaderProgram,
-}
-
-impl<'a> XFileInto<MaterialPixelShader> for MaterialPixelShaderRaw<'a> {
-    fn xfile_into(&self, mut xfile: impl Read + Seek) -> MaterialPixelShader {
-        //dbg!(*self);
-
-        let name = self.name;
-        let name = name.xfile_into(&mut xfile);
-        //dbg!(&name);
-
-        MaterialPixelShader {
-            name,
-            prog: self.prog.xfile_into(&mut xfile),
-        }
-    }
-}
-
-#[derive(Copy, Clone, Debug, Deserialize)]
-#[repr(C, packed)]
-struct MaterialPixelShaderProgramRaw<'a> {
-    ps: Ptr32<'a, ()>,
-    load_def: GfxPixelShaderLoadDefRaw<'a>,
-}
-assert_size!(MaterialPixelShaderProgramRaw, 12);
-
-#[derive(Clone, Debug)]
-struct MaterialPixelShaderProgram {
-    ps: Option<*mut ()>,
-    load_def: GfxPixelShaderLoadDef,
-}
-
-impl<'a> XFileInto<MaterialPixelShaderProgram> for MaterialPixelShaderProgramRaw<'a> {
-    fn xfile_into(&self, mut xfile: impl Read + Seek) -> MaterialPixelShaderProgram {
-        //dbg!(*self);
-
-        MaterialPixelShaderProgram {
-            ps: None,
-            load_def: self.load_def.xfile_into(&mut xfile),
-        }
-    }
-}
-
-#[derive(Copy, Clone, Debug, Deserialize)]
-#[repr(C, packed)]
-struct GfxPixelShaderLoadDefRaw<'a> {
-    program: FatPointerCountLastU32<'a, u32>,
-}
-assert_size!(GfxPixelShaderLoadDefRaw, 8);
-
-#[derive(Clone, Debug)]
-struct GfxPixelShaderLoadDef {
-    program: Vec<u32>,
-}
-
-impl<'a> XFileInto<GfxPixelShaderLoadDef> for GfxPixelShaderLoadDefRaw<'a> {
-    fn xfile_into(&self, xfile: impl Read + Seek) -> GfxPixelShaderLoadDef {
-        //dbg!(*self);
-        //let pos = xfile.stream_position().unwrap();
-        //dbg!(pos);
-
-        let program = self.program.to_vec(xfile);
-
-        GfxPixelShaderLoadDef { program }
-    }
-}
-
-#[derive(Copy, Clone, Debug)]
-enum MaterialArgumentDef {
-    LiteralConst([f32; 4]),
-    CodeConst(MaterialArgumentCodeConst),
-    CodeSampler(u32),
-    NameHash(u32),
-}
-
-#[derive(Copy, Clone, Debug, Deserialize)]
-#[repr(C, packed)]
-struct MaterialShaderArgumentRaw {
-    arg_type: u16,
-    dest: u16,
-    u: u32,
-}
-assert_size!(MaterialShaderArgumentRaw, 8);
-
-#[derive(Copy, Clone, Debug)]
-struct MaterialShaderArgument {
-    arg_type: MtlArg,
-    dest: u16,
-    u: MaterialArgumentDef,
-}
-
-impl XFileInto<MaterialShaderArgument> for MaterialShaderArgumentRaw {
-    fn xfile_into(&self, xfile: impl Read + Seek) -> MaterialShaderArgument {
-        //let pos = xfile.stream_position().unwrap();
-        //dbg!(pos);
-
-        //dbg!(*self);
-
-        assert!(self.arg_type <= 7);
-
-        let u = match self.arg_type {
-            MTL_ARG_LITERAL_PIXEL_CONST | MTL_ARG_LITERAL_VERTEX_CONST => 
-                MaterialArgumentDef::LiteralConst(load_from_xfile(xfile)),
-            MTL_ARG_CODE_PIXEL_CONST | MTL_ARG_CODE_VERTEX_CONST =>
-                MaterialArgumentDef::CodeConst(MaterialArgumentCodeConst::from_u32(self.u)),
-            MTL_ARG_CODE_PIXEL_SAMPLER =>
-                MaterialArgumentDef::CodeSampler(self.u),
-            MTL_ARG_MATERIAL_VERTEX_CONST | MTL_ARG_MATERIAL_PIXEL_SAMPLER | MTL_ARG_MATERIAL_PRIM_END => 
-                MaterialArgumentDef::NameHash(self.u),
-            _ => unreachable!(),
-        };
-
-        MaterialShaderArgument {
-            arg_type: unsafe { transmute(self.arg_type) },
-            dest: self.dest,
-            u,
-        }
-    }
-}
-
-#[derive(Copy, Clone, Debug, Deserialize)]
-#[repr(C, packed)]
-struct MaterialArgumentCodeConst {
-    index: u16,
-    first_row: u8,
-    row_count: u8,
-}
-assert_size!(MaterialArgumentCodeConst, 4);
-
-impl MaterialArgumentCodeConst {
-    fn from_u32(u: u32) -> Self {
-        unsafe { transmute(u) }
-    }
-}
-
-const MTL_ARG_MATERIAL_VERTEX_CONST: u16 = 0;
-const MTL_ARG_LITERAL_VERTEX_CONST: u16 = 1;
-const MTL_ARG_MATERIAL_PIXEL_SAMPLER: u16 = 2;
-const MTL_ARG_CODE_VERTEX_CONST: u16 = 3;
-const MTL_ARG_CODE_PIXEL_SAMPLER: u16 = 4;
-const MTL_ARG_MATERIAL_PRIM_END: u16 = 6;
-const MTL_ARG_CODE_PIXEL_CONST: u16 = 5;
-const MTL_ARG_LITERAL_PIXEL_CONST: u16 = 7;
-
-#[derive(Copy, Clone, Debug, Deserialize)]
-#[repr(u16)]
-enum MtlArg {
-    MATERIAL_VERTEX_CONST = 0,
-    LITERAL_VERTEX_CONST = 1,
-    MATERIAL_PIXEL_SAMPLER = 2,
-    CODE_VERTEX_CONST = 3,
-    CODE_PIXEL_SAMPLER = 4,
-    CODE_PIXEL_CONST = 5,
-    MATERIAL_PRIM_END = 6,
-    LITERAL_PIXEL_CONST = 7,
-}
 
 fn file_read_string(mut xfile: impl Read + Seek) -> String {
     let mut string_buf = Vec::new();
@@ -1219,7 +779,7 @@ fn main() {
 
         dbg!(asset);
 
-        let p = Ptr32::<MaterialTechniqueSetRaw>(asset.asset_data.0, PhantomData::default());
+        let p = Ptr32::<techset::MaterialTechniqueSetRaw>(asset.asset_data.0, PhantomData::default());
 
         //dbg!(p);
 
