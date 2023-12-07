@@ -1,4 +1,5 @@
 use crate::*;
+use num_derive::FromPrimitive;
 
 #[derive(Copy, Clone, Debug, Deserialize)]
 #[repr(C, packed)]
@@ -584,7 +585,8 @@ pub struct MaterialTextureDef {
 }
 
 impl<'a> XFileInto<MaterialTextureDef> for MaterialTextureDefRaw<'a> {
-    fn xfile_into(&self, mut xfile: impl Read + Seek) -> MaterialTextureDef {
+    fn xfile_into(&self, xfile: impl Read + Seek) -> MaterialTextureDef {
+        let semantic = num::FromPrimitive::from_u8(self.semantic).unwrap();
         let info = if semantic == Semantic::WaterMap {
             let p = unsafe { transmute::<_, Ptr32<'a, WaterRaw>>(self.u.p) };
             let w = p.xfile_into(xfile).unwrap();
@@ -600,13 +602,14 @@ impl<'a> XFileInto<MaterialTextureDef> for MaterialTextureDefRaw<'a> {
             name_start: core::char::from_u32(self.name_start as _).unwrap(), 
             name_end: core::char::from_u32(self.name_end as _).unwrap(), 
             sampler_state: self.sampler_state, 
-            semantic: self.semantic, 
+            semantic, 
             is_mature_content: self.is_mature_content, 
             u: info,
         }
     }
 }
 
+#[derive(Copy, Clone, Debug, PartialEq, FromPrimitive)]
 #[repr(u8)]
 pub enum Semantic {
     Idle = 0x00,
@@ -764,6 +767,10 @@ pub struct GfxImage {
 
 impl<'a> XFileInto<GfxImage> for GfxImageRaw<'a> {
     fn xfile_into(&self, mut xfile: impl Read + Seek) -> GfxImage {
+        let map_type = num::FromPrimitive::from_u8(self.map_type).unwrap();
+        let semantic = num::FromPrimitive::from_u8(self.semantic).unwrap();
+        let category = num::FromPrimitive::from_u8(self.category).unwrap();
+
         let picmip = if self.no_picmip {
             None
         } else {
@@ -774,9 +781,9 @@ impl<'a> XFileInto<GfxImage> for GfxImageRaw<'a> {
 
         GfxImage { 
             texture: GfxTexture::LoadDef(Box::new(texture)), 
-            map_type: self.map_type, 
-            semantic: self.semantic, 
-            category: self.category, 
+            map_type, 
+            semantic, 
+            category, 
             delay_load_pixels: self.delay_load_pixels, 
             picmip, 
             track: self.track, 
@@ -817,7 +824,7 @@ pub enum GfxTexture {
     LoadDef(Box<GfxImageLoadDef>),
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq, FromPrimitive)]
 #[repr(u8)]
 pub enum MapType {
     TwoD = 0x03,
@@ -825,7 +832,7 @@ pub enum MapType {
     Cube = 0x05,
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq, FromPrimitive)]
 #[repr(u8)]
 pub enum ImgCategory {
     Unknown = 0x00,
