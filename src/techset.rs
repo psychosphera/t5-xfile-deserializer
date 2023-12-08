@@ -477,13 +477,13 @@ pub struct Material {
     pub state_flags: u8,
     pub camera_region: u8,
     pub max_streamed_mips: u8,
-    pub technique_set: Box<MaterialTechniqueSet>,
+    pub technique_set: Option<Box<MaterialTechniqueSet>>,
 }
 
 impl<'a> XFileInto<Material> for MaterialRaw<'a> {
     fn xfile_into(&self, mut xfile: impl Read + Seek) -> Material {
         let info = self.info.xfile_into(&mut xfile);
-        let techset = self.technique_set.xfile_into(&mut xfile).unwrap();
+        let techset = self.technique_set.xfile_into(&mut xfile);
         let mut textures = Vec::new();
         for _ in 0..self.texture_count {
             textures.push(load_from_xfile::<MaterialTextureDefRaw>(&mut xfile).xfile_into(&mut xfile));
@@ -506,7 +506,7 @@ impl<'a> XFileInto<Material> for MaterialRaw<'a> {
             state_flags: self.state_flags, 
             camera_region: self.camera_region, 
             max_streamed_mips: self.max_streamed_mips,
-            technique_set: Box::new(techset)
+            technique_set: techset.map(Box::new)
         }
     }
 }
@@ -588,13 +588,13 @@ impl<'a> XFileInto<MaterialTextureDef> for MaterialTextureDefRaw<'a> {
     fn xfile_into(&self, xfile: impl Read + Seek) -> MaterialTextureDef {
         let semantic = num::FromPrimitive::from_u8(self.semantic).unwrap();
         let info = if semantic == Semantic::WaterMap {
-            let p = unsafe { transmute::<_, Ptr32<'a, WaterRaw>>(self.u.p) };
-            let w = p.xfile_into(xfile).unwrap();
-            MaterialTextureDefInfo::Water(Box::new(w))
+            let p = self.u.p.cast::<WaterRaw>();
+            let w = p.xfile_into(xfile);
+            MaterialTextureDefInfo::Water(w.map(Box::new))
         } else {
-            let p = unsafe { transmute::<_, Ptr32<'a, GfxImageRaw>>(self.u.p) };
-            let i = p.xfile_into(xfile).unwrap();
-            MaterialTextureDefInfo::Image(Box::new(i))
+            let p = self.u.p.cast::<GfxImageRaw>();
+            let i = p.xfile_into(xfile);
+            MaterialTextureDefInfo::Image(i.map(Box::new))
         };
 
         MaterialTextureDef { 
@@ -629,8 +629,8 @@ pub struct MaterialTextureDefInfoRaw<'a> {
 assert_size!(MaterialTextureDefInfoRaw, 4);
 
 pub enum MaterialTextureDefInfo {
-    Image(Box<GfxImage>),
-    Water(Box<Water>),
+    Image(Option<Box<GfxImage>>),
+    Water(Option<Box<Water>>),
 }
 
 #[derive(Copy, Clone, Debug, Deserialize)]
@@ -663,7 +663,7 @@ pub struct Water {
     pub winddir: [f32; 2],
     pub amplitude: f32,
     pub code_constant: [f32; 4],
-    pub image: Box<GfxImage>,
+    pub image: Option<Box<GfxImage>>,
 }
 
 impl<'a> XFileInto<Water> for WaterRaw<'a> {
@@ -700,7 +700,7 @@ impl<'a> XFileInto<Water> for WaterRaw<'a> {
             winddir: self.winddir, 
             amplitude: self.amplitude, 
             code_constant: self.code_constant, 
-            image: Box::new(self.image.xfile_into(xfile).unwrap()),
+            image: self.image.xfile_into(xfile).map(Box::new)
         }
     }
 }
@@ -767,6 +767,8 @@ pub struct GfxImage {
 
 impl<'a> XFileInto<GfxImage> for GfxImageRaw<'a> {
     fn xfile_into(&self, mut xfile: impl Read + Seek) -> GfxImage {
+        let name = self.name.xfile_into(&mut xfile);
+
         let map_type = num::FromPrimitive::from_u8(self.map_type).unwrap();
         let semantic = num::FromPrimitive::from_u8(self.semantic).unwrap();
         let category = num::FromPrimitive::from_u8(self.category).unwrap();
@@ -777,7 +779,7 @@ impl<'a> XFileInto<GfxImage> for GfxImageRaw<'a> {
             Some(self.picmip)
         };
 
-        let texture = self.texture.p.cast::<GfxImageLoadDefRaw>().xfile_into(&mut xfile).unwrap();
+        let texture = self.texture.p.cast::<GfxImageLoadDefRaw>().xfile_into(xfile).unwrap();
 
         GfxImage { 
             texture: GfxTexture::LoadDef(Box::new(texture)), 
@@ -797,7 +799,7 @@ impl<'a> XFileInto<GfxImage> for GfxImageRaw<'a> {
             pixels: Vec::new(), 
             loaded_size: self.loaded_size, 
             skipped_mip_levels: self.skipped_mip_levels, 
-            name: self.name.xfile_into(xfile), 
+            name, 
             hash: self.hash, 
         }
     }
@@ -818,9 +820,9 @@ type IDirect3DCubeTexture9 = ();
 // 3D -> Volmap
 // Cube -> Cubemap
 pub enum GfxTexture {
-    Map(Box<IDirect3DTexture9>),
-    Volmap(Box<IDirect3DVolumeTexture9>),
-    Cubemap(Box<IDirect3DCubeTexture9>),
+    Map(Option<Box<IDirect3DTexture9>>),
+    Volmap(Option<Box<IDirect3DVolumeTexture9>>),
+    Cubemap(Option<Box<IDirect3DCubeTexture9>>),
     LoadDef(Box<GfxImageLoadDef>),
 }
 
