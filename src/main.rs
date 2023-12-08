@@ -4,6 +4,7 @@
 #![feature(seek_stream_len)]
 
 mod techset;
+mod xmodel;
 
 use core::panic;
 use serde::{
