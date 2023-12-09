@@ -370,11 +370,30 @@ impl<'a> XFileInto<GfxPixelShaderLoadDef> for GfxPixelShaderLoadDefRaw<'a> {
 }
 
 #[derive(Copy, Clone, Debug)]
+pub enum MaterialArgumentDefRaw {
+    LiteralConst([f32; 4]),
+    CodeConst(MaterialArgumentCodeConst),
+    CodeSampler(u32),
+    NameHash(u32),
+}
+
+#[derive(Copy, Clone, Debug)]
 pub enum MaterialArgumentDef {
     LiteralConst(Vec4),
     CodeConst(MaterialArgumentCodeConst),
     CodeSampler(u32),
     NameHash(u32),
+}
+
+impl XFileInto<MaterialArgumentDef> for MaterialArgumentDefRaw {
+    fn xfile_into(&self, _xfile: impl Read + Seek) -> MaterialArgumentDef {
+        match *self {
+            Self::LiteralConst(v) => MaterialArgumentDef::LiteralConst(v.into()),
+            Self::CodeConst(c) => MaterialArgumentDef::CodeConst(c),
+            Self::CodeSampler(s) => MaterialArgumentDef::CodeSampler(s),
+            Self::NameHash(h) => MaterialArgumentDef::NameHash(h),
+        }
+    }
 }
 
 #[derive(Copy, Clone, Debug, Deserialize)]
@@ -394,7 +413,7 @@ pub struct MaterialShaderArgument {
 }
 
 impl XFileInto<MaterialShaderArgument> for MaterialShaderArgumentRaw {
-    fn xfile_into(&self, xfile: impl Read + Seek) -> MaterialShaderArgument {
+    fn xfile_into(&self, mut xfile: impl Read + Seek) -> MaterialShaderArgument {
         //let pos = xfile.stream_position().unwrap();
         //dbg!(pos);
 
@@ -404,22 +423,22 @@ impl XFileInto<MaterialShaderArgument> for MaterialShaderArgumentRaw {
 
         let u = match self.arg_type {
             MTL_ARG_LITERAL_PIXEL_CONST | MTL_ARG_LITERAL_VERTEX_CONST => {
-                MaterialArgumentDef::LiteralConst(load_from_xfile(xfile))
+                MaterialArgumentDefRaw::LiteralConst(load_from_xfile(&mut xfile))
             }
             MTL_ARG_CODE_PIXEL_CONST | MTL_ARG_CODE_VERTEX_CONST => {
-                MaterialArgumentDef::CodeConst(MaterialArgumentCodeConst::from_u32(self.u))
+                MaterialArgumentDefRaw::CodeConst(MaterialArgumentCodeConst::from_u32(self.u))
             }
-            MTL_ARG_CODE_PIXEL_SAMPLER => MaterialArgumentDef::CodeSampler(self.u),
+            MTL_ARG_CODE_PIXEL_SAMPLER => MaterialArgumentDefRaw::CodeSampler(self.u),
             MTL_ARG_MATERIAL_VERTEX_CONST
             | MTL_ARG_MATERIAL_PIXEL_SAMPLER
-            | MTL_ARG_MATERIAL_PRIM_END => MaterialArgumentDef::NameHash(self.u),
+            | MTL_ARG_MATERIAL_PRIM_END => MaterialArgumentDefRaw::NameHash(self.u),
             _ => unreachable!(),
         };
 
         MaterialShaderArgument {
             arg_type: unsafe { transmute(self.arg_type) },
             dest: self.dest,
-            u,
+            u: u.xfile_into(xfile),
         }
     }
 }
@@ -709,9 +728,9 @@ impl<'a> XFileInto<Water> for WaterRaw<'a> {
             lx: self.lx,
             ly: self.ly,
             gravity: self.gravity,
-            winddir: self.winddir,
+            winddir: self.winddir.into(),
             amplitude: self.amplitude,
-            code_constant: self.code_constant,
+            code_constant: self.code_constant.into(),
             image: self.image.xfile_into(xfile).map(Box::new),
         }
     }
@@ -828,10 +847,25 @@ pub struct GfxTextureRaw<'a> {
 }
 assert_size!(GfxTextureRaw, 4);
 
-type IDirect3DBaseTexture9 = ();
-type IDirect3DTexture9 = ();
-type IDirect3DVolumeTexture9 = ();
-type IDirect3DCubeTexture9 = ();
+#[cfg(feature = "d3d9")]
+pub type IDirect3DBaseTexture9 = windows::Win32::Graphics::Direct3D9::IDirect3DBaseTexture9;
+#[cfg(not(feature = "d3d9"))]
+pub type IDirect3DBaseTexture9 = ();
+
+#[cfg(feature = "d3d9")]
+pub type IDirect3DTexture9 = windows::Win32::Graphics::Direct3D9::IDirect3DTexture9;
+#[cfg(not(feature = "d3d9"))]
+pub type IDirect3DTexture9 = ();
+
+#[cfg(feature = "d3d9")]
+pub type IDirect3DVolumeTexture9 = windows::Win32::Graphics::Direct3D9::IDirect3DVolumeTexture9;
+#[cfg(not(feature = "d3d9"))]
+pub type IDirect3DVolumeTexture9 = ();
+
+#[cfg(feature = "d3d9")]
+pub type IDirect3DCubeTexture9 = windows::Win32::Graphics::Direct3D9::IDirect3DCubeTexture9;
+#[cfg(not(feature = "d3d9"))]
+pub type IDirect3DCubeTexture9 = ();
 
 // 2D -> Map
 // 3D -> Volmap

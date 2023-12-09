@@ -88,7 +88,14 @@ pub struct DObjAnimMat {
     pub trans_weight: f32,
 }
 
+#[cfg(feature = "d3d9")]
+pub type IDirect3DVertexBuffer9 = windows::Win32::Graphics::Direct3D9::IDirect3DVertexBuffer9;
+#[cfg(not(feature = "d3d9"))]
 pub type IDirect3DVertexBuffer9 = ();
+
+#[cfg(feature = "d3d9")]
+pub type IDirect3DIndexBuffer9 = windows::Win32::Graphics::Direct3D9::IDirect3DIndexBuffer9;
+#[cfg(not(feature = "d3d9"))]
 pub type IDirect3DIndexBuffer9 = ();
 
 pub struct XSurfaceRaw<'a> {
