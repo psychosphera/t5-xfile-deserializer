@@ -1,8 +1,8 @@
 #![allow(dead_code)]
 #![allow(non_camel_case_types)]
-
 #![feature(seek_stream_len)]
 
+mod common;
 mod techset;
 mod xmodel;
 
@@ -19,7 +19,8 @@ use std::{
     marker::PhantomData,
     mem::{size_of, transmute},
     path::Path,
-    str::FromStr, sync::OnceLock,
+    str::FromStr,
+    sync::OnceLock,
 };
 
 // FastFiles (internally known as XFiles) are structured as follows:
@@ -241,7 +242,10 @@ trait SeekAnd: Read + Seek {
                 self.seek(std::io::SeekFrom::Start(off as _))?;
             }
         } else if let std::io::SeekFrom::Current(p) = from {
-            assert!(pos as i64 + p <= self.stream_len().unwrap() as i64, "p = {p:#08X}");
+            assert!(
+                pos as i64 + p <= self.stream_len().unwrap() as i64,
+                "p = {p:#08X}"
+            );
             self.seek(from)?;
         } else {
             unimplemented!()
@@ -660,11 +664,14 @@ impl<'a> XFileInto<String> for XString<'a> {
             println!("ignoring offset");
             String::new()
         } else {
-            xfile.seek_and(std::io::SeekFrom::Start(self.0 as _), |f| file_read_string(f)).unwrap()
+            xfile
+                .seek_and(std::io::SeekFrom::Start(self.0 as _), |f| {
+                    file_read_string(f)
+                })
+                .unwrap()
         }
     }
 }
-
 
 fn file_read_string(mut xfile: impl Read + Seek) -> String {
     let mut string_buf = Vec::new();
@@ -697,7 +704,7 @@ fn convert_offset_to_ptr(offset: u32) -> (u8, u32) {
     let p = start + off;
 
     //dbg!(block_sizes, block, off, start, p);
-    
+
     (block, p)
 }
 
@@ -780,7 +787,8 @@ fn main() {
 
         dbg!(asset);
 
-        let p = Ptr32::<techset::MaterialTechniqueSetRaw>(asset.asset_data.0, PhantomData::default());
+        let p =
+            Ptr32::<techset::MaterialTechniqueSetRaw>(asset.asset_data.0, PhantomData::default());
 
         //dbg!(p);
 
