@@ -1,4 +1,7 @@
-use crate::*;
+use crate::{
+    common::{Vec2, Vec4},
+    *,
+};
 use num_derive::FromPrimitive;
 
 #[derive(Copy, Clone, Debug, Deserialize)]
@@ -144,7 +147,9 @@ impl<'a> XFileInto<MaterialPass> for MaterialPassRaw<'a> {
         let pixel_shader = pixel_shader.xfile_into(&mut xfile).map(Box::new);
         //dbg!(&pixel_shader);
 
-        let argc = self.per_prim_arg_count as u16 + self.per_obj_arg_count as u16 + self.stable_arg_count as u16;
+        let argc = self.per_prim_arg_count as u16
+            + self.per_obj_arg_count as u16
+            + self.stable_arg_count as u16;
 
         let mut args = Vec::with_capacity(argc as _);
 
@@ -276,7 +281,11 @@ impl<'a> XFileInto<GfxVertexShaderLoadDef> for GfxVertexShaderLoadDefRaw<'a> {
 
         let program = self.program.to_vec(xfile);
         //dbg!(&program[0]);
-        assert!(program[0] == 0xFFFE0300, "program[0] != 0xFFFE0300 ({})", program[0]);
+        assert!(
+            program[0] == 0xFFFE0300,
+            "program[0] != 0xFFFE0300 ({})",
+            program[0]
+        );
 
         GfxVertexShaderLoadDef { program }
     }
@@ -362,7 +371,7 @@ impl<'a> XFileInto<GfxPixelShaderLoadDef> for GfxPixelShaderLoadDefRaw<'a> {
 
 #[derive(Copy, Clone, Debug)]
 pub enum MaterialArgumentDef {
-    LiteralConst([f32; 4]),
+    LiteralConst(Vec4),
     CodeConst(MaterialArgumentCodeConst),
     CodeSampler(u32),
     NameHash(u32),
@@ -394,14 +403,16 @@ impl XFileInto<MaterialShaderArgument> for MaterialShaderArgumentRaw {
         assert!(self.arg_type <= 7);
 
         let u = match self.arg_type {
-            MTL_ARG_LITERAL_PIXEL_CONST | MTL_ARG_LITERAL_VERTEX_CONST => 
-                MaterialArgumentDef::LiteralConst(load_from_xfile(xfile)),
-            MTL_ARG_CODE_PIXEL_CONST | MTL_ARG_CODE_VERTEX_CONST =>
-                MaterialArgumentDef::CodeConst(MaterialArgumentCodeConst::from_u32(self.u)),
-            MTL_ARG_CODE_PIXEL_SAMPLER =>
-                MaterialArgumentDef::CodeSampler(self.u),
-            MTL_ARG_MATERIAL_VERTEX_CONST | MTL_ARG_MATERIAL_PIXEL_SAMPLER | MTL_ARG_MATERIAL_PRIM_END => 
-                MaterialArgumentDef::NameHash(self.u),
+            MTL_ARG_LITERAL_PIXEL_CONST | MTL_ARG_LITERAL_VERTEX_CONST => {
+                MaterialArgumentDef::LiteralConst(load_from_xfile(xfile))
+            }
+            MTL_ARG_CODE_PIXEL_CONST | MTL_ARG_CODE_VERTEX_CONST => {
+                MaterialArgumentDef::CodeConst(MaterialArgumentCodeConst::from_u32(self.u))
+            }
+            MTL_ARG_CODE_PIXEL_SAMPLER => MaterialArgumentDef::CodeSampler(self.u),
+            MTL_ARG_MATERIAL_VERTEX_CONST
+            | MTL_ARG_MATERIAL_PIXEL_SAMPLER
+            | MTL_ARG_MATERIAL_PRIM_END => MaterialArgumentDef::NameHash(self.u),
             _ => unreachable!(),
         };
 
@@ -464,7 +475,7 @@ pub struct MaterialRaw<'a> {
     pub technique_set: Ptr32<'a, MaterialTechniqueSetRaw<'a>>,
     pub texture_table: Ptr32<'a, MaterialTextureDefRaw<'a>>,
     pub constant_table: Ptr32<'a, MaterialConstantDef>,
-    pub state_bits_table: Ptr32<'a, GfxStateBits>
+    pub state_bits_table: Ptr32<'a, GfxStateBits>,
 }
 assert_size!(MaterialRaw, 192);
 
@@ -486,7 +497,8 @@ impl<'a> XFileInto<Material> for MaterialRaw<'a> {
         let techset = self.technique_set.xfile_into(&mut xfile);
         let mut textures = Vec::new();
         for _ in 0..self.texture_count {
-            textures.push(load_from_xfile::<MaterialTextureDefRaw>(&mut xfile).xfile_into(&mut xfile));
+            textures
+                .push(load_from_xfile::<MaterialTextureDefRaw>(&mut xfile).xfile_into(&mut xfile));
         }
         let mut constants = Vec::new();
         for _ in 0..self.constant_count {
@@ -497,16 +509,16 @@ impl<'a> XFileInto<Material> for MaterialRaw<'a> {
             state_bits.push(load_from_xfile::<GfxStateBits>(&mut xfile));
         }
 
-        Material { 
-            info, 
-            state_bits_entry: self.state_bits_entry, 
-            textures, 
-            constants, 
-            state_bits, 
-            state_flags: self.state_flags, 
-            camera_region: self.camera_region, 
+        Material {
+            info,
+            state_bits_entry: self.state_bits_entry,
+            textures,
+            constants,
+            state_bits,
+            state_flags: self.state_flags,
+            camera_region: self.camera_region,
             max_streamed_mips: self.max_streamed_mips,
-            technique_set: techset.map(Box::new)
+            technique_set: techset.map(Box::new),
         }
     }
 }
@@ -536,21 +548,21 @@ pub struct MaterialInfo {
     pub draw_surf: GfxDrawSurf,
     pub surface_type_bits: u32,
     pub layered_surface_types: u32,
-    pub hash_index: u16,
+    pub hash_index: usize,
 }
 
 impl<'a> XFileInto<MaterialInfo> for MaterialInfoRaw<'a> {
     fn xfile_into(&self, mut xfile: impl Read + Seek) -> MaterialInfo {
-        MaterialInfo { 
-            name: self.name.xfile_into(&mut xfile), 
-            game_flags: self.game_flags, 
-            sort_key: self.sort_key, 
-            texture_atlas_row_count: self.texture_atlas_row_count, 
-            texture_atlas_column_count: self.texture_atlas_column_count, 
-            draw_surf: self.draw_surf, 
-            surface_type_bits: self.surface_type_bits, 
-            layered_surface_types: self.layered_surface_types, 
-            hash_index: self.hash_index, 
+        MaterialInfo {
+            name: self.name.xfile_into(&mut xfile),
+            game_flags: self.game_flags,
+            sort_key: self.sort_key,
+            texture_atlas_row_count: self.texture_atlas_row_count,
+            texture_atlas_column_count: self.texture_atlas_column_count,
+            draw_surf: self.draw_surf,
+            surface_type_bits: self.surface_type_bits,
+            layered_surface_types: self.layered_surface_types,
+            hash_index: self.hash_index as _,
         }
     }
 }
@@ -587,7 +599,7 @@ pub struct MaterialTextureDef {
 impl<'a> XFileInto<MaterialTextureDef> for MaterialTextureDefRaw<'a> {
     fn xfile_into(&self, xfile: impl Read + Seek) -> MaterialTextureDef {
         let semantic = num::FromPrimitive::from_u8(self.semantic).unwrap();
-        let info = if semantic == Semantic::WaterMap {
+        let info = if semantic == Semantic::WATER_MAP {
             let p = self.u.p.cast::<WaterRaw>();
             let w = p.xfile_into(xfile);
             MaterialTextureDefInfo::Water(w.map(Box::new))
@@ -597,13 +609,13 @@ impl<'a> XFileInto<MaterialTextureDef> for MaterialTextureDefRaw<'a> {
             MaterialTextureDefInfo::Image(i.map(Box::new))
         };
 
-        MaterialTextureDef { 
-            name_hash: self.name_hash, 
-            name_start: core::char::from_u32(self.name_start as _).unwrap(), 
-            name_end: core::char::from_u32(self.name_end as _).unwrap(), 
-            sampler_state: self.sampler_state, 
-            semantic, 
-            is_mature_content: self.is_mature_content, 
+        MaterialTextureDef {
+            name_hash: self.name_hash,
+            name_start: core::char::from_u32(self.name_start as _).unwrap(),
+            name_end: core::char::from_u32(self.name_end as _).unwrap(),
+            sampler_state: self.sampler_state,
+            semantic,
+            is_mature_content: self.is_mature_content,
             u: info,
         }
     }
@@ -612,14 +624,14 @@ impl<'a> XFileInto<MaterialTextureDef> for MaterialTextureDefRaw<'a> {
 #[derive(Copy, Clone, Debug, PartialEq, FromPrimitive)]
 #[repr(u8)]
 pub enum Semantic {
-    Idle = 0x00,
-    Function = 0x01,
-    ColorMap = 0x02,
-    NormalMap = 0x05,
-    SpecularMap = 0x08,
-    WaterMap = 0x0B,
-    Color7 = 0x13,
-    Color15 = 0x1B,
+    IDLE = 0x00,
+    FUNCTION = 0x01,
+    COLOR_MAP = 0x02,
+    NORMAL_MAP = 0x05,
+    SPECULAR_MAP = 0x08,
+    WATER_MAP = 0x0B,
+    COLOR_7 = 0x13,
+    COLOR_15 = 0x1B,
 }
 
 #[derive(Copy, Clone, Debug, Deserialize)]
@@ -660,9 +672,9 @@ pub struct Water {
     pub lx: f32,
     pub ly: f32,
     pub gravity: f32,
-    pub winddir: [f32; 2],
+    pub winddir: Vec2,
     pub amplitude: f32,
-    pub code_constant: [f32; 4],
+    pub code_constant: Vec4,
     pub image: Option<Box<GfxImage>>,
 }
 
@@ -688,19 +700,19 @@ impl<'a> XFileInto<Water> for WaterRaw<'a> {
             Vec::new()
         };
 
-        Water { 
-            writable: self.writable, 
-            h0, 
-            w_term, 
-            m: self.m, 
-            n: self.n, 
-            lx: self.lx, 
-            ly: self.ly, 
-            gravity: self.gravity, 
-            winddir: self.winddir, 
-            amplitude: self.amplitude, 
-            code_constant: self.code_constant, 
-            image: self.image.xfile_into(xfile).map(Box::new)
+        Water {
+            writable: self.writable,
+            h0,
+            w_term,
+            m: self.m,
+            n: self.n,
+            lx: self.lx,
+            ly: self.ly,
+            gravity: self.gravity,
+            winddir: self.winddir,
+            amplitude: self.amplitude,
+            code_constant: self.code_constant,
+            image: self.image.xfile_into(xfile).map(Box::new),
         }
     }
 }
@@ -779,28 +791,33 @@ impl<'a> XFileInto<GfxImage> for GfxImageRaw<'a> {
             Some(self.picmip)
         };
 
-        let texture = self.texture.p.cast::<GfxImageLoadDefRaw>().xfile_into(xfile).unwrap();
+        let texture = self
+            .texture
+            .p
+            .cast::<GfxImageLoadDefRaw>()
+            .xfile_into(xfile)
+            .unwrap();
 
-        GfxImage { 
-            texture: GfxTexture::LoadDef(Box::new(texture)), 
-            map_type, 
-            semantic, 
-            category, 
-            delay_load_pixels: self.delay_load_pixels, 
-            picmip, 
-            track: self.track, 
-            card_memory: self.card_memory, 
-            width: self.width, 
-            height: self.height, 
-            depth: self.depth, 
-            level_count: self.level_count, 
-            streaming: self.streaming, 
-            base_size: self.base_size, 
-            pixels: Vec::new(), 
-            loaded_size: self.loaded_size, 
-            skipped_mip_levels: self.skipped_mip_levels, 
-            name, 
-            hash: self.hash, 
+        GfxImage {
+            texture: GfxTexture::LoadDef(Box::new(texture)),
+            map_type,
+            semantic,
+            category,
+            delay_load_pixels: self.delay_load_pixels,
+            picmip,
+            track: self.track,
+            card_memory: self.card_memory,
+            width: self.width,
+            height: self.height,
+            depth: self.depth,
+            level_count: self.level_count,
+            streaming: self.streaming,
+            base_size: self.base_size,
+            pixels: Vec::new(),
+            loaded_size: self.loaded_size,
+            skipped_mip_levels: self.skipped_mip_levels,
+            name,
+            hash: self.hash,
         }
     }
 }
@@ -829,18 +846,18 @@ pub enum GfxTexture {
 #[derive(Copy, Clone, Debug, PartialEq, FromPrimitive)]
 #[repr(u8)]
 pub enum MapType {
-    TwoD = 0x03,
-    ThreeD = 0x04,
-    Cube = 0x05,
+    TWO_DIMENSIONAL = 0x03,
+    THREE_DIMENSIONAL = 0x04,
+    CUBE = 0x05,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, FromPrimitive)]
 #[repr(u8)]
 pub enum ImgCategory {
-    Unknown = 0x00,
-    LoadFromFile = 0x03,
-    Water = 0x05,
-    RenderTarget = 0x06,
+    UNKNOWN = 0x00,
+    LOAD_FROM_FILE = 0x03,
+    WATER = 0x05,
+    RENDER_TARGET = 0x06,
 }
 
 #[derive(Copy, Clone, Debug, Deserialize)]
@@ -889,11 +906,11 @@ type D3DFORMAT = i32;
 
 impl XFileInto<GfxImageLoadDef> for GfxImageLoadDefRaw {
     fn xfile_into(&self, xfile: impl Read + Seek) -> GfxImageLoadDef {
-        GfxImageLoadDef { 
-            level_count: self.level_count, 
-            flags: self.flags, 
-            format: self.format, 
-            resource: self.resource.to_vec(xfile), 
+        GfxImageLoadDef {
+            level_count: self.level_count,
+            flags: self.flags,
+            format: self.format,
+            resource: self.resource.to_vec(xfile),
         }
     }
 }
