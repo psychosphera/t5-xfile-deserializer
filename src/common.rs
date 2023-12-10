@@ -21,6 +21,12 @@ impl From<[f32; 2]> for Vec2 {
 #[derive(Copy, Clone, Default, Debug)]
 #[repr(transparent)]
 pub struct Vec2(pub [f32; 2]);
+#[cfg(not(feature = "cgmath"))]
+impl From<[f32; 2]> for Vec2 {
+    fn from(value: [f32; 2]) -> Self {
+        Vec2(value)
+    }
+}
 
 #[cfg(feature = "cgmath")]
 #[derive(Copy, Clone, Debug)]
@@ -50,6 +56,12 @@ impl From<[f32; 3]> for Vec3 {
 #[derive(Copy, Clone, Default, Debug)]
 #[repr(transparent)]
 pub struct Vec3(pub [f32; 3]);
+#[cfg(not(feature = "cgmath"))]
+impl From<[f32; 3]> for Vec3 {
+    fn from(value: [f32; 3]) -> Self {
+        Vec3(value)
+    }
+}
 
 #[cfg(feature = "cgmath")]
 #[derive(Copy, Clone, Debug)]
@@ -81,6 +93,12 @@ impl From<[f32; 4]> for Vec4 {
 #[derive(Copy, Clone, Default, Debug)]
 #[repr(transparent)]
 pub struct Vec4(pub [f32; 4]);
+#[cfg(not(feature = "cgmath"))]
+impl From<[f32; 4]> for Vec4 {
+    fn from(value: [f32; 4]) -> Self {
+        Vec4(value)
+    }
+}
 
 #[cfg(feature = "cgmath")]
 #[derive(Copy, Clone, Debug)]
@@ -126,10 +144,38 @@ impl Default for Mat3 {
         })
     }
 }
+#[cfg(feature = "cgmath")]
+impl From<[[f32; 3]; 3]> for Mat3 {
+    fn from(value: [[f32; 3]; 3]) -> Self {
+        Self(cgmath::Matrix3 {
+            x: cgmath::Vector3::<f32> {
+                x: value[0][0],
+                y: value[0][1],
+                z: value[0][2],
+            },
+            y: cgmath::Vector3::<f32> {
+                x: value[1][0],
+                y: value[1][1],
+                z: value[1][2],
+            },
+            z: cgmath::Vector3::<f32> {
+                x: value[2][0],
+                y: value[2][1],
+                z: value[2][2],
+            },
+        })
+    }
+}
 #[cfg(not(feature = "cgmath"))]
 #[derive(Copy, Clone, Default, Debug)]
 #[repr(transparent)]
 pub struct Mat3(pub [Vec3; 3]);
+#[cfg(not(feature = "cgmath"))]
+impl From<[[f32; 3]; 3]> for Mat3 {
+    fn from(value: [[f32; 3]; 3]) -> Self {
+        Self([value[0].into(), value[1].into(), value[2].into()])
+    }
+}
 
 #[cfg(feature = "cgmath")]
 #[derive(Copy, Clone, Debug)]

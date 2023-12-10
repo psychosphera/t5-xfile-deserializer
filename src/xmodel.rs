@@ -138,8 +138,13 @@ impl<'a> XFileInto<XModel> for XModelRaw<'a> {
             .collect();
         let stream_info = self.stream_info.xfile_into(&mut xfile);
         let phys_preset = self.phys_preset.xfile_into(&mut xfile);
-        //let collmaps = self.collmaps.xfile_into(&mut xfile).into_iter().collect();
-        //let phys_contraints = self.phys_constraints.xfile_into(xfile);
+        let collmaps = self
+            .collmaps
+            .xfile_into(&mut xfile)
+            .into_iter()
+            .map(Box::new)
+            .collect();
+        let phys_constraints = self.phys_constraints.xfile_into(xfile);
 
         XModel {
             name,
@@ -170,8 +175,8 @@ impl<'a> XFileInto<XModel> for XModelRaw<'a> {
             flags: self.flags,
             bad: self.bad,
             phys_preset,
-            collmaps: todo!(),
-            phys_constraints: todo!(),
+            collmaps,
+            phys_constraints,
         }
     }
 }
@@ -737,6 +742,14 @@ pub struct Collmap {
     pub geom_list: Option<Box<PhysGeomList>>,
 }
 
+impl<'a> XFileInto<Collmap> for CollmapRaw<'a> {
+    fn xfile_into(&self, xfile: impl Read + Seek) -> Collmap {
+        Collmap {
+            geom_list: self.geom_list.xfile_into(xfile),
+        }
+    }
+}
+
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
 pub struct PhysGeomListRaw<'a> {
     pub geoms: FatPointerCountFirstU32<'a, PhysGeomInfoRaw<'a>>,
@@ -750,6 +763,15 @@ pub struct PhysGeomList {
     pub contents: i32,
 }
 
+impl<'a> XFileInto<PhysGeomList> for PhysGeomListRaw<'a> {
+    fn xfile_into(&self, xfile: impl Read + Seek) -> PhysGeomList {
+        PhysGeomList {
+            geoms: self.geoms.xfile_into(xfile),
+            contents: self.contents,
+        }
+    }
+}
+
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
 pub struct PhysGeomInfoRaw<'a> {
     pub brush: Ptr32<'a, BrushWrapperRaw<'a>>,
@@ -760,7 +782,7 @@ pub struct PhysGeomInfoRaw<'a> {
 }
 assert_size!(PhysGeomInfoRaw, 68);
 
-#[derive(Clone, Default, Debug)]
+#[derive(Clone, Default, Debug, FromPrimitive)]
 #[repr(i32)]
 pub enum PhysGeomType {
     #[default]
@@ -776,6 +798,18 @@ pub struct PhysGeomInfo {
     pub orientation: Mat3,
     pub offset: Vec3,
     pub half_lengths: Vec3,
+}
+
+impl<'a> XFileInto<PhysGeomInfo> for PhysGeomInfoRaw<'a> {
+    fn xfile_into(&self, xfile: impl Read + Seek) -> PhysGeomInfo {
+        PhysGeomInfo {
+            brush: self.brush.xfile_into(xfile),
+            type_: num::FromPrimitive::from_i32(self.type_).unwrap(),
+            orientation: self.orientation.into(),
+            offset: self.offset.into(),
+            half_lengths: self.half_lengths.into(),
+        }
+    }
 }
 
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
@@ -803,6 +837,32 @@ pub struct BrushWrapper {
     pub planes: Vec<Option<Box<CPlane>>>,
 }
 
+impl<'a> XFileInto<BrushWrapper> for BrushWrapperRaw<'a> {
+    fn xfile_into(&self, mut xfile: impl Read + Seek) -> BrushWrapper {
+        BrushWrapper {
+            mins: self.mins.into(),
+            contents: self.contents,
+            maxs: self.maxs.into(),
+            sides: self.sides.xfile_into(&mut xfile),
+            axial_cflags: self.axial_cflags,
+            axial_sflags: self.axial_sflags,
+            verts: self
+                .verts
+                .to_vec(&mut xfile)
+                .into_iter()
+                .map(Into::into)
+                .collect(),
+            planes: self
+                .planes
+                .to_array(self.sides.size as _)
+                .to_vec(xfile)
+                .into_iter()
+                .map(|p| Some(Box::new(p.into())))
+                .collect(),
+        }
+    }
+}
+
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
 pub struct CBrushSideRaw<'a> {
     pub plane: Ptr32<'a, CPlaneRaw>,
@@ -818,6 +878,16 @@ pub struct CBrushSide {
     pub sflags: i32,
 }
 
+impl<'a> XFileInto<CBrushSide> for CBrushSideRaw<'a> {
+    fn xfile_into(&self, xfile: impl Read + Seek) -> CBrushSide {
+        CBrushSide {
+            plane: self.plane.xfile_get(xfile).map(|p| Box::new((*p).into())),
+            cflags: self.cflags,
+            sflags: self.sflags,
+        }
+    }
+}
+
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
 pub struct CPlaneRaw {
     pub normal: [f32; 3],
@@ -829,30 +899,26 @@ pub struct CPlaneRaw {
 assert_size!(CPlaneRaw, 20);
 
 #[derive(Clone, Default, Debug)]
-#[repr(u8)]
-pub enum CPlaneType {
-    Axial(u8),
-    #[default]
-    NonAxial,
-    Other(u8),
-}
+pub struct CPlaneType(u8);
 
 impl CPlaneType {
-    pub fn from_u8(value: u8) -> Self {
-        if value < 3 {
-            Self::Axial(value)
-        } else if value == 3 {
-            Self::NonAxial
-        } else {
-            Self::Other(value)
-        }
+    fn new(value: u8) -> Self {
+        Self(value)
+    }
+
+    fn get(self) -> u8 {
+        self.0
+    }
+
+    fn is_axial(self) -> bool {
+        self.0 < 3
     }
 }
 
 #[derive(Clone, Default, Debug)]
 pub struct CPlaneSignbits(u8);
 
-#[derive(Clone, Default, Debug)]
+#[derive(Clone, Default, Debug, FromPrimitive)]
 #[repr(u8)]
 pub enum Sign {
     #[default]
@@ -900,6 +966,17 @@ pub struct CPlane {
     pub signbits: CPlaneSignbits,
 }
 
+impl Into<CPlane> for CPlaneRaw {
+    fn into(self) -> CPlane {
+        CPlane {
+            normal: self.normal.into(),
+            dist: self.dist,
+            type_: CPlaneType::new(self.type_),
+            signbits: CPlaneSignbits::from_bits(self.signbits),
+        }
+    }
+}
+
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
 pub struct PhysConstraintsRaw<'a> {
     name: XString<'a>,
@@ -911,22 +988,33 @@ assert_size!(PhysConstraintsRaw, 2696);
 #[derive(Clone, Default, Debug)]
 pub struct PhysConstraints {
     name: String,
-    data: [PhysConstraint; 16],
+    count: usize,
+    data: Vec<PhysConstraint>,
+}
+
+impl<'a> XFileInto<PhysConstraints> for PhysConstraintsRaw<'a> {
+    fn xfile_into(&self, mut xfile: impl Read + Seek) -> PhysConstraints {
+        PhysConstraints {
+            name: self.name.xfile_into(&mut xfile),
+            count: self.count as _,
+            data: self.data.iter().map(|r| r.xfile_into(&mut xfile)).collect(),
+        }
+    }
 }
 
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
 pub struct PhysConstraintRaw<'a> {
-    pub targetname: u16,
+    pub targetname: ScriptString,
     pad: u16,
     pub type_: i32,
     pub attach_point_type1: i32,
     pub target_index1: i32,
-    pub target_ent1: u16,
+    pub target_ent1: ScriptString,
     pad_2: u16,
     pub target_bone1: XString<'a>,
     pub attach_point_type2: i32,
     pub target_index2: i32,
-    pub target_ent2: u16,
+    pub target_ent2: ScriptString,
     pad_3: u16,
     pub target_bone2: XString<'a>,
     pub offset: [f32; 3],
@@ -951,8 +1039,8 @@ pub struct PhysConstraintRaw<'a> {
 }
 assert_size!(PhysConstraintRaw, 168);
 
-#[derive(Clone, Default, Debug)]
-#[repr(u32)]
+#[derive(Clone, Default, Debug, FromPrimitive)]
+#[repr(i32)]
 pub enum ConstraintType {
     #[default]
     NONE = 0x00,
@@ -968,8 +1056,8 @@ pub enum ConstraintType {
     NUM_TYPES = 0x0A,
 }
 
-#[derive(Clone, Default, Debug)]
-#[repr(u32)]
+#[derive(Clone, Default, Debug, FromPrimitive)]
+#[repr(i32)]
 pub enum AttachPointType {
     #[default]
     WORLD = 0x00,
@@ -980,15 +1068,15 @@ pub enum AttachPointType {
 
 #[derive(Clone, Default, Debug)]
 pub struct PhysConstraint {
-    pub targetname: u16,
+    pub targetname: String,
     pub type_: ConstraintType,
     pub attach_point_type1: AttachPointType,
     pub target_index1: usize,
-    pub target_ent1: u16,
+    pub target_ent1: String,
     pub target_bone1: String,
     pub attach_point_type2: AttachPointType,
     pub target_index2: usize,
-    pub target_ent2: u16,
+    pub target_ent2: String,
     pub target_bone2: String,
     pub offset: Vec3,
     pub pos: Vec3,
@@ -1007,6 +1095,42 @@ pub struct PhysConstraint {
     pub max_angle: f32,
     pub material: Option<Box<techset::Material>>,
     pub constraint_handle: i32,
-    pub rope_index: i32,
+    pub rope_index: usize,
     pub centity_num: [i32; 4],
+}
+
+impl<'a> XFileInto<PhysConstraint> for PhysConstraintRaw<'a> {
+    fn xfile_into(&self, mut xfile: impl Read + Seek) -> PhysConstraint {
+        PhysConstraint {
+            targetname: self.targetname.to_string(),
+            type_: num::FromPrimitive::from_i32(self.type_).unwrap(),
+            attach_point_type1: num::FromPrimitive::from_i32(self.attach_point_type1).unwrap(),
+            target_index1: self.target_index1 as _,
+            target_ent1: self.target_ent1.to_string(),
+            target_bone1: self.target_bone1.xfile_into(&mut xfile),
+            attach_point_type2: num::FromPrimitive::from_i32(self.attach_point_type2).unwrap(),
+            target_index2: self.target_index2 as _,
+            target_ent2: self.target_ent2.to_string(),
+            target_bone2: self.target_bone2.xfile_into(&mut xfile),
+            offset: self.offset.into(),
+            pos: self.pos.into(),
+            pos2: self.pos2.into(),
+            dir: self.dir.into(),
+            flags: self.flags as _,
+            timeout: self.timeout as _,
+            min_health: self.min_health as _,
+            max_health: self.max_health as _,
+            distance: self.distance,
+            damp: self.damp,
+            power: self.power,
+            scale: self.scale.into(),
+            spin_scale: self.spin_scale,
+            min_angle: self.spin_scale,
+            max_angle: self.spin_scale,
+            material: self.material.xfile_into(xfile),
+            constraint_handle: self.constraint_handle,
+            rope_index: self.rope_index as _,
+            centity_num: self.centity_num,
+        }
+    }
 }
