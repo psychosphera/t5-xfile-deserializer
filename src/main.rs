@@ -6,14 +6,14 @@ mod common;
 mod techset;
 mod xmodel;
 
-use core::panic;
+use num_derive::FromPrimitive;
 use serde::{
     de::{DeserializeOwned, Error, SeqAccess, Visitor},
     Deserialize, Deserializer,
 };
 use std::{
     ffi::{CString, OsString},
-    fmt::{self, Debug},
+    fmt::{self, Debug, Display},
     fs::File,
     io::{BufReader, Read, Seek, Write},
     marker::PhantomData,
@@ -225,6 +225,10 @@ impl<'a, T> Ptr32<'a, T> {
     fn cast<U>(self) -> Ptr32<'a, U> {
         Ptr32::<'a, U>(self.0, PhantomData)
     }
+
+    fn to_array(self, size: usize) -> Ptr32Array<'a, T> {
+        Ptr32Array { p: self, size }
+    }
 }
 
 trait SeekAnd: Read + Seek {
@@ -269,10 +273,10 @@ trait SeekAnd: Read + Seek {
 
 impl<S: Read + Seek> SeekAnd for S {}
 
-impl<'a, T: DeserializeOwned + Clone + Copy + Debug + XFileInto<U>, U> XFileInto<Option<U>>
+impl<'a, T: DeserializeOwned + Clone + Debug + XFileInto<U>, U> XFileInto<Option<Box<U>>>
     for Ptr32<'a, T>
 {
-    fn xfile_into(&self, mut xfile: impl Read + Seek) -> Option<U> {
+    fn xfile_into(&self, mut xfile: impl Read + Seek) -> Option<Box<U>> {
         if self.0 == 0x00000000 {
             return None;
         }
@@ -287,7 +291,7 @@ impl<'a, T: DeserializeOwned + Clone + Copy + Debug + XFileInto<U>, U> XFileInto
                 bincode::deserialize_from::<_, T>(f).unwrap()
             })
             .ok()
-            .map(|t| t.xfile_into(xfile))
+            .map(|t| Box::new(t.xfile_into(xfile)))
     }
 }
 
@@ -295,7 +299,7 @@ impl<'a, T: DeserializeOwned + Debug> Ptr32<'a, T> {
     /// Same principle as [`XFileInto::xfile_into`], except it doesn't do any
     /// type conversion. Useful for the rare structs that don't need any such
     /// conversion.
-    fn xfile_get(self, mut xfile: impl Read + Seek) -> Option<T> {
+    fn xfile_get(self, mut xfile: impl Read + Seek) -> Option<Box<T>> {
         if self.0 == 0x00000000 {
             return None;
         }
@@ -310,6 +314,7 @@ impl<'a, T: DeserializeOwned + Debug> Ptr32<'a, T> {
                 bincode::deserialize_from::<_, T>(f).unwrap()
             })
             .ok()
+            .map(Box::new)
     }
 }
 
@@ -330,14 +335,14 @@ impl<'a, T: DeserializeOwned + Debug> Ptr32<'a, T> {
 /// This type and [`FlexibleArrayU32`] are exactly the same except that
 /// [`FlexibleArrayU16::count`] is a [`u16`] (as the name implies), and
 /// [`FlexibleArrayU32::count`] is a [`u32`].
-#[derive(Copy, Clone, Debug, Deserialize)]
+#[derive(Copy, Clone, Default, Debug, Deserialize)]
 #[repr(transparent)]
 struct FlexibleArrayU16<T: DeserializeOwned> {
     count: u16,
     _p: PhantomData<T>,
 }
 
-impl<T: DeserializeOwned + Copy> FlexibleArrayU16<T> {
+impl<T: DeserializeOwned> FlexibleArrayU16<T> {
     /// Deserializes [`self.count`] [`T`]s into a [`Vec<T>`].
     fn to_vec(self, mut xfile: impl Read + Seek) -> Vec<T> {
         let mut v = vec![0u8; self.count as usize * size_of::<T>()];
@@ -372,7 +377,7 @@ impl<T: DeserializeOwned + Copy> FlexibleArrayU16<T> {
 /// This type and [`FlexibleArrayU16`] are exactly the same except that
 /// [`FlexibleArrayU32::count`] is a [`u32`] (as the name implies), and
 /// [`FlexibleArrayU16::count`] is a [`u16`].
-#[derive(Copy, Clone, Debug, Deserialize)]
+#[derive(Copy, Clone, Default, Debug, Deserialize)]
 #[repr(transparent)]
 struct FlexibleArrayU32<T: DeserializeOwned> {
     count: u32,
@@ -434,6 +439,12 @@ impl<'a, T: DeserializeOwned + Debug + Clone> FatPointerCountFirstU16<'a, T> {
     }
 }
 
+impl<'a, T: DeserializeOwned + Debug + Clone + XFileInto<U>, U> XFileInto<Vec<U>> for FatPointerCountFirstU16<'a, T> {
+    fn xfile_into(&self, mut xfile: impl Read + Seek) -> Vec<U> {
+        self.clone().to_vec(&mut xfile).into_iter().map(|a| a.xfile_into(&mut xfile)).collect()
+    }
+}
+
 /// Newtype for a fat pointer to a `[T]`.
 ///
 /// Represents an offset containing [`Self::size`] [`T`]s.
@@ -443,13 +454,13 @@ impl<'a, T: DeserializeOwned + Debug + Clone> FatPointerCountFirstU16<'a, T> {
 /// of a [`u32`].
 ///
 /// In this case, [`Self::size`] is a [`u32`], and comes before the pointer.
-#[derive(Copy, Clone, Debug, Deserialize)]
+#[derive(Copy, Clone, Debug, Default, Deserialize)]
 struct FatPointerCountFirstU32<'a, T> {
     size: u32,
     p: Ptr32<'a, T>,
 }
 
-impl<'a, T: DeserializeOwned + Debug + Copy> FatPointerCountFirstU32<'a, T> {
+impl<'a, T: DeserializeOwned + Debug> FatPointerCountFirstU32<'a, T> {
     /// Deserializes [`self.count`] [`T`]s into a [`Vec<T>`].
     fn to_vec(self, mut xfile: impl Read + Seek) -> Vec<T> {
         if self.p.0 == 0x00000000 {
@@ -470,6 +481,13 @@ impl<'a, T: DeserializeOwned + Debug + Copy> FatPointerCountFirstU32<'a, T> {
             .unwrap_or_default()
     }
 }
+
+impl<'a, T: DeserializeOwned + Debug + Clone + XFileInto<U>, U> XFileInto<Vec<U>> for FatPointerCountFirstU32<'a, T> {
+    fn xfile_into(&self, mut xfile: impl Read + Seek) -> Vec<U> {
+        self.clone().to_vec(&mut xfile).into_iter().map(|a| a.xfile_into(&mut xfile)).collect()
+    }
+}
+
 
 /// Newtype for a fat pointer to a `[T]`.
 ///
@@ -486,7 +504,7 @@ struct FatPointerCountLastU16<'a, T> {
     size: u16,
 }
 
-impl<'a, T: DeserializeOwned + Debug + Copy> FatPointerCountLastU16<'a, T> {
+impl<'a, T: DeserializeOwned + Debug> FatPointerCountLastU16<'a, T> {
     /// Deserializes [`self.count`] [`T`]s into a [`Vec<T>`].
     fn to_vec(self, mut xfile: impl Read + Seek) -> Vec<T> {
         if self.p.0 == 0x00000000 {
@@ -505,6 +523,12 @@ impl<'a, T: DeserializeOwned + Debug + Copy> FatPointerCountLastU16<'a, T> {
             })
             .ok()
             .unwrap_or_default()
+    }
+}
+
+impl<'a, T: DeserializeOwned + Debug + Clone + XFileInto<U>, U> XFileInto<Vec<U>> for FatPointerCountLastU16<'a, T> {
+    fn xfile_into(&self, mut xfile: impl Read + Seek) -> Vec<U> {
+        self.clone().to_vec(&mut xfile).into_iter().map(|a| a.xfile_into(&mut xfile)).collect()
     }
 }
 
@@ -517,13 +541,13 @@ impl<'a, T: DeserializeOwned + Debug + Copy> FatPointerCountLastU16<'a, T> {
 /// of a [`u32`].
 ///
 /// In this case, [`Self::size`] is a [`u32`], and comes after the pointer.
-#[derive(Copy, Clone, Debug, Deserialize)]
+#[derive(Copy, Clone, Default, Debug, Deserialize)]
 struct FatPointerCountLastU32<'a, T> {
     p: Ptr32<'a, T>,
     size: u32,
 }
 
-impl<'a, T: DeserializeOwned + Debug + Copy> FatPointerCountLastU32<'a, T> {
+impl<'a, T: DeserializeOwned + Debug> FatPointerCountLastU32<'a, T> {
     /// Deserializes [`self.count`] [`T`]s into a [`Vec<T>`].
     fn to_vec(self, mut xfile: impl Read + Seek) -> Vec<T> {
         if self.p.0 == 0x00000000 {
@@ -545,13 +569,52 @@ impl<'a, T: DeserializeOwned + Debug + Copy> FatPointerCountLastU32<'a, T> {
     }
 }
 
+impl<'a, T: DeserializeOwned + Debug + Clone + XFileInto<U>, U> XFileInto<Vec<U>> for FatPointerCountLastU32<'a, T> {
+    fn xfile_into(&self, mut xfile: impl Read + Seek) -> Vec<U> {
+        self.clone().to_vec(&mut xfile).into_iter().map(|a| a.xfile_into(&mut xfile)).collect()
+    }
+}
+
+#[derive(Copy, Clone, Default, Debug, Deserialize)]
+struct Ptr32Array<'a, T> {
+    p: Ptr32<'a, T>,
+    size: usize,
+}
+
+impl<'a, T: DeserializeOwned + Debug> Ptr32Array<'a, T> {
+    /// Deserializes [`self.count`] [`T`]s into a [`Vec<T>`].
+    fn to_vec(self, mut xfile: impl Read + Seek) -> Vec<T> {
+        if self.p.0 == 0x00000000 {
+            return Vec::new();
+        }
+
+        xfile
+            .seek_and(std::io::SeekFrom::Start(self.p.0 as _), |mut f| {
+                let mut vt = Vec::new();
+
+                for _ in 0..self.size {
+                    vt.push(bincode::deserialize_from::<_, T>(&mut f).unwrap());
+                }
+
+                vt
+            })
+            .ok()
+            .unwrap_or_default()
+    }
+}
+
+impl<'a, T: DeserializeOwned + Debug + Clone + XFileInto<U>, U> XFileInto<Vec<U>> for Ptr32Array<'a, T> {
+    fn xfile_into(&self, mut xfile: impl Read + Seek) -> Vec<U> {
+        self.clone().to_vec(&mut xfile).into_iter().map(|a| a.xfile_into(&mut xfile)).collect()
+    }
+}
+
 #[derive(Copy, Clone, Debug, Deserialize)]
 #[repr(C, packed)]
 struct XFileHeader {
     magic: [u8; 8],
     version: u32,
 }
-
 assert_size!(XFileHeader, 12);
 
 #[derive(Copy, Clone, Debug, Deserialize)]
@@ -560,17 +623,13 @@ struct XFile {
     external_size: u32,
     block_size: [u32; 7],
 }
-
 assert_size!(XFile, 36);
 
 #[derive(Deserialize)]
-struct XAssetList {
-    string_count: u32,
-    strings: u32,
-    asset_count: u32,
-    assets: u32,
+struct XAssetList<'a> {
+    strings: FatPointerCountFirstU32<'a, XString<'a>>,
+    assets: FatPointerCountFirstU32<'a, XAssetRaw<'a>>,
 }
-
 assert_size!(XAssetList, 16);
 
 fn xfile_header_magic_is_valid(header: &XFileHeader) -> bool {
@@ -645,11 +704,40 @@ fn decompress_xfile(filename: impl AsRef<Path>) -> BufReader<File> {
 
 #[derive(Copy, Clone, Debug, Deserialize)]
 #[repr(C, packed)]
-struct XAsset<'a> {
+struct XAssetRaw<'a> {
     asset_type: u32,
     asset_data: Ptr32<'a, ()>,
 }
-assert_size!(XAsset, 8);
+assert_size!(XAssetRaw, 8);
+
+#[derive(Copy, Clone, FromPrimitive)]
+#[repr(u32)]
+enum XAssetType {
+    XMODEL = 0x05,
+    TECHNIQUE_SET = 0x07,
+}
+
+enum XAsset {
+    TechniqueSet(Option<Box<techset::MaterialTechniqueSet>>),
+    XModel(Option<Box<xmodel::XModel>>),
+}
+
+impl<'a> XFileInto<XAsset> for XAssetRaw<'a> {
+    fn xfile_into(&self, xfile: impl Read + Seek) -> XAsset {
+        match num::FromPrimitive::from_u32(self.asset_type).unwrap() {
+            XAssetType::XMODEL => XAsset::XModel(
+                self.asset_data
+                    .cast::<xmodel::XModelRaw>()
+                    .xfile_into(xfile)
+            ),
+            XAssetType::TECHNIQUE_SET => XAsset::TechniqueSet(
+                self.asset_data
+                    .cast::<techset::MaterialTechniqueSetRaw>()
+                    .xfile_into(xfile)
+            ),
+        }
+    }
+}
 
 #[repr(transparent)]
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
@@ -693,9 +781,19 @@ fn file_read_string(mut xfile: impl Read + Seek) -> String {
         .to_string()
 }
 
-static XFILE: OnceLock<XFile> = OnceLock::new();
+#[derive(Copy, Clone, Default, Debug, Deserialize)]
+pub struct ScriptString(u16);
 
-fn convert_offset_to_ptr(offset: u32) -> (u8, u32) {
+impl Display for ScriptString {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", SCRIPT_STRINGS.get().unwrap()[self.0 as usize])
+    }
+}
+
+static XFILE: OnceLock<XFile> = OnceLock::new();
+static SCRIPT_STRINGS: OnceLock<Vec<String>> = OnceLock::new();
+
+pub fn convert_offset_to_ptr(offset: u32) -> (u8, u32) {
     let block = ((offset - 1) >> 29) as u8;
     let off = (offset - 1) & 0x1FFFFFFF;
 
@@ -742,58 +840,25 @@ fn main() {
     let xasset_list = bincode::deserialize::<XAssetList>(&xasset_list_buf).unwrap();
 
     dbg!(file.stream_position().unwrap());
-    println!("fastfile contains {} assets.", {
-        let c = xasset_list.asset_count;
-        c
-    });
+    println!("fastfile contains {} assets.", xasset_list.assets.size);
 
-    let mut string_offsets = Vec::new();
+    let strings = xasset_list
+        .strings
+        .to_vec(&mut file)
+        .into_iter()
+        .map(|s| s.xfile_into(&mut file))
+        .collect::<Vec<_>>();
+    dbg!(&strings);
+    SCRIPT_STRINGS.set(strings).unwrap();
 
-    for _ in 0..xasset_list.string_count {
-        string_offsets.push(bincode::deserialize_from::<_, u32>(&mut file).unwrap());
-    }
-
-    let mut strings = Vec::new();
-
-    dbg!(file.stream_position().unwrap());
-
-    for string_offset in string_offsets {
-        if string_offset == 0 {
-            continue;
-        }
-
-        if string_offset == 0xFFFFFFFF {
-            strings.push(file_read_string(&mut file));
-        } else {
-            panic!("offsets unimplemented!");
-        }
-    }
-
-    dbg!(strings);
-
-    let mut assets = Vec::new();
-
-    dbg!(file.stream_position().unwrap());
-
-    for _ in 0..xasset_list.asset_count {
-        assets.push(bincode::deserialize_from::<_, XAsset>(&mut file).unwrap());
-    }
-
-    dbg!(file.stream_position().unwrap());
+    let assets = xasset_list.assets.to_vec(&mut file);
+    dbg!(&assets);
     let mut deserialized_assets = Vec::new();
 
     for asset in assets {
-        assert!(asset.asset_type == 7);
-
         dbg!(asset);
 
-        let p =
-            Ptr32::<techset::MaterialTechniqueSetRaw>(asset.asset_data.0, PhantomData::default());
-
-        //dbg!(p);
-
-        let a = p.xfile_into(&mut file);
-        //dbg!(a);
+        let a = asset.xfile_into(&mut file);
 
         deserialized_assets.push(a);
     }

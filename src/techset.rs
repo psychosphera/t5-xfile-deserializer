@@ -48,7 +48,6 @@ impl<'a> XFileInto<MaterialTechniqueSet> for MaterialTechniqueSetRaw<'a> {
         let techniques = techniques
             .iter()
             .flat_map(|p| p.xfile_into(&mut xfile))
-            .map(|p| Box::new(p))
             .collect::<Vec<_>>();
 
         assert!(techniques.len() <= 130);
@@ -63,7 +62,7 @@ impl<'a> XFileInto<MaterialTechniqueSet> for MaterialTechniqueSetRaw<'a> {
     }
 }
 
-#[derive(Copy, Clone, Debug, Deserialize)]
+#[derive(Copy, Clone, Default, Debug, Deserialize)]
 #[repr(C, packed)]
 pub struct MaterialTechniqueRaw<'a> {
     pub name: XString<'a>,
@@ -106,7 +105,7 @@ impl<'a> XFileInto<MaterialTechnique> for MaterialTechniqueRaw<'a> {
     }
 }
 
-#[derive(Copy, Clone, Debug, Deserialize)]
+#[derive(Copy, Clone, Default, Debug, Deserialize)]
 #[repr(C, packed)]
 pub struct MaterialPassRaw<'a> {
     pub vertex_decl: Ptr32<'a, MaterialVertexDeclaration>,
@@ -138,13 +137,13 @@ impl<'a> XFileInto<MaterialPass> for MaterialPassRaw<'a> {
         //let pos = xfile.stream_position().unwrap();
         //dbg!(pos);
 
-        let vertex_decl = self.vertex_decl.xfile_get(&mut xfile).map(Box::new);
+        let vertex_decl = self.vertex_decl.xfile_get(&mut xfile);
         //dbg!(&vertex_decl);
         let vertex_shader = self.vertex_shader;
-        let vertex_shader = vertex_shader.xfile_into(&mut xfile).map(Box::new);
+        let vertex_shader = vertex_shader.xfile_into(&mut xfile);
         //dbg!(&vertex_shader);
         let pixel_shader = self.pixel_shader;
-        let pixel_shader = pixel_shader.xfile_into(&mut xfile).map(Box::new);
+        let pixel_shader = pixel_shader.xfile_into(&mut xfile);
         //dbg!(&pixel_shader);
 
         let argc = self.per_prim_arg_count as u16
@@ -180,7 +179,7 @@ impl<'a> XFileInto<MaterialPass> for MaterialPassRaw<'a> {
     }
 }
 
-#[derive(Copy, Clone, Debug, Deserialize)]
+#[derive(Copy, Clone, Default, Debug, Deserialize)]
 #[repr(C, packed)]
 pub struct MaterialVertexDeclaration {
     pub stream_count: u8,
@@ -191,7 +190,7 @@ pub struct MaterialVertexDeclaration {
 }
 assert_size!(MaterialVertexDeclaration, 108);
 
-#[derive(Copy, Clone, Debug, Deserialize)]
+#[derive(Copy, Clone, Default, Debug, Deserialize)]
 #[repr(C, packed)]
 pub struct MaterialVertexStreamRouting {
     pub data: [MaterialStreamRouting; 16],
@@ -199,7 +198,7 @@ pub struct MaterialVertexStreamRouting {
 }
 assert_size!(MaterialVertexStreamRouting, 104);
 
-#[derive(Copy, Clone, Debug, Deserialize)]
+#[derive(Copy, Clone, Default, Debug, Deserialize)]
 #[repr(C, packed)]
 pub struct MaterialStreamRouting {
     pub source: u8,
@@ -207,7 +206,7 @@ pub struct MaterialStreamRouting {
 }
 assert_size!(MaterialStreamRouting, 2);
 
-#[derive(Copy, Clone, Debug, Deserialize)]
+#[derive(Copy, Clone, Default, Debug, Deserialize)]
 #[repr(C, packed)]
 pub struct MaterialVertexShaderRaw<'a> {
     pub name: XString<'a>,
@@ -238,7 +237,7 @@ impl<'a> XFileInto<MaterialVertexShader> for MaterialVertexShaderRaw<'a> {
     }
 }
 
-#[derive(Copy, Clone, Debug, Deserialize)]
+#[derive(Copy, Clone, Default, Debug, Deserialize)]
 #[repr(C, packed)]
 pub struct MaterialVertexShaderProgramRaw<'a> {
     pub vs: Ptr32<'a, ()>,
@@ -263,7 +262,7 @@ impl<'a> XFileInto<MaterialVertexShaderProgram> for MaterialVertexShaderProgramR
     }
 }
 
-#[derive(Copy, Clone, Debug, Deserialize)]
+#[derive(Copy, Clone, Default, Debug, Deserialize)]
 #[repr(C, packed)]
 pub struct GfxVertexShaderLoadDefRaw<'a> {
     pub program: FatPointerCountLastU32<'a, u32>,
@@ -291,7 +290,7 @@ impl<'a> XFileInto<GfxVertexShaderLoadDef> for GfxVertexShaderLoadDefRaw<'a> {
     }
 }
 
-#[derive(Copy, Clone, Debug, Deserialize)]
+#[derive(Copy, Clone, Default, Debug, Deserialize)]
 #[repr(C, packed)]
 pub struct MaterialPixelShaderRaw<'a> {
     pub name: XString<'a>,
@@ -320,7 +319,7 @@ impl<'a> XFileInto<MaterialPixelShader> for MaterialPixelShaderRaw<'a> {
     }
 }
 
-#[derive(Copy, Clone, Debug, Deserialize)]
+#[derive(Copy, Clone, Default, Debug, Deserialize)]
 #[repr(C, packed)]
 pub struct MaterialPixelShaderProgramRaw<'a> {
     pub ps: Ptr32<'a, ()>,
@@ -345,7 +344,7 @@ impl<'a> XFileInto<MaterialPixelShaderProgram> for MaterialPixelShaderProgramRaw
     }
 }
 
-#[derive(Copy, Clone, Debug, Deserialize)]
+#[derive(Copy, Clone, Default, Debug, Deserialize)]
 #[repr(C, packed)]
 pub struct GfxPixelShaderLoadDefRaw<'a> {
     pub program: FatPointerCountLastU32<'a, u32>,
@@ -396,7 +395,7 @@ impl XFileInto<MaterialArgumentDef> for MaterialArgumentDefRaw {
     }
 }
 
-#[derive(Copy, Clone, Debug, Deserialize)]
+#[derive(Copy, Clone, Default, Debug, Deserialize)]
 #[repr(C, packed)]
 pub struct MaterialShaderArgumentRaw {
     pub arg_type: u16,
@@ -443,7 +442,7 @@ impl XFileInto<MaterialShaderArgument> for MaterialShaderArgumentRaw {
     }
 }
 
-#[derive(Copy, Clone, Debug, Deserialize)]
+#[derive(Copy, Clone, Default, Debug, Deserialize)]
 #[repr(C, packed)]
 pub struct MaterialArgumentCodeConst {
     pub index: u16,
@@ -467,9 +466,10 @@ const MTL_ARG_MATERIAL_PRIM_END: u16 = 6;
 const MTL_ARG_CODE_PIXEL_CONST: u16 = 5;
 const MTL_ARG_LITERAL_PIXEL_CONST: u16 = 7;
 
-#[derive(Copy, Clone, Debug, Deserialize)]
+#[derive(Copy, Clone, Default, Debug, Deserialize)]
 #[repr(u16)]
 pub enum MtlArg {
+    #[default]
     MATERIAL_VERTEX_CONST = 0,
     LITERAL_VERTEX_CONST = 1,
     MATERIAL_PIXEL_SAMPLER = 2,
@@ -498,6 +498,26 @@ pub struct MaterialRaw<'a> {
 }
 assert_size!(MaterialRaw, 192);
 
+impl<'a> Default for MaterialRaw<'a> {
+    fn default() -> Self {
+        Self {
+            info: MaterialInfoRaw::default(),
+            state_bits_entry: [0; 130],
+            texture_count: 0,
+            constant_count: 0,
+            state_bits_count: 0,
+            state_flags: 0,
+            camera_region: 0,
+            max_streamed_mips: 0,
+            technique_set: Ptr32::default(),
+            texture_table: Ptr32::default(),
+            constant_table: Ptr32::default(),
+            state_bits_table: Ptr32::default(),
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
 pub struct Material {
     pub info: MaterialInfo,
     pub state_bits_entry: [u8; 130],
@@ -510,10 +530,26 @@ pub struct Material {
     pub technique_set: Option<Box<MaterialTechniqueSet>>,
 }
 
+impl Default for Material {
+    fn default() -> Self {
+        Self {
+            info: MaterialInfo::default(),
+            state_bits_entry: [0; 130],
+            textures: Vec::default(),
+            constants: Vec::default(),
+            state_bits: Vec::default(),
+            state_flags: 0,
+            camera_region: 0,
+            max_streamed_mips: 0,
+            technique_set: None,
+        }
+    }
+}
+
 impl<'a> XFileInto<Material> for MaterialRaw<'a> {
     fn xfile_into(&self, mut xfile: impl Read + Seek) -> Material {
         let info = self.info.xfile_into(&mut xfile);
-        let techset = self.technique_set.xfile_into(&mut xfile);
+        let technique_set = self.technique_set.xfile_into(&mut xfile);
         let mut textures = Vec::new();
         for _ in 0..self.texture_count {
             textures
@@ -537,12 +573,12 @@ impl<'a> XFileInto<Material> for MaterialRaw<'a> {
             state_flags: self.state_flags,
             camera_region: self.camera_region,
             max_streamed_mips: self.max_streamed_mips,
-            technique_set: techset.map(Box::new),
+            technique_set,
         }
     }
 }
 
-#[derive(Copy, Clone, Debug, Deserialize)]
+#[derive(Copy, Clone, Default, Debug, Deserialize)]
 pub struct MaterialInfoRaw<'a> {
     pub name: XString<'a>,
     pub game_flags: u32,
@@ -558,6 +594,7 @@ pub struct MaterialInfoRaw<'a> {
 }
 assert_size!(MaterialInfoRaw, 40);
 
+#[derive(Clone, Default, Debug)]
 pub struct MaterialInfo {
     pub name: String,
     pub game_flags: u32,
@@ -586,13 +623,13 @@ impl<'a> XFileInto<MaterialInfo> for MaterialInfoRaw<'a> {
     }
 }
 
-#[derive(Copy, Clone, Debug, Deserialize)]
+#[derive(Copy, Clone, Debug, Default, Deserialize)]
 pub struct GfxDrawSurf {
     fields: u64,
 }
 assert_size!(GfxDrawSurf, 8);
 
-#[derive(Copy, Clone, Debug, Deserialize)]
+#[derive(Copy, Clone, Default, Debug, Deserialize)]
 pub struct MaterialTextureDefRaw<'a> {
     pub name_hash: u32,
     pub name_start: i8,
@@ -605,6 +642,7 @@ pub struct MaterialTextureDefRaw<'a> {
 }
 assert_size!(MaterialTextureDefRaw, 16);
 
+#[derive(Clone, Default, Debug)]
 pub struct MaterialTextureDef {
     pub name_hash: u32,
     pub name_start: char,
@@ -621,11 +659,11 @@ impl<'a> XFileInto<MaterialTextureDef> for MaterialTextureDefRaw<'a> {
         let info = if semantic == Semantic::WATER_MAP {
             let p = self.u.p.cast::<WaterRaw>();
             let w = p.xfile_into(xfile);
-            MaterialTextureDefInfo::Water(w.map(Box::new))
+            MaterialTextureDefInfo::Water(w)
         } else {
             let p = self.u.p.cast::<GfxImageRaw>();
             let i = p.xfile_into(xfile);
-            MaterialTextureDefInfo::Image(i.map(Box::new))
+            MaterialTextureDefInfo::Image(i)
         };
 
         MaterialTextureDef {
@@ -640,9 +678,10 @@ impl<'a> XFileInto<MaterialTextureDef> for MaterialTextureDefRaw<'a> {
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, FromPrimitive)]
+#[derive(Copy, Clone, Debug, Default, PartialEq, FromPrimitive)]
 #[repr(u8)]
 pub enum Semantic {
+    #[default]
     IDLE = 0x00,
     FUNCTION = 0x01,
     COLOR_MAP = 0x02,
@@ -653,18 +692,25 @@ pub enum Semantic {
     COLOR_15 = 0x1B,
 }
 
-#[derive(Copy, Clone, Debug, Deserialize)]
+#[derive(Copy, Clone, Default, Debug, Deserialize)]
 pub struct MaterialTextureDefInfoRaw<'a> {
     p: Ptr32<'a, ()>,
 }
 assert_size!(MaterialTextureDefInfoRaw, 4);
 
+#[derive(Clone, Debug)]
 pub enum MaterialTextureDefInfo {
     Image(Option<Box<GfxImage>>),
     Water(Option<Box<Water>>),
 }
 
-#[derive(Copy, Clone, Debug, Deserialize)]
+impl Default for MaterialTextureDefInfo {
+    fn default() -> Self {
+        Self::Image(None)
+    }
+}
+
+#[derive(Copy, Clone, Default, Debug, Deserialize)]
 pub struct WaterRaw<'a> {
     pub writable: WaterWrtitable,
     pub h0: Ptr32<'a, Complex>,
@@ -682,6 +728,7 @@ pub struct WaterRaw<'a> {
 }
 assert_size!(WaterRaw, 68);
 
+#[derive(Clone, Default, Debug)]
 pub struct Water {
     pub writable: WaterWrtitable,
     pub h0: Vec<Complex>,
@@ -731,25 +778,25 @@ impl<'a> XFileInto<Water> for WaterRaw<'a> {
             winddir: self.winddir.into(),
             amplitude: self.amplitude,
             code_constant: self.code_constant.into(),
-            image: self.image.xfile_into(xfile).map(Box::new),
+            image: self.image.xfile_into(xfile),
         }
     }
 }
 
-#[derive(Copy, Clone, Debug, Deserialize)]
+#[derive(Copy, Clone, Default, Debug, Deserialize)]
 pub struct WaterWrtitable {
     pub float_time: f32,
 }
 assert_size!(WaterWrtitable, 4);
 
-#[derive(Copy, Clone, Debug, Deserialize)]
+#[derive(Copy, Clone, Default, Debug, Deserialize)]
 pub struct Complex {
     pub real: f32,
     pub imag: f32,
 }
 assert_size!(Complex, 8);
 
-#[derive(Copy, Clone, Debug, Deserialize)]
+#[derive(Copy, Clone, Default, Debug, Deserialize)]
 pub struct GfxImageRaw<'a> {
     pub texture: GfxTextureRaw<'a>,
     pub map_type: u8,
@@ -774,6 +821,7 @@ pub struct GfxImageRaw<'a> {
 }
 assert_size!(GfxImageRaw, 52);
 
+#[derive(Clone, Default, Debug)]
 pub struct GfxImage {
     pub texture: GfxTexture,
     pub map_type: MapType,
@@ -814,11 +862,9 @@ impl<'a> XFileInto<GfxImage> for GfxImageRaw<'a> {
             .texture
             .p
             .cast::<GfxImageLoadDefRaw>()
-            .xfile_into(xfile)
-            .unwrap();
-
+            .xfile_into(xfile);
         GfxImage {
-            texture: GfxTexture::LoadDef(Box::new(texture)),
+            texture: GfxTexture::LoadDef(texture),
             map_type,
             semantic,
             category,
@@ -841,7 +887,7 @@ impl<'a> XFileInto<GfxImage> for GfxImageRaw<'a> {
     }
 }
 
-#[derive(Copy, Clone, Debug, Deserialize)]
+#[derive(Copy, Clone, Default, Debug, Deserialize)]
 pub struct GfxTextureRaw<'a> {
     p: Ptr32<'a, ()>,
 }
@@ -870,43 +916,53 @@ pub type IDirect3DCubeTexture9 = ();
 // 2D -> Map
 // 3D -> Volmap
 // Cube -> Cubemap
+// LoadDef -> Used to load one of the above
+#[derive(Clone, Debug)]
 pub enum GfxTexture {
     Map(Option<Box<IDirect3DTexture9>>),
     Volmap(Option<Box<IDirect3DVolumeTexture9>>),
     Cubemap(Option<Box<IDirect3DCubeTexture9>>),
-    LoadDef(Box<GfxImageLoadDef>),
+    LoadDef(Option<Box<GfxImageLoadDef>>),
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, FromPrimitive)]
+impl Default for GfxTexture {
+    fn default() -> Self {
+        Self::LoadDef(None)
+    }
+}
+
+#[derive(Copy, Clone, Default, Debug, PartialEq, FromPrimitive)]
 #[repr(u8)]
 pub enum MapType {
+    #[default]
     TWO_DIMENSIONAL = 0x03,
     THREE_DIMENSIONAL = 0x04,
     CUBE = 0x05,
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, FromPrimitive)]
+#[derive(Copy, Clone, Default, Debug, PartialEq, FromPrimitive)]
 #[repr(u8)]
 pub enum ImgCategory {
+    #[default]
     UNKNOWN = 0x00,
     LOAD_FROM_FILE = 0x03,
     WATER = 0x05,
     RENDER_TARGET = 0x06,
 }
 
-#[derive(Copy, Clone, Debug, Deserialize)]
+#[derive(Copy, Clone, Default, Debug, Deserialize)]
 pub struct Picmip {
     pub platform: [u8; 2],
 }
 assert_size!(Picmip, 2);
 
-#[derive(Copy, Clone, Debug, Deserialize)]
+#[derive(Copy, Clone, Default, Debug, Deserialize)]
 pub struct CardMemory {
     pub platform: [u32; 2],
 }
 assert_size!(CardMemory, 8);
 
-#[derive(Copy, Clone, Debug, Deserialize)]
+#[derive(Copy, Clone, Default, Debug, Deserialize)]
 pub struct MaterialConstantDef {
     pub name_hash: u32,
     pub name: [u8; 12],
@@ -914,13 +970,13 @@ pub struct MaterialConstantDef {
 }
 assert_size!(MaterialConstantDef, 32);
 
-#[derive(Copy, Clone, Debug, Deserialize)]
+#[derive(Copy, Clone, Default, Debug, Deserialize)]
 pub struct GfxStateBits {
     pub load_bits: [u32; 2],
 }
 assert_size!(GfxStateBits, 8);
 
-#[derive(Copy, Clone, Debug, Deserialize)]
+#[derive(Copy, Clone, Default, Debug, Deserialize)]
 pub struct GfxImageLoadDefRaw {
     level_count: u8,
     flags: u8,
@@ -929,6 +985,7 @@ pub struct GfxImageLoadDefRaw {
 }
 assert_size!(GfxImageLoadDefRaw, 12);
 
+#[derive(Clone, Default, Debug)]
 pub struct GfxImageLoadDef {
     level_count: u8,
     flags: u8,
