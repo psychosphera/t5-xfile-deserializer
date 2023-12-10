@@ -439,9 +439,15 @@ impl<'a, T: DeserializeOwned + Debug + Clone> FatPointerCountFirstU16<'a, T> {
     }
 }
 
-impl<'a, T: DeserializeOwned + Debug + Clone + XFileInto<U>, U> XFileInto<Vec<U>> for FatPointerCountFirstU16<'a, T> {
+impl<'a, T: DeserializeOwned + Debug + Clone + XFileInto<U>, U> XFileInto<Vec<U>>
+    for FatPointerCountFirstU16<'a, T>
+{
     fn xfile_into(&self, mut xfile: impl Read + Seek) -> Vec<U> {
-        self.clone().to_vec(&mut xfile).into_iter().map(|a| a.xfile_into(&mut xfile)).collect()
+        self.clone()
+            .to_vec(&mut xfile)
+            .into_iter()
+            .map(|a| a.xfile_into(&mut xfile))
+            .collect()
     }
 }
 
@@ -482,12 +488,17 @@ impl<'a, T: DeserializeOwned + Debug> FatPointerCountFirstU32<'a, T> {
     }
 }
 
-impl<'a, T: DeserializeOwned + Debug + Clone + XFileInto<U>, U> XFileInto<Vec<U>> for FatPointerCountFirstU32<'a, T> {
+impl<'a, T: DeserializeOwned + Debug + Clone + XFileInto<U>, U> XFileInto<Vec<U>>
+    for FatPointerCountFirstU32<'a, T>
+{
     fn xfile_into(&self, mut xfile: impl Read + Seek) -> Vec<U> {
-        self.clone().to_vec(&mut xfile).into_iter().map(|a| a.xfile_into(&mut xfile)).collect()
+        self.clone()
+            .to_vec(&mut xfile)
+            .into_iter()
+            .map(|a| a.xfile_into(&mut xfile))
+            .collect()
     }
 }
-
 
 /// Newtype for a fat pointer to a `[T]`.
 ///
@@ -526,9 +537,15 @@ impl<'a, T: DeserializeOwned + Debug> FatPointerCountLastU16<'a, T> {
     }
 }
 
-impl<'a, T: DeserializeOwned + Debug + Clone + XFileInto<U>, U> XFileInto<Vec<U>> for FatPointerCountLastU16<'a, T> {
+impl<'a, T: DeserializeOwned + Debug + Clone + XFileInto<U>, U> XFileInto<Vec<U>>
+    for FatPointerCountLastU16<'a, T>
+{
     fn xfile_into(&self, mut xfile: impl Read + Seek) -> Vec<U> {
-        self.clone().to_vec(&mut xfile).into_iter().map(|a| a.xfile_into(&mut xfile)).collect()
+        self.clone()
+            .to_vec(&mut xfile)
+            .into_iter()
+            .map(|a| a.xfile_into(&mut xfile))
+            .collect()
     }
 }
 
@@ -569,9 +586,15 @@ impl<'a, T: DeserializeOwned + Debug> FatPointerCountLastU32<'a, T> {
     }
 }
 
-impl<'a, T: DeserializeOwned + Debug + Clone + XFileInto<U>, U> XFileInto<Vec<U>> for FatPointerCountLastU32<'a, T> {
+impl<'a, T: DeserializeOwned + Debug + Clone + XFileInto<U>, U> XFileInto<Vec<U>>
+    for FatPointerCountLastU32<'a, T>
+{
     fn xfile_into(&self, mut xfile: impl Read + Seek) -> Vec<U> {
-        self.clone().to_vec(&mut xfile).into_iter().map(|a| a.xfile_into(&mut xfile)).collect()
+        self.clone()
+            .to_vec(&mut xfile)
+            .into_iter()
+            .map(|a| a.xfile_into(&mut xfile))
+            .collect()
     }
 }
 
@@ -603,9 +626,15 @@ impl<'a, T: DeserializeOwned + Debug> Ptr32Array<'a, T> {
     }
 }
 
-impl<'a, T: DeserializeOwned + Debug + Clone + XFileInto<U>, U> XFileInto<Vec<U>> for Ptr32Array<'a, T> {
+impl<'a, T: DeserializeOwned + Debug + Clone + XFileInto<U>, U> XFileInto<Vec<U>>
+    for Ptr32Array<'a, T>
+{
     fn xfile_into(&self, mut xfile: impl Read + Seek) -> Vec<U> {
-        self.clone().to_vec(&mut xfile).into_iter().map(|a| a.xfile_into(&mut xfile)).collect()
+        self.clone()
+            .to_vec(&mut xfile)
+            .into_iter()
+            .map(|a| a.xfile_into(&mut xfile))
+            .collect()
     }
 }
 
@@ -728,12 +757,12 @@ impl<'a> XFileInto<XAsset> for XAssetRaw<'a> {
             XAssetType::XMODEL => XAsset::XModel(
                 self.asset_data
                     .cast::<xmodel::XModelRaw>()
-                    .xfile_into(xfile)
+                    .xfile_into(xfile),
             ),
             XAssetType::TECHNIQUE_SET => XAsset::TechniqueSet(
                 self.asset_data
                     .cast::<techset::MaterialTechniqueSetRaw>()
-                    .xfile_into(xfile)
+                    .xfile_into(xfile),
             ),
         }
     }

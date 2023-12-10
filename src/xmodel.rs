@@ -128,9 +128,7 @@ impl<'a> XFileInto<XModel> for XModelRaw<'a> {
             self.lod_info[2].into(),
             self.lod_info[3].into(),
         ];
-        let coll_surfs = self
-            .coll_surfs
-            .xfile_into(&mut xfile);
+        let coll_surfs = self.coll_surfs.xfile_into(&mut xfile);
         let bone_info = self
             .bone_info
             .to_array(self.num_bones as _)
@@ -250,22 +248,34 @@ pub struct XSurface {
 impl<'a> XFileInto<XSurface> for XSurfaceRaw<'a> {
     fn xfile_into(&self, mut xfile: impl Read + Seek) -> XSurface {
         let vert_info = self.vert_info.xfile_into(&mut xfile);
-        let verts0 = self.verts0.to_array(self.vert_count as _).to_vec(&mut xfile).into_iter().map(|v| Box::new(v.into())).collect();
-        let vert_list = self.vert_list.to_array(self.vert_list_count as _).xfile_into(&mut xfile).into_iter().map(Box::new).collect();
+        let verts0 = self
+            .verts0
+            .to_array(self.vert_count as _)
+            .to_vec(&mut xfile)
+            .into_iter()
+            .map(|v| Box::new(v.into()))
+            .collect();
+        let vert_list = self
+            .vert_list
+            .to_array(self.vert_list_count as _)
+            .xfile_into(&mut xfile)
+            .into_iter()
+            .map(Box::new)
+            .collect();
         let tri_indices = self.tri_indices.to_array(self.tri_count as _).to_vec(xfile);
 
-        XSurface { 
-            tile_mode: self.tile_mode, 
-            flags: self.flags, 
-            base_tri_index: self.base_tri_index as _, 
-            base_vert_index: self.base_vert_index as _,  
-            tri_indices, 
-            vert_info, 
-            verts0, 
-            vb0: None, 
-            vert_list, 
-            index_buffer: None, 
-            part_bits: self.part_bits
+        XSurface {
+            tile_mode: self.tile_mode,
+            flags: self.flags,
+            base_tri_index: self.base_tri_index as _,
+            base_vert_index: self.base_vert_index as _,
+            tri_indices,
+            vert_info,
+            verts0,
+            vb0: None,
+            vert_list,
+            index_buffer: None,
+            part_bits: self.part_bits,
         }
     }
 }
@@ -287,14 +297,20 @@ pub struct XSurfaceVertexInfo {
 
 impl<'a> XFileInto<XSurfaceVertexInfo> for XSurfaceVertexInfoRaw<'a> {
     fn xfile_into(&self, mut xfile: impl Read + Seek) -> XSurfaceVertexInfo {
-        let blend_count = self.vert_count[0] as usize + self.vert_count[1] as usize * 3 + self.vert_count[2] as usize * 5 + self.vert_count[3] as usize * 7;
-        let tension_count = (self.vert_count[0] as usize + self.vert_count[1] as usize + self.vert_count[2] as usize + self.vert_count[3] as usize) * 12;
+        let blend_count = self.vert_count[0] as usize
+            + self.vert_count[1] as usize * 3
+            + self.vert_count[2] as usize * 5
+            + self.vert_count[3] as usize * 7;
+        let tension_count = (self.vert_count[0] as usize
+            + self.vert_count[1] as usize
+            + self.vert_count[2] as usize
+            + self.vert_count[3] as usize)
+            * 12;
 
-
-        XSurfaceVertexInfo { 
-            vert_count: self.vert_count, 
+        XSurfaceVertexInfo {
+            vert_count: self.vert_count,
             verts_blend: self.verts_blend.to_array(blend_count).to_vec(&mut xfile),
-            tension_data: self.tension_data.to_array(tension_count).to_vec(xfile)
+            tension_data: self.tension_data.to_array(tension_count).to_vec(xfile),
         }
     }
 }
@@ -322,13 +338,13 @@ pub struct GfxPackedVertex {
 
 impl Into<GfxPackedVertex> for GfxPackedVertexRaw {
     fn into(self) -> GfxPackedVertex {
-        GfxPackedVertex { 
-            xyz: self.xyz.into(), 
-            binormal_sign: self.binormal_sign, 
-            color: self.color, 
-            tex_coord: self.tex_coord, 
-            normal: self.normal, 
-            tangent: self.tangent 
+        GfxPackedVertex {
+            xyz: self.xyz.into(),
+            binormal_sign: self.binormal_sign,
+            color: self.color,
+            tex_coord: self.tex_coord,
+            normal: self.normal,
+            tangent: self.tangent,
         }
     }
 }
@@ -366,12 +382,12 @@ pub struct XRigidVertList {
 
 impl<'a> XFileInto<XRigidVertList> for XRigidVertListRaw<'a> {
     fn xfile_into(&self, xfile: impl Read + Seek) -> XRigidVertList {
-        XRigidVertList { 
-            bone_offset: self.bone_offset as _, 
-            vert_count: self.vert_count as _, 
-            tri_offset: self.tri_offset as _, 
-            tri_count: self.tri_count as _, 
-            collision_tree: self.collision_tree.xfile_into(xfile)
+        XRigidVertList {
+            bone_offset: self.bone_offset as _,
+            vert_count: self.vert_count as _,
+            tri_offset: self.tri_offset as _,
+            tri_count: self.tri_count as _,
+            collision_tree: self.collision_tree.xfile_into(xfile),
         }
     }
 }
@@ -395,11 +411,21 @@ pub struct XSurfaceCollisionTree {
 
 impl<'a> XFileInto<XSurfaceCollisionTree> for XSurfaceCollisionTreeRaw<'a> {
     fn xfile_into(&self, mut xfile: impl Read + Seek) -> XSurfaceCollisionTree {
-        XSurfaceCollisionTree { 
-            trans: self.trans.into(), 
-            scale: self.scale.into(), 
-            nodes: self.nodes.to_vec(&mut xfile).into_iter().map(Into::into).collect(), 
-            leafs: self.leafs.to_vec(xfile).into_iter().map(Into::into).collect()
+        XSurfaceCollisionTree {
+            trans: self.trans.into(),
+            scale: self.scale.into(),
+            nodes: self
+                .nodes
+                .to_vec(&mut xfile)
+                .into_iter()
+                .map(Into::into)
+                .collect(),
+            leafs: self
+                .leafs
+                .to_vec(xfile)
+                .into_iter()
+                .map(Into::into)
+                .collect(),
         }
     }
 }
@@ -421,10 +447,10 @@ pub struct XSurfaceCollisionNode {
 
 impl Into<XSurfaceCollisionNode> for XSurfaceCollisionNodeRaw {
     fn into(self) -> XSurfaceCollisionNode {
-        XSurfaceCollisionNode { 
-            aabb: self.aabb, 
-            child_begin_index: self.child_begin_index as _, 
-            child_count: self.child_count as _ 
+        XSurfaceCollisionNode {
+            aabb: self.aabb,
+            child_begin_index: self.child_begin_index as _,
+            child_count: self.child_count as _,
         }
     }
 }
@@ -449,7 +475,9 @@ pub struct XSurfaceCollisionLeaf {
 
 impl Into<XSurfaceCollisionLeaf> for XSurfaceCollisionLeafRaw {
     fn into(self) -> XSurfaceCollisionLeaf {
-        XSurfaceCollisionLeaf { triangle_begin_index: self.triangle_begin_index as _ }
+        XSurfaceCollisionLeaf {
+            triangle_begin_index: self.triangle_begin_index as _,
+        }
     }
 }
 
@@ -524,13 +552,18 @@ pub struct XModelCollSurf {
 
 impl<'a> XFileInto<XModelCollSurf> for XModelCollSurfRaw<'a> {
     fn xfile_into(&self, xfile: impl Read + Seek) -> XModelCollSurf {
-        XModelCollSurf { 
-            coll_tris: self.coll_tris.to_vec(xfile).into_iter().map(Into::into).collect(),
-            mins: self.mins.into(), 
-            maxs: self.maxs.into(), 
-            bone_idx: self.bone_idx as _, 
-            contents: self.contents, 
-            surf_flags: self.surf_flags 
+        XModelCollSurf {
+            coll_tris: self
+                .coll_tris
+                .to_vec(xfile)
+                .into_iter()
+                .map(Into::into)
+                .collect(),
+            mins: self.mins.into(),
+            maxs: self.maxs.into(),
+            bone_idx: self.bone_idx as _,
+            contents: self.contents,
+            surf_flags: self.surf_flags,
         }
     }
 }
@@ -552,10 +585,10 @@ pub struct XModelCollTri {
 
 impl Into<XModelCollTri> for XModelCollTriRaw {
     fn into(self) -> XModelCollTri {
-        XModelCollTri { 
-            plane: self.plane.into(), 
-            svec: self.svec.into(), 
-            tvec: self.tvec.into() 
+        XModelCollTri {
+            plane: self.plane.into(),
+            svec: self.svec.into(),
+            tvec: self.tvec.into(),
         }
     }
 }
@@ -579,11 +612,11 @@ pub struct XBoneInfo {
 
 impl Into<XBoneInfo> for XBoneInfoRaw {
     fn into(self) -> XBoneInfo {
-        XBoneInfo { 
-            bounds: [self.bounds[0].into(), self.bounds[1].into()], 
-            offset: self.offset.into(), 
+        XBoneInfo {
+            bounds: [self.bounds[0].into(), self.bounds[1].into()],
+            offset: self.offset.into(),
             radius_squared: self.radius_squared,
-            collmap: self.collmap 
+            collmap: self.collmap,
         }
     }
 }
@@ -605,7 +638,7 @@ impl<'a> XFileInto<XModelStreamInfo> for XModelStreamInfoRaw<'a> {
             high_mip_bounds: self
                 .high_mip_bounds
                 .xfile_get(&mut xfile)
-                .map(|b| Box::new((*b).into()))
+                .map(|b| Box::new((*b).into())),
         }
     }
 }
