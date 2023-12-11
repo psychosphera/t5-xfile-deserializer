@@ -5,6 +5,8 @@
 mod common;
 mod techset;
 mod xmodel;
+mod font;
+mod gameworld;
 
 use num_derive::FromPrimitive;
 use serde::{
@@ -240,7 +242,7 @@ trait SeekAnd: Read + Seek {
         let pos = self.stream_position()?;
 
         if let std::io::SeekFrom::Start(p) = from {
-            if p != 0xFFFFFFFF {
+            if p != 0xFFFFFFFF && p != 0xFFFFFFFE {
                 let (_, off) = convert_offset_to_ptr(p as _);
                 assert!(off as u64 <= self.stream_len().unwrap(), "p = {p:#08X}");
                 self.seek(std::io::SeekFrom::Start(off as _))?;
@@ -258,7 +260,7 @@ trait SeekAnd: Read + Seek {
         let t = predicate(self);
 
         if let std::io::SeekFrom::Start(p) = from {
-            if p != 0xFFFFFFFF {
+            if p != 0xFFFFFFFF && p != 0xFFFFFFFE {
                 self.seek(std::io::SeekFrom::Start(pos))?;
             }
         } else if let std::io::SeekFrom::Current(p) = from {
@@ -283,6 +285,11 @@ impl<'a, T: DeserializeOwned + Clone + Debug + XFileInto<U>, U> XFileInto<Option
 
         if self.0 != 0xFFFFFFFF {
             println!("ignoring offset");
+            return None;
+        }
+
+        if self.0 != 0xFFFFFFFE {
+            println!("fffffffe");
             return None;
         }
 
@@ -732,6 +739,207 @@ fn decompress_xfile(filename: impl AsRef<Path>) -> BufReader<File> {
 }
 
 #[derive(Copy, Clone, Debug, Deserialize)]
+struct RawFileRaw<'a> {
+    name: XString<'a>,
+    buffer: FatPointerCountFirstU32<'a, u8>,
+}
+assert_size!(RawFileRaw, 12);
+
+struct RawFile {
+    name: String,
+    buffer: Vec<u8>,
+}
+
+impl<'a> XFileInto<RawFile> for RawFileRaw<'a> {
+    fn xfile_into(&self, mut xfile: impl Read + Seek) -> RawFile {
+        RawFile { 
+            name: self.name.xfile_into(&mut xfile), 
+            buffer: self.buffer.to_vec(xfile) 
+        }
+    }
+}
+
+#[derive(Copy, Clone, Debug, Deserialize)]
+struct StringTableRaw<'a> {
+    name: XString<'a>,
+    column_count: i32,
+    row_count: i32,
+    values: Ptr32<'a, StringTableCellRaw<'a>>,
+    cell_index: Ptr32<'a, i16>
+}
+assert_size!(StringTableRaw, 20);
+
+struct StringTable {
+    name: String,
+    column_count: usize,
+    row_count: usize,
+    values: Vec<StringTableCell>,
+    cell_index: Vec<i16>
+}
+
+impl<'a> XFileInto<StringTable> for StringTableRaw<'a> {
+    fn xfile_into(&self, mut xfile: impl Read + Seek) -> StringTable {
+        let size = self.column_count as usize * self.row_count as usize;
+
+        StringTable { 
+            name: self.name.xfile_into(&mut xfile), 
+            column_count: self.column_count as _, 
+            row_count: self.row_count as _, 
+            values: self.values.to_array(size).xfile_into(&mut xfile), 
+            cell_index: self.cell_index.to_array(size).to_vec(xfile) 
+        }
+    }
+}
+
+#[derive(Copy, Clone, Debug, Deserialize)]
+struct StringTableCellRaw<'a> {
+    name: XString<'a>,
+    hash: i32,
+}
+assert_size!(StringTableCellRaw, 8);
+
+struct StringTableCell {
+    name: String,
+    hash: i32,
+}
+
+impl<'a> XFileInto<StringTableCell> for StringTableCellRaw<'a> {
+    fn xfile_into(&self, xfile: impl Read + Seek) -> StringTableCell {
+        StringTableCell { 
+            name: self.name.xfile_into(xfile), 
+            hash: self.hash 
+        }
+    }
+}
+
+#[derive(Copy, Clone, Debug, Deserialize)]
+struct PackIndexRaw<'a> {
+    name: XString<'a>,
+    header: PackIndexHeaderRaw,
+    entries: Ptr32<'a, PackIndexEntryRaw>,
+}
+assert_size!(PackIndexRaw, 28);
+
+struct PackIndex {
+    name: String,
+    header: PackIndexHeader,
+    entries: Vec<PackIndexEntry>,
+}
+
+impl<'a> XFileInto<PackIndex> for PackIndexRaw<'a> {
+    fn xfile_into(&self, mut xfile: impl Read + Seek) -> PackIndex {
+        PackIndex { 
+            name: self.name.xfile_into(&mut xfile), 
+            header: self.header.into(), 
+            entries: self.entries.to_array(self.header.count as _).to_vec(xfile).into_iter().map(Into::into).collect(),
+        }
+    }
+}
+
+#[derive(Copy, Clone, Debug, Deserialize)]
+struct PackIndexHeaderRaw {
+    magic: u32,
+    timestamp: u32,
+    count: u32,
+    alignment: u32,
+    data_start: u32
+}
+assert_size!(PackIndexHeaderRaw, 20);
+
+struct PackIndexHeader {
+    magic: u32,
+    timestamp: u32,
+    count: usize,
+    alignment: usize,
+    data_start: usize,
+}
+
+impl Into<PackIndexHeader> for PackIndexHeaderRaw {
+    fn into(self) -> PackIndexHeader {
+        PackIndexHeader { 
+            magic: self.magic, 
+            timestamp: self.timestamp, 
+            count: self.count as _, 
+            alignment: self.alignment as _, 
+            data_start: self.data_start as _ 
+        }
+    }
+}
+
+#[derive(Copy, Clone, Debug, Deserialize)]
+struct PackIndexEntryRaw {
+    hash: u32,
+    offset: u32,
+    size: u32,
+}
+assert_size!(PackIndexEntryRaw, 12);
+
+struct PackIndexEntry {
+    hash: u32,
+    offset: usize,
+    size: usize,
+}
+
+impl Into<PackIndexEntry> for PackIndexEntryRaw {
+    fn into(self) -> PackIndexEntry {
+        PackIndexEntry { 
+            hash: self.hash, 
+            offset: self.offset as _, 
+            size: self.size as _ 
+        }
+    }
+}
+
+#[derive(Copy, Clone, Debug, Deserialize)]
+struct MapEntsRaw<'a> {
+    name: XString<'a>,
+    entity_string: FatPointerCountLastU32<'a, u8>,
+}
+assert_size!(MapEntsRaw, 12);
+
+struct MapEnts {
+    name: String,
+    entity_string: String,
+}
+
+impl<'a> XFileInto<MapEnts> for MapEntsRaw<'a> {
+    fn xfile_into(&self, mut xfile: impl Read + Seek) -> MapEnts {
+        let name = self.name.xfile_into(&mut xfile);
+
+        let mut chars = self.entity_string.to_vec(xfile);
+        if chars.bytes().last().unwrap().unwrap() != b'\0' {
+            chars.push(b'\0');
+        }
+
+        MapEnts { 
+            name,
+            entity_string: CString::from_vec_with_nul(chars).unwrap().to_str().unwrap().to_string() 
+        }
+    }
+}
+
+#[derive(Copy, Clone, Debug, Deserialize)]
+pub struct LocalizeEntryRaw<'a> {
+    value: XString<'a>,
+    name: XString<'a>,
+}
+assert_size!(LocalizeEntryRaw, 8);
+
+pub struct LocalizeEntry {
+    value: String,
+    name: String,
+}
+
+impl<'a> XFileInto<LocalizeEntry> for LocalizeEntryRaw<'a> {
+    fn xfile_into(&self, mut xfile: impl Read + Seek) -> LocalizeEntry {
+        LocalizeEntry { 
+            value: self.value.xfile_into(&mut xfile), 
+            name: self.name.xfile_into(xfile) 
+        }
+    }
+}
+
+#[derive(Copy, Clone, Debug, Deserialize)]
 #[repr(C, packed)]
 struct XAssetRaw<'a> {
     asset_type: u32,
@@ -739,24 +947,94 @@ struct XAssetRaw<'a> {
 }
 assert_size!(XAssetRaw, 8);
 
-#[derive(Copy, Clone, FromPrimitive)]
+#[derive(Copy, Clone, Default, Debug, FromPrimitive)]
 #[repr(u32)]
 enum XAssetType {
+    #[default]
+    XMODELPIECES = 0x00,
+    PHYSPRESET = 0x01,
+    PHYSCONSTRAINTS = 0x02,
+    DESTRUCTIBLEDEF = 0x03,
+    XANIMPARTS = 0x04,
     XMODEL = 0x05,
+    MATERIAL = 0x06,
     TECHNIQUE_SET = 0x07,
+    IMAGE = 0x08,
+    SOUND = 0x09,
+    SOUND_PATCH = 0x0A,
+    CLIPMAP = 0x0B,
+    CLIPMAP_PVS = 0x0C,
+    COMWORLD = 0x0D,
+    GAMEWORLD_SP = 0x0E,
+    GAMEWORLD_MP = 0x0F,
+    MAP_ENTS = 0x10,
+    GFXWORLD = 0x11,
+    LIGHT_DEF = 0x12,
+    UI_MAP = 0x13,
+    FONT = 0x14,
+    MENULIST = 0x15,
+    MENU = 0x16,
+    LOCALIZE_ENTRY = 0x17,
+    WEAPON = 0x18,
+    WEAPONDEF = 0x19,
+    WEAPON_VARIANT = 0x1A,
+    SNDDRIVER_GLOBALS = 0x1B,
+    FX = 0x1C,
+    IMPACT_FX = 0x1D,
+    AITYPE = 0x1E,
+    MPTYPE = 0x1F,
+    MPBODY = 0x20,
+    MPHEAD = 0x21,
+    CHARACTER = 0x22,
+    XMODELALIAS = 0x23,
+    RAWFILE = 0x24,
+    STRINGTABLE = 0x25,
+    PACKINDEX = 0x26,
+    XGLOBALS = 0x27,
+    DDL = 0x28,
+    GLASSES = 0x29,
+    EMBLEMSET = 0x2A,
+    STRING = 0x2B,
+    ASSETLIST = 0x2C,
 }
 
 enum XAsset {
-    TechniqueSet(Option<Box<techset::MaterialTechniqueSet>>),
+    PhysPreset(Option<Box<xmodel::PhysPreset>>),
+    PhysConstraints(Option<Box<xmodel::PhysConstraints>>),
     XModel(Option<Box<xmodel::XModel>>),
+    Material(Option<Box<techset::Material>>),
+    TechniqueSet(Option<Box<techset::MaterialTechniqueSet>>),
+    Image(Option<Box<techset::GfxImage>>),
+    MapEnts(Option<Box<MapEnts>>),
+    Font(Option<Box<font::Font>>),
+    LocalizeEntry(Option<Box<LocalizeEntry>>),
+    RawFile(Option<Box<RawFile>>),
+    StringTable(Option<Box<StringTable>>),
+    PackIndex(Option<Box<PackIndex>>),
 }
 
 impl<'a> XFileInto<XAsset> for XAssetRaw<'a> {
     fn xfile_into(&self, xfile: impl Read + Seek) -> XAsset {
-        match num::FromPrimitive::from_u32(self.asset_type).unwrap() {
+        let asset_type = num::FromPrimitive::from_u32(self.asset_type).unwrap();
+        match asset_type {
+            XAssetType::PHYSPRESET => XAsset::PhysPreset(
+                self.asset_data
+                    .cast::<xmodel::PhysPresetRaw>()
+                    .xfile_into(xfile)
+            ),
+            XAssetType::PHYSCONSTRAINTS => XAsset::PhysConstraints(
+                self.asset_data
+                    .cast::<xmodel::PhysConstraintsRaw>()
+                    .xfile_into(xfile)   
+            ),
             XAssetType::XMODEL => XAsset::XModel(
                 self.asset_data
                     .cast::<xmodel::XModelRaw>()
+                    .xfile_into(xfile),
+            ),
+            XAssetType::MATERIAL => XAsset::Material(
+                self.asset_data
+                    .cast::<techset::MaterialRaw>()
                     .xfile_into(xfile),
             ),
             XAssetType::TECHNIQUE_SET => XAsset::TechniqueSet(
@@ -764,6 +1042,45 @@ impl<'a> XFileInto<XAsset> for XAssetRaw<'a> {
                     .cast::<techset::MaterialTechniqueSetRaw>()
                     .xfile_into(xfile),
             ),
+            XAssetType::IMAGE => XAsset::Image(
+                self.asset_data
+                    .cast::<techset::GfxImageRaw>()
+                    .xfile_into(xfile)
+            ),
+            XAssetType::MAP_ENTS => XAsset::MapEnts(
+                self.asset_data
+                    .cast::<MapEntsRaw>()
+                    .xfile_into(xfile)
+            ),
+            XAssetType::FONT => XAsset::Font(
+                self.asset_data
+                    .cast::<font::FontRaw>()
+                    .xfile_into(xfile)   
+            ),
+            XAssetType::LOCALIZE_ENTRY => XAsset::LocalizeEntry(
+                self.asset_data
+                    .cast::<LocalizeEntryRaw>()
+                    .xfile_into(xfile)   
+            ),
+            XAssetType::RAWFILE => XAsset::RawFile(
+                self.asset_data
+                    .cast::<RawFileRaw>()
+                    .xfile_into(xfile)
+            ),
+            XAssetType::STRINGTABLE => XAsset::StringTable(
+                self.asset_data
+                    .cast::<StringTableRaw>()
+                    .xfile_into(xfile)
+            ),
+            XAssetType::PACKINDEX => XAsset::PackIndex(
+                self.asset_data
+                    .cast::<PackIndexRaw>()
+                    .xfile_into(xfile)
+            ),
+            _ => {
+                dbg!(asset_type);
+                unimplemented!()
+            }
         }
     }
 }
@@ -777,15 +1094,17 @@ impl<'a> XFileInto<String> for XString<'a> {
     fn xfile_into(&self, mut xfile: impl Read + Seek) -> String {
         //dbg!(*self);
 
-        if self.0 != 0xFFFFFFFF && self.0 != 0x00000000 {
+        if self.0 == 0x00000000 {
+            String::new()
+        } else if self.0 == 0xFFFFFFFF {
+            xfile
+            .seek_and(std::io::SeekFrom::Start(self.0 as _), |f| {
+                file_read_string(f)
+            })
+            .unwrap()
+        } else {
             println!("ignoring offset");
             String::new()
-        } else {
-            xfile
-                .seek_and(std::io::SeekFrom::Start(self.0 as _), |f| {
-                    file_read_string(f)
-                })
-                .unwrap()
         }
     }
 }
