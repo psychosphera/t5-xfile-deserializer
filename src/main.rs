@@ -7,6 +7,7 @@ mod techset;
 mod xmodel;
 mod font;
 mod gameworld;
+mod fx;
 
 use num_derive::FromPrimitive;
 use serde::{
