@@ -7,7 +7,7 @@ pub struct FontRaw<'a> {
     pub glyph_count: i32,
     pub material: Ptr32<'a, techset::MaterialRaw<'a>>,
     pub glow_material: Ptr32<'a, techset::MaterialRaw<'a>>,
-    pub glyphs: Ptr32<'a, Glyph>
+    pub glyphs: Ptr32<'a, Glyph>,
 }
 assert_size!(FontRaw, 24);
 
@@ -21,12 +21,12 @@ pub struct Font {
 
 impl<'a> XFileInto<Font> for FontRaw<'a> {
     fn xfile_into(&self, mut xfile: impl Read + Seek) -> Font {
-        Font { 
-            font_name: self.font_name.xfile_into(&mut xfile), 
-            pixel_height: self.pixel_height, 
-            material: self.material.xfile_into(&mut xfile), 
-            glow_material: self.glow_material.xfile_into(&mut xfile), 
-            glyphs: self.glyphs.to_array(self.glyph_count as _).to_vec(xfile)
+        Font {
+            font_name: self.font_name.xfile_into(&mut xfile),
+            pixel_height: self.pixel_height,
+            material: self.material.xfile_into(&mut xfile),
+            glow_material: self.glow_material.xfile_into(&mut xfile),
+            glyphs: self.glyphs.to_array(self.glyph_count as _).to_vec(xfile),
         }
     }
 }
@@ -42,6 +42,6 @@ pub struct Glyph {
     pub s0: f32,
     pub to: f32,
     pub s1: f32,
-    pub t1: f32
+    pub t1: f32,
 }
 assert_size!(Glyph, 24);

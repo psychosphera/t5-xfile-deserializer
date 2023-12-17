@@ -3,11 +3,11 @@
 #![feature(seek_stream_len)]
 
 mod common;
+mod font;
+mod fx;
+mod gameworld;
 mod techset;
 mod xmodel;
-mod font;
-mod gameworld;
-mod fx;
 
 use num_derive::FromPrimitive;
 use serde::{
@@ -419,7 +419,7 @@ impl<T: DeserializeOwned> FlexibleArrayU32<T> {
 /// of a [`u32`].
 ///
 /// In this case, [`Self::size`] is a [`u16`], and comes before the pointer.
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Copy, Clone, Debug, Deserialize)]
 struct FatPointerCountFirstU16<'a, T: Debug + Clone> {
     size: u16,
     p: Ptr32<'a, T>,
@@ -753,9 +753,9 @@ struct RawFile {
 
 impl<'a> XFileInto<RawFile> for RawFileRaw<'a> {
     fn xfile_into(&self, mut xfile: impl Read + Seek) -> RawFile {
-        RawFile { 
-            name: self.name.xfile_into(&mut xfile), 
-            buffer: self.buffer.to_vec(xfile) 
+        RawFile {
+            name: self.name.xfile_into(&mut xfile),
+            buffer: self.buffer.to_vec(xfile),
         }
     }
 }
@@ -766,7 +766,7 @@ struct StringTableRaw<'a> {
     column_count: i32,
     row_count: i32,
     values: Ptr32<'a, StringTableCellRaw<'a>>,
-    cell_index: Ptr32<'a, i16>
+    cell_index: Ptr32<'a, i16>,
 }
 assert_size!(StringTableRaw, 20);
 
@@ -775,19 +775,19 @@ struct StringTable {
     column_count: usize,
     row_count: usize,
     values: Vec<StringTableCell>,
-    cell_index: Vec<i16>
+    cell_index: Vec<i16>,
 }
 
 impl<'a> XFileInto<StringTable> for StringTableRaw<'a> {
     fn xfile_into(&self, mut xfile: impl Read + Seek) -> StringTable {
         let size = self.column_count as usize * self.row_count as usize;
 
-        StringTable { 
-            name: self.name.xfile_into(&mut xfile), 
-            column_count: self.column_count as _, 
-            row_count: self.row_count as _, 
-            values: self.values.to_array(size).xfile_into(&mut xfile), 
-            cell_index: self.cell_index.to_array(size).to_vec(xfile) 
+        StringTable {
+            name: self.name.xfile_into(&mut xfile),
+            column_count: self.column_count as _,
+            row_count: self.row_count as _,
+            values: self.values.to_array(size).xfile_into(&mut xfile),
+            cell_index: self.cell_index.to_array(size).to_vec(xfile),
         }
     }
 }
@@ -806,9 +806,9 @@ struct StringTableCell {
 
 impl<'a> XFileInto<StringTableCell> for StringTableCellRaw<'a> {
     fn xfile_into(&self, xfile: impl Read + Seek) -> StringTableCell {
-        StringTableCell { 
-            name: self.name.xfile_into(xfile), 
-            hash: self.hash 
+        StringTableCell {
+            name: self.name.xfile_into(xfile),
+            hash: self.hash,
         }
     }
 }
@@ -829,10 +829,16 @@ struct PackIndex {
 
 impl<'a> XFileInto<PackIndex> for PackIndexRaw<'a> {
     fn xfile_into(&self, mut xfile: impl Read + Seek) -> PackIndex {
-        PackIndex { 
-            name: self.name.xfile_into(&mut xfile), 
-            header: self.header.into(), 
-            entries: self.entries.to_array(self.header.count as _).to_vec(xfile).into_iter().map(Into::into).collect(),
+        PackIndex {
+            name: self.name.xfile_into(&mut xfile),
+            header: self.header.into(),
+            entries: self
+                .entries
+                .to_array(self.header.count as _)
+                .to_vec(xfile)
+                .into_iter()
+                .map(Into::into)
+                .collect(),
         }
     }
 }
@@ -843,7 +849,7 @@ struct PackIndexHeaderRaw {
     timestamp: u32,
     count: u32,
     alignment: u32,
-    data_start: u32
+    data_start: u32,
 }
 assert_size!(PackIndexHeaderRaw, 20);
 
@@ -857,12 +863,12 @@ struct PackIndexHeader {
 
 impl Into<PackIndexHeader> for PackIndexHeaderRaw {
     fn into(self) -> PackIndexHeader {
-        PackIndexHeader { 
-            magic: self.magic, 
-            timestamp: self.timestamp, 
-            count: self.count as _, 
-            alignment: self.alignment as _, 
-            data_start: self.data_start as _ 
+        PackIndexHeader {
+            magic: self.magic,
+            timestamp: self.timestamp,
+            count: self.count as _,
+            alignment: self.alignment as _,
+            data_start: self.data_start as _,
         }
     }
 }
@@ -883,10 +889,10 @@ struct PackIndexEntry {
 
 impl Into<PackIndexEntry> for PackIndexEntryRaw {
     fn into(self) -> PackIndexEntry {
-        PackIndexEntry { 
-            hash: self.hash, 
-            offset: self.offset as _, 
-            size: self.size as _ 
+        PackIndexEntry {
+            hash: self.hash,
+            offset: self.offset as _,
+            size: self.size as _,
         }
     }
 }
@@ -912,9 +918,13 @@ impl<'a> XFileInto<MapEnts> for MapEntsRaw<'a> {
             chars.push(b'\0');
         }
 
-        MapEnts { 
+        MapEnts {
             name,
-            entity_string: CString::from_vec_with_nul(chars).unwrap().to_str().unwrap().to_string() 
+            entity_string: CString::from_vec_with_nul(chars)
+                .unwrap()
+                .to_str()
+                .unwrap()
+                .to_string(),
         }
     }
 }
@@ -933,9 +943,9 @@ pub struct LocalizeEntry {
 
 impl<'a> XFileInto<LocalizeEntry> for LocalizeEntryRaw<'a> {
     fn xfile_into(&self, mut xfile: impl Read + Seek) -> LocalizeEntry {
-        LocalizeEntry { 
-            value: self.value.xfile_into(&mut xfile), 
-            name: self.name.xfile_into(xfile) 
+        LocalizeEntry {
+            value: self.value.xfile_into(&mut xfile),
+            name: self.name.xfile_into(xfile),
         }
     }
 }
@@ -1006,9 +1016,12 @@ enum XAsset {
     Material(Option<Box<techset::Material>>),
     TechniqueSet(Option<Box<techset::MaterialTechniqueSet>>),
     Image(Option<Box<techset::GfxImage>>),
+    GameWorldSp(Option<Box<gameworld::GameWorldSp>>),
+    GameWorldMp(Option<Box<gameworld::GameWorldMp>>),
     MapEnts(Option<Box<MapEnts>>),
     Font(Option<Box<font::Font>>),
     LocalizeEntry(Option<Box<LocalizeEntry>>),
+    Fx(Option<Box<fx::FxEffectDef>>),
     RawFile(Option<Box<RawFile>>),
     StringTable(Option<Box<StringTable>>),
     PackIndex(Option<Box<PackIndex>>),
@@ -1021,12 +1034,12 @@ impl<'a> XFileInto<XAsset> for XAssetRaw<'a> {
             XAssetType::PHYSPRESET => XAsset::PhysPreset(
                 self.asset_data
                     .cast::<xmodel::PhysPresetRaw>()
-                    .xfile_into(xfile)
+                    .xfile_into(xfile),
             ),
             XAssetType::PHYSCONSTRAINTS => XAsset::PhysConstraints(
                 self.asset_data
                     .cast::<xmodel::PhysConstraintsRaw>()
-                    .xfile_into(xfile)   
+                    .xfile_into(xfile),
             ),
             XAssetType::XMODEL => XAsset::XModel(
                 self.asset_data
@@ -1046,38 +1059,41 @@ impl<'a> XFileInto<XAsset> for XAssetRaw<'a> {
             XAssetType::IMAGE => XAsset::Image(
                 self.asset_data
                     .cast::<techset::GfxImageRaw>()
-                    .xfile_into(xfile)
+                    .xfile_into(xfile),
             ),
-            XAssetType::MAP_ENTS => XAsset::MapEnts(
+            XAssetType::GAMEWORLD_SP => XAsset::GameWorldSp(
                 self.asset_data
-                    .cast::<MapEntsRaw>()
-                    .xfile_into(xfile)
+                    .cast::<gameworld::GameWorldSpRaw>()
+                    .xfile_into(xfile),
             ),
-            XAssetType::FONT => XAsset::Font(
+            XAssetType::GAMEWORLD_MP => XAsset::GameWorldMp(
                 self.asset_data
-                    .cast::<font::FontRaw>()
-                    .xfile_into(xfile)   
+                    .cast::<gameworld::GameWorldMpRaw>()
+                    .xfile_into(xfile),
             ),
-            XAssetType::LOCALIZE_ENTRY => XAsset::LocalizeEntry(
+            XAssetType::MAP_ENTS => {
+                XAsset::MapEnts(self.asset_data.cast::<MapEntsRaw>().xfile_into(xfile))
+            }
+            XAssetType::FONT => {
+                XAsset::Font(self.asset_data.cast::<font::FontRaw>().xfile_into(xfile))
+            }
+            XAssetType::LOCALIZE_ENTRY => {
+                XAsset::LocalizeEntry(self.asset_data.cast::<LocalizeEntryRaw>().xfile_into(xfile))
+            }
+            XAssetType::FX => XAsset::Fx(
                 self.asset_data
-                    .cast::<LocalizeEntryRaw>()
-                    .xfile_into(xfile)   
+                    .cast::<fx::FxEffectDefRaw>()
+                    .xfile_into(xfile),
             ),
-            XAssetType::RAWFILE => XAsset::RawFile(
-                self.asset_data
-                    .cast::<RawFileRaw>()
-                    .xfile_into(xfile)
-            ),
-            XAssetType::STRINGTABLE => XAsset::StringTable(
-                self.asset_data
-                    .cast::<StringTableRaw>()
-                    .xfile_into(xfile)
-            ),
-            XAssetType::PACKINDEX => XAsset::PackIndex(
-                self.asset_data
-                    .cast::<PackIndexRaw>()
-                    .xfile_into(xfile)
-            ),
+            XAssetType::RAWFILE => {
+                XAsset::RawFile(self.asset_data.cast::<RawFileRaw>().xfile_into(xfile))
+            }
+            XAssetType::STRINGTABLE => {
+                XAsset::StringTable(self.asset_data.cast::<StringTableRaw>().xfile_into(xfile))
+            }
+            XAssetType::PACKINDEX => {
+                XAsset::PackIndex(self.asset_data.cast::<PackIndexRaw>().xfile_into(xfile))
+            }
             _ => {
                 dbg!(asset_type);
                 unimplemented!()
@@ -1099,10 +1115,10 @@ impl<'a> XFileInto<String> for XString<'a> {
             String::new()
         } else if self.0 == 0xFFFFFFFF {
             xfile
-            .seek_and(std::io::SeekFrom::Start(self.0 as _), |f| {
-                file_read_string(f)
-            })
-            .unwrap()
+                .seek_and(std::io::SeekFrom::Start(self.0 as _), |f| {
+                    file_read_string(f)
+                })
+                .unwrap()
         } else {
             println!("ignoring offset");
             String::new()
