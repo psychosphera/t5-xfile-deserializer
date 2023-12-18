@@ -3,12 +3,13 @@
 #![feature(seek_stream_len)]
 
 mod common;
+mod destructible;
 mod font;
 mod fx;
 mod gameworld;
+mod light;
 mod techset;
 mod xmodel;
-mod destructible;
 
 use num_derive::FromPrimitive;
 use serde::{
@@ -200,7 +201,7 @@ trait XFileInto<T> {
 // where
 //     U: Debug + 'a,
 //     [U; N]: TryFrom<&'a [U]>,
-//     T: DeserializeOwned + Clone + Debug + XFileInto<U>, 
+//     T: DeserializeOwned + Clone + Debug + XFileInto<U>,
 // {
 //     fn xfile_into(&self, mut xfile: impl Read + Seek) -> [U; N] {
 //         unsafe { self.iter().cloned().map(|t| t.xfile_into(&mut xfile)).collect::<Vec<_>>()[..].try_into().unwrap_unchecked() }
@@ -1040,6 +1041,7 @@ enum XAsset {
     GameWorldSp(Option<Box<gameworld::GameWorldSp>>),
     GameWorldMp(Option<Box<gameworld::GameWorldMp>>),
     MapEnts(Option<Box<MapEnts>>),
+    LightDef(Option<Box<light::GfxLightDef>>),
     Font(Option<Box<font::Font>>),
     LocalizeEntry(Option<Box<LocalizeEntry>>),
     Fx(Option<Box<fx::FxEffectDef>>),
@@ -1065,7 +1067,7 @@ impl<'a> XFileInto<XAsset> for XAssetRaw<'a> {
             XAssetType::DESTRUCTIBLEDEF => XAsset::DestructibleDef(
                 self.asset_data
                     .cast::<destructible::DestructibleDefRaw>()
-                    .xfile_into(xfile)   
+                    .xfile_into(xfile),
             ),
             XAssetType::XMODEL => XAsset::XModel(
                 self.asset_data
@@ -1100,6 +1102,11 @@ impl<'a> XFileInto<XAsset> for XAssetRaw<'a> {
             XAssetType::MAP_ENTS => {
                 XAsset::MapEnts(self.asset_data.cast::<MapEntsRaw>().xfile_into(xfile))
             }
+            XAssetType::LIGHT_DEF => XAsset::LightDef(
+                self.asset_data
+                    .cast::<light::GfxLightDefRaw>()
+                    .xfile_into(xfile),
+            ),
             XAssetType::FONT => {
                 XAsset::Font(self.asset_data.cast::<font::FontRaw>().xfile_into(xfile))
             }

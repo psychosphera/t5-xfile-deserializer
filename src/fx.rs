@@ -1,4 +1,7 @@
-use crate::{*, common::{Vec4, Vec3, Vec2}};
+use crate::{
+    common::{Vec2, Vec3, Vec4},
+    *,
+};
 
 use bitflags::bitflags;
 
@@ -51,7 +54,17 @@ impl<'a> XFileInto<FxEffectDef> for FxEffectDefRaw<'a> {
             elem_def_count_emission: self.elem_def_count_emission,
             elem_def_count_looping: self.elem_def_count_looping,
             elem_def_count_one_shot: self.elem_def_count_one_shot,
-            elem_defs: self.elem_defs.to_array(self.elem_def_count_looping as usize + self.elem_def_count_one_shot as usize + self.elem_def_count_emission as usize).to_vec(&mut xfile).into_iter().map(|d| d.xfile_into(&mut xfile)).collect(),
+            elem_defs: self
+                .elem_defs
+                .to_array(
+                    self.elem_def_count_looping as usize
+                        + self.elem_def_count_one_shot as usize
+                        + self.elem_def_count_emission as usize,
+                )
+                .to_vec(&mut xfile)
+                .into_iter()
+                .map(|d| d.xfile_into(&mut xfile))
+                .collect(),
             bounding_box_dim: self.bounding_box_dim.into(),
             bounding_sphere: self.bounding_sphere.into(),
         }
@@ -168,8 +181,11 @@ pub struct FxElemMarkVisuals {
 
 impl<'a> XFileInto<FxElemMarkVisuals> for FxElemMarkVisualsRaw<'a> {
     fn xfile_into(&self, mut xfile: impl Read + Seek) -> FxElemMarkVisuals {
-        FxElemMarkVisuals { 
-            materials: [self.materials[0].xfile_into(&mut xfile), self.materials[1].xfile_into(xfile)]
+        FxElemMarkVisuals {
+            materials: [
+                self.materials[0].xfile_into(&mut xfile),
+                self.materials[1].xfile_into(xfile),
+            ],
         }
     }
 }
@@ -250,77 +266,116 @@ pub struct FxElemDef {
 
 impl<'a> XFileInto<FxElemDef> for FxElemDefRaw<'a> {
     fn xfile_into(&self, mut xfile: impl Read + Seek) -> FxElemDef {
-        let vel_samples = self.vel_samples.to_array(self.vel_interval_count as _).to_vec(&mut xfile);
-        let vis_samples = self.vis_samples.to_array(self.vis_state_interval_count as _).to_vec(&mut xfile).into_iter().map(Into::into).collect();
+        let vel_samples = self
+            .vel_samples
+            .to_array(self.vel_interval_count as _)
+            .to_vec(&mut xfile);
+        let vis_samples = self
+            .vis_samples
+            .to_array(self.vis_state_interval_count as _)
+            .to_vec(&mut xfile)
+            .into_iter()
+            .map(Into::into)
+            .collect();
         let elem_type = num::FromPrimitive::from_u8(self.elem_type).unwrap();
         let visuals = if elem_type == FxElemType::DECAL {
-            FxElemDefVisuals::MarkArray(self.visuals.cast::<FxElemMarkVisualsRaw>().to_array(self.visual_count as _).to_vec(&mut xfile).into_iter().map(|v| v.xfile_into(&mut xfile)).collect())
-        } else if self.visual_count < 2 {
-            FxElemDefVisuals::Instance(
-                match elem_type {
-                    FxElemType::MODEL => FxElemVisuals::Model(self.visuals.cast::<xmodel::XModelRaw>().xfile_into(&mut xfile)),
-                    FxElemType::RUNNER => unimplemented!(), // FxElemVisuals::EffectDef(FxEffectDefRef::Handle(self.visuals.cast::<FxEffectDefRaw>().xfile_into(&mut xfile))),
-                    FxElemType::SOUND => FxElemVisuals::SoundName(XString::from_u32(self.visuals.0).xfile_into(&mut xfile)),
-                    FxElemType::TRAIL => FxElemVisuals::Material(self.visuals.cast::<techset::MaterialRaw>().xfile_into(&mut xfile)),
-                    _ => unreachable!()
-                }
+            FxElemDefVisuals::MarkArray(
+                self.visuals
+                    .cast::<FxElemMarkVisualsRaw>()
+                    .to_array(self.visual_count as _)
+                    .to_vec(&mut xfile)
+                    .into_iter()
+                    .map(|v| v.xfile_into(&mut xfile))
+                    .collect(),
             )
+        } else if self.visual_count < 2 {
+            FxElemDefVisuals::Instance(match elem_type {
+                FxElemType::MODEL => FxElemVisuals::Model(
+                    self.visuals
+                        .cast::<xmodel::XModelRaw>()
+                        .xfile_into(&mut xfile),
+                ),
+                FxElemType::RUNNER => unimplemented!(), // FxElemVisuals::EffectDef(FxEffectDefRef::Handle(self.visuals.cast::<FxEffectDefRaw>().xfile_into(&mut xfile))),
+                FxElemType::SOUND => FxElemVisuals::SoundName(
+                    XString::from_u32(self.visuals.0).xfile_into(&mut xfile),
+                ),
+                FxElemType::TRAIL => FxElemVisuals::Material(
+                    self.visuals
+                        .cast::<techset::MaterialRaw>()
+                        .xfile_into(&mut xfile),
+                ),
+                _ => unreachable!(),
+            })
         } else if self.visuals.0 != 0 {
-            FxElemDefVisuals::Array(self.visuals.cast::<Ptr32<'a, ()>>().to_array(self.visual_count as _).to_vec(&mut xfile).into_iter().map(|v| match elem_type {
-                FxElemType::MODEL => FxElemVisuals::Model(v.cast::<xmodel::XModelRaw>().xfile_into(&mut xfile)),
-                FxElemType::RUNNER => unimplemented!(), // FxElemVisuals::EffectDef(FxEffectDefRef::Handle(v.cast::<FxEffectDefRaw>().xfile_into(&mut xfile))),
-                FxElemType::SOUND => FxElemVisuals::SoundName(XString::from_u32(self.visuals.0).xfile_into(&mut xfile)),
-                FxElemType::TRAIL => FxElemVisuals::Material(v.cast::<techset::MaterialRaw>().xfile_into(&mut xfile)),
-                _ => unreachable!()
-            }).collect())
+            FxElemDefVisuals::Array(
+                self.visuals
+                    .cast::<Ptr32<'a, ()>>()
+                    .to_array(self.visual_count as _)
+                    .to_vec(&mut xfile)
+                    .into_iter()
+                    .map(|v| match elem_type {
+                        FxElemType::MODEL => FxElemVisuals::Model(
+                            v.cast::<xmodel::XModelRaw>().xfile_into(&mut xfile),
+                        ),
+                        FxElemType::RUNNER => unimplemented!(), // FxElemVisuals::EffectDef(FxEffectDefRef::Handle(v.cast::<FxEffectDefRaw>().xfile_into(&mut xfile))),
+                        FxElemType::SOUND => FxElemVisuals::SoundName(
+                            XString::from_u32(self.visuals.0).xfile_into(&mut xfile),
+                        ),
+                        FxElemType::TRAIL => FxElemVisuals::Material(
+                            v.cast::<techset::MaterialRaw>().xfile_into(&mut xfile),
+                        ),
+                        _ => unreachable!(),
+                    })
+                    .collect(),
+            )
         } else {
             unreachable!()
         };
 
-        FxElemDef { 
-            flags: FxElemFlags::from_bits(self.flags as _).unwrap(), 
-            spawn: self.spawn, 
-            spawn_range: self.spawn_range, 
-            fade_in_range: self.fade_in_range, 
-            fade_out_range: self.fade_out_range, 
-            spawn_frustum_cull_radius: self.spawn_frustum_cull_radius, 
-            spawn_delay_msec: self.spawn_delay_msec, 
-            life_span_msec: self.life_span_msec, 
-            spawn_origin: self.spawn_origin, 
-            spawn_offset_radius: self.spawn_offset_radius, 
-            spawn_offset_height: self.spawn_offset_height, 
-            spawn_angles: self.spawn_angles, 
-            angular_velocity: self.angular_velocity, 
-            initial_rotation: self.initial_rotation, 
-            rotation_axis: self.rotation_axis, 
-            gravity: self.gravity, 
-            reflection_factor: self.reflection_factor, 
-            atlas: self.atlas, 
-            wind_influence: self.wind_influence, 
-            elem_type, 
-            visual_count: self.visual_count, 
-            vel_interval_count: self.vel_interval_count, 
-            vis_state_interval_count: self.vis_state_interval_count, 
+        FxElemDef {
+            flags: FxElemFlags::from_bits(self.flags as _).unwrap(),
+            spawn: self.spawn,
+            spawn_range: self.spawn_range,
+            fade_in_range: self.fade_in_range,
+            fade_out_range: self.fade_out_range,
+            spawn_frustum_cull_radius: self.spawn_frustum_cull_radius,
+            spawn_delay_msec: self.spawn_delay_msec,
+            life_span_msec: self.life_span_msec,
+            spawn_origin: self.spawn_origin,
+            spawn_offset_radius: self.spawn_offset_radius,
+            spawn_offset_height: self.spawn_offset_height,
+            spawn_angles: self.spawn_angles,
+            angular_velocity: self.angular_velocity,
+            initial_rotation: self.initial_rotation,
+            rotation_axis: self.rotation_axis,
+            gravity: self.gravity,
+            reflection_factor: self.reflection_factor,
+            atlas: self.atlas,
+            wind_influence: self.wind_influence,
+            elem_type,
+            visual_count: self.visual_count,
+            vel_interval_count: self.vel_interval_count,
+            vis_state_interval_count: self.vis_state_interval_count,
             vel_samples,
             vis_samples,
-            visuals, 
-            coll_mins: self.coll_mins.into(), 
-            coll_maxs: self.coll_maxs.into(), 
-            effect_on_impact: self.effect_on_impact.xfile_into(&mut xfile), 
-            effect_on_death: self.effect_on_death.xfile_into(&mut xfile), 
-            effect_emitted: self.effect_emitted.xfile_into(&mut xfile), 
-            emit_dist: self.emit_dist, 
-            emit_dist_variance: self.emit_dist_variance, 
-            effect_attached: self.effect_attached.xfile_into(&mut xfile), 
-            trail_def: self.trail_def.xfile_into(&mut xfile), 
-            sort_order: self.sort_order, 
-            lighting_frac: self.lighting_frac, 
-            alpha_fade_time_msec: self.alpha_fade_time_msec, 
-            max_wind_strength: self.max_wind_strength, 
-            spawn_interval_at_max_wind: self.spawn_interval_at_max_wind, 
-            lifespan_at_max_wind: self.lifespan_at_max_wind, 
-            u: None, 
-            spawn_sound: self.spawn_sound.xfile_into(xfile), 
+            visuals,
+            coll_mins: self.coll_mins.into(),
+            coll_maxs: self.coll_maxs.into(),
+            effect_on_impact: self.effect_on_impact.xfile_into(&mut xfile),
+            effect_on_death: self.effect_on_death.xfile_into(&mut xfile),
+            effect_emitted: self.effect_emitted.xfile_into(&mut xfile),
+            emit_dist: self.emit_dist,
+            emit_dist_variance: self.emit_dist_variance,
+            effect_attached: self.effect_attached.xfile_into(&mut xfile),
+            trail_def: self.trail_def.xfile_into(&mut xfile),
+            sort_order: self.sort_order,
+            lighting_frac: self.lighting_frac,
+            alpha_fade_time_msec: self.alpha_fade_time_msec,
+            max_wind_strength: self.max_wind_strength,
+            spawn_interval_at_max_wind: self.spawn_interval_at_max_wind,
+            lifespan_at_max_wind: self.lifespan_at_max_wind,
+            u: None,
+            spawn_sound: self.spawn_sound.xfile_into(xfile),
             billboard_pivot: self.billboard_pivot.into(),
         }
     }
@@ -387,7 +442,10 @@ pub struct FxElemVisStateSample {
 
 impl Into<FxElemVisStateSample> for FxElemVisStateSampleRaw {
     fn into(self) -> FxElemVisStateSample {
-        FxElemVisStateSample { base: self.base.into(), amplitude: self.amplitude.into() }
+        FxElemVisStateSample {
+            base: self.base.into(),
+            amplitude: self.amplitude.into(),
+        }
     }
 }
 
@@ -411,12 +469,12 @@ pub struct FxElemVisualState {
 
 impl Into<FxElemVisualState> for FxElemVisualStateRaw {
     fn into(self) -> FxElemVisualState {
-        FxElemVisualState { 
-            color: self.color, 
-            rotation_delta: self.rotation_delta, 
-            rotation_total: self.rotation_total, 
-            size: self.size.into(), 
-            scale: self.scale
+        FxElemVisualState {
+            color: self.color,
+            rotation_delta: self.rotation_delta,
+            rotation_total: self.rotation_total,
+            size: self.size.into(),
+            scale: self.scale,
         }
     }
 }
@@ -441,12 +499,17 @@ pub struct FxTrailDef {
 
 impl<'a> XFileInto<FxTrailDef> for FxTrailDefRaw<'a> {
     fn xfile_into(&self, mut xfile: impl Read + Seek) -> FxTrailDef {
-        FxTrailDef { 
-            scroll_time_msec: self.scroll_time_msec, 
-            repeat_dist: self.repeat_dist, 
-            split_dist: self.split_dist, 
-            verts: self.verts.to_vec(&mut xfile).into_iter().map(Into::into).collect(), 
-            inds: self.inds.to_vec(xfile), 
+        FxTrailDef {
+            scroll_time_msec: self.scroll_time_msec,
+            repeat_dist: self.repeat_dist,
+            split_dist: self.split_dist,
+            verts: self
+                .verts
+                .to_vec(&mut xfile)
+                .into_iter()
+                .map(Into::into)
+                .collect(),
+            inds: self.inds.to_vec(xfile),
         }
     }
 }
@@ -467,10 +530,10 @@ pub struct FxTrailVertex {
 
 impl Into<FxTrailVertex> for FxTrailVertexRaw {
     fn into(self) -> FxTrailVertex {
-        FxTrailVertex { 
-            pos: self.pos.into(), 
-            normal: self.normal.into(), 
-            tex_coord: self.tex_coord 
+        FxTrailVertex {
+            pos: self.pos.into(),
+            normal: self.normal.into(),
+            tex_coord: self.tex_coord,
         }
     }
 }
@@ -487,6 +550,8 @@ pub struct FxElemSpawnSound {
 
 impl<'a> XFileInto<FxElemSpawnSound> for FxElemSpawnSoundRaw<'a> {
     fn xfile_into(&self, xfile: impl Read + Seek) -> FxElemSpawnSound {
-        FxElemSpawnSound { spawn_sound: self.spawn_sound.xfile_into(xfile) }
+        FxElemSpawnSound {
+            spawn_sound: self.spawn_sound.xfile_into(xfile),
+        }
     }
 }
