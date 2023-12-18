@@ -11,6 +11,7 @@ mod light;
 mod techset;
 mod xmodel;
 
+use common::Vec4;
 use num_derive::FromPrimitive;
 use serde::{
     de::{DeserializeOwned, Error, SeqAccess, Visitor},
@@ -972,6 +973,41 @@ impl<'a> XFileInto<LocalizeEntry> for LocalizeEntryRaw<'a> {
 }
 
 #[derive(Copy, Clone, Debug, Deserialize)]
+pub struct XGlobalsRaw<'a> {
+    pub name: XString<'a>,
+    pub xanim_stream_buffer_size: i32,
+    pub cinematic_max_width: i32,
+    pub cinematic_max_height: i32,
+    pub extracam_resolution: i32,
+    pub gump_reserve: i32,
+    pub screen_clear_color: [f32; 4],
+}
+
+pub struct XGlobals {
+    pub name: String,
+    pub xanim_stream_buffer_size: i32,
+    pub cinematic_max_width: i32,
+    pub cinematic_max_height: i32,
+    pub extracam_resolution: i32,
+    pub gump_reserve: i32,
+    pub screen_clear_color: Vec4,
+}
+
+impl<'a> XFileInto<XGlobals> for XGlobalsRaw<'a> {
+    fn xfile_into(&self, xfile: impl Read + Seek) -> XGlobals {
+        XGlobals {
+            name: self.name.xfile_into(xfile),
+            xanim_stream_buffer_size: self.xanim_stream_buffer_size,
+            cinematic_max_width: self.cinematic_max_width,
+            cinematic_max_height: self.cinematic_max_height,
+            extracam_resolution: self.extracam_resolution,
+            gump_reserve: self.gump_reserve,
+            screen_clear_color: self.screen_clear_color.into(),
+        }
+    }
+}
+
+#[derive(Copy, Clone, Debug, Deserialize)]
 #[repr(C, packed)]
 struct XAssetRaw<'a> {
     asset_type: u32,
@@ -1048,6 +1084,7 @@ enum XAsset {
     RawFile(Option<Box<RawFile>>),
     StringTable(Option<Box<StringTable>>),
     PackIndex(Option<Box<PackIndex>>),
+    XGlobals(Option<Box<XGlobals>>),
 }
 
 impl<'a> XFileInto<XAsset> for XAssetRaw<'a> {
@@ -1127,6 +1164,9 @@ impl<'a> XFileInto<XAsset> for XAssetRaw<'a> {
             XAssetType::PACKINDEX => {
                 XAsset::PackIndex(self.asset_data.cast::<PackIndexRaw>().xfile_into(xfile))
             }
+            XAssetType::XGLOBALS => {
+                XAsset::XGlobals(self.asset_data.cast::<XGlobalsRaw>().xfile_into(xfile))
+            }
             _ => {
                 dbg!(asset_type);
                 unimplemented!()
@@ -1137,15 +1177,15 @@ impl<'a> XFileInto<XAsset> for XAssetRaw<'a> {
 
 #[repr(transparent)]
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
-struct XString<'a>(Ptr32<'a, u8>);
+pub struct XString<'a>(Ptr32<'a, u8>);
 assert_size!(XString, 4);
 
 impl<'a> XString<'a> {
-    fn from_u32(value: u32) -> Self {
+    pub fn from_u32(value: u32) -> Self {
         Self(Ptr32::from_u32(value))
     }
 
-    fn as_u32(self) -> u32 {
+    pub fn as_u32(self) -> u32 {
         self.0.as_u32()
     }
 }
