@@ -8,6 +8,7 @@ mod fx;
 mod gameworld;
 mod techset;
 mod xmodel;
+mod destructible;
 
 use num_derive::FromPrimitive;
 use serde::{
@@ -195,6 +196,17 @@ trait XFileInto<T> {
     fn xfile_into(&self, xfile: impl Read + Seek) -> T;
 }
 
+// impl<'a, T, U, const N: usize> XFileInto<[U; N]> for [T; N]
+// where
+//     U: Debug + 'a,
+//     [U; N]: TryFrom<&'a [U]>,
+//     T: DeserializeOwned + Clone + Debug + XFileInto<U>, 
+// {
+//     fn xfile_into(&self, mut xfile: impl Read + Seek) -> [U; N] {
+//         unsafe { self.iter().cloned().map(|t| t.xfile_into(&mut xfile)).collect::<Vec<_>>()[..].try_into().unwrap_unchecked() }
+//     }
+// }
+
 /// Newtype to handle pointer members of serialized structs.
 ///
 /// We use this instead of a [`u32`] for two reasons. One, to differentiate
@@ -225,6 +237,14 @@ impl<'a, T> Default for Ptr32<'a, T> {
 }
 
 impl<'a, T> Ptr32<'a, T> {
+    fn from_u32(value: u32) -> Self {
+        Self(value, PhantomData)
+    }
+
+    fn as_u32(self) -> u32 {
+        self.0
+    }
+
     fn cast<U>(self) -> Ptr32<'a, U> {
         Ptr32::<'a, U>(self.0, PhantomData)
     }
@@ -1012,6 +1032,7 @@ enum XAssetType {
 enum XAsset {
     PhysPreset(Option<Box<xmodel::PhysPreset>>),
     PhysConstraints(Option<Box<xmodel::PhysConstraints>>),
+    DestructibleDef(Option<Box<destructible::DestructibleDef>>),
     XModel(Option<Box<xmodel::XModel>>),
     Material(Option<Box<techset::Material>>),
     TechniqueSet(Option<Box<techset::MaterialTechniqueSet>>),
@@ -1040,6 +1061,11 @@ impl<'a> XFileInto<XAsset> for XAssetRaw<'a> {
                 self.asset_data
                     .cast::<xmodel::PhysConstraintsRaw>()
                     .xfile_into(xfile),
+            ),
+            XAssetType::DESTRUCTIBLEDEF => XAsset::DestructibleDef(
+                self.asset_data
+                    .cast::<destructible::DestructibleDefRaw>()
+                    .xfile_into(xfile)   
             ),
             XAssetType::XMODEL => XAsset::XModel(
                 self.asset_data
@@ -1104,18 +1130,28 @@ impl<'a> XFileInto<XAsset> for XAssetRaw<'a> {
 
 #[repr(transparent)]
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
-struct XString<'a>(u32, PhantomData<&'a ()>);
+struct XString<'a>(Ptr32<'a, u8>);
 assert_size!(XString, 4);
+
+impl<'a> XString<'a> {
+    fn from_u32(value: u32) -> Self {
+        Self(Ptr32::from_u32(value))
+    }
+
+    fn as_u32(self) -> u32 {
+        self.0.as_u32()
+    }
+}
 
 impl<'a> XFileInto<String> for XString<'a> {
     fn xfile_into(&self, mut xfile: impl Read + Seek) -> String {
         //dbg!(*self);
 
-        if self.0 == 0x00000000 {
+        if self.as_u32() == 0x00000000 {
             String::new()
-        } else if self.0 == 0xFFFFFFFF {
+        } else if self.as_u32() == 0xFFFFFFFF {
             xfile
-                .seek_and(std::io::SeekFrom::Start(self.0 as _), |f| {
+                .seek_and(std::io::SeekFrom::Start(self.as_u32() as _), |f| {
                     file_read_string(f)
                 })
                 .unwrap()

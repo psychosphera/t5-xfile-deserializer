@@ -400,11 +400,7 @@ impl<'a> XFileInto<PathNodeTree> for PathNodeTreeRaw {
                 unsafe { std::mem::transmute::<_, PathNodeTreeNodesRaw>(self.u) }.xfile_into(xfile),
             )
         } else {
-            let trees =
-                unsafe { std::mem::transmute::<_, [Ptr32<'a, PathNodeTreeRaw>; 2]>(self.u) };
-            let left = trees[0].xfile_into(&mut xfile);
-            let right = trees[1].xfile_into(xfile);
-            PathNodeTreeInfo::Child((left, right))
+            unimplemented!()
         };
 
         PathNodeTree {
