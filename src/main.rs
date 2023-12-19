@@ -9,6 +9,7 @@ mod fx;
 mod gameworld;
 mod light;
 mod techset;
+mod xanim;
 mod xmodel;
 
 use common::Vec4;
