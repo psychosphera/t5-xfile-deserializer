@@ -198,16 +198,17 @@ trait XFileInto<T> {
     fn xfile_into(&self, xfile: impl Read + Seek) -> T;
 }
 
-// impl<'a, T, U, const N: usize> XFileInto<[U; N]> for [T; N]
-// where
-//     U: Debug + 'a,
-//     [U; N]: TryFrom<&'a [U]>,
-//     T: DeserializeOwned + Clone + Debug + XFileInto<U>,
-// {
-//     fn xfile_into(&self, mut xfile: impl Read + Seek) -> [U; N] {
-//         unsafe { self.iter().cloned().map(|t| t.xfile_into(&mut xfile)).collect::<Vec<_>>()[..].try_into().unwrap_unchecked() }
-//     }
-// }
+impl<'a, T, U, const N: usize> XFileInto<[U; N]> for [T; N]
+where
+    U: Debug + 'a,
+    [U; N]: TryFrom<&'a [U]>,
+    <&'a [U] as TryInto<[U; N]>>::Error: Debug,
+    T: DeserializeOwned + Clone + Debug + XFileInto<U>,
+{
+    fn xfile_into(&self, mut xfile: impl Read + Seek) -> [U; N] {
+        self.iter().cloned().map(|t| t.xfile_into(&mut xfile)).collect::<Vec<_>>().try_into().unwrap()
+    }
+}
 
 /// Newtype to handle pointer members of serialized structs.
 ///
@@ -230,7 +231,7 @@ trait XFileInto<T> {
 /// Also, pointers are unsafe and just annoying to use compared to a [`u32`].
 #[derive(Copy, Clone, Debug, Deserialize)]
 #[repr(transparent)]
-struct Ptr32<'a, T>(u32, PhantomData<&'a mut T>);
+pub struct Ptr32<'a, T>(u32, PhantomData<&'a mut T>);
 
 impl<'a, T> Default for Ptr32<'a, T> {
     fn default() -> Self {
@@ -243,7 +244,7 @@ impl<'a, T> Ptr32<'a, T> {
         Self(value, PhantomData)
     }
 
-    fn as_u32(self) -> u32 {
+    fn as_u32(&self) -> u32 {
         self.0
     }
 
@@ -668,6 +669,43 @@ impl<'a, T: DeserializeOwned + Debug + Clone + XFileInto<U>, U> XFileInto<Vec<U>
     }
 }
 
+#[derive(Copy, Clone, Default, Debug, Deserialize)]
+struct Ptr32ArrayConst<'a, T, const N: usize>(Ptr32<'a, T>);
+
+impl<'a, T: Clone + DeserializeOwned + Debug, const N: usize> Ptr32ArrayConst<'a, T, N> {
+    /// Deserializes [`N`] [`T`]s into a [`Vec<T>`].
+    fn to_vec(self, mut xfile: impl Read + Seek) -> Vec<T> {
+        if self.0.as_u32() == 0x00000000 {
+            return Vec::new();
+        }
+
+        xfile
+            .seek_and(std::io::SeekFrom::Start(self.0.as_u32() as _), |mut f| {
+                let mut vt = Vec::new();
+
+                for _ in 0..N {
+                    vt.push(bincode::deserialize_from::<_, T>(&mut f).unwrap());
+                }
+
+                vt
+            })
+            .ok()
+            .unwrap_or_default()
+    }
+}
+
+impl<'a, T: DeserializeOwned + Debug + Clone + XFileInto<U>, U, const N: usize> XFileInto<Vec<U>>
+    for Ptr32ArrayConst<'a, T, N>
+{
+    fn xfile_into(&self, mut xfile: impl Read + Seek) -> Vec<U> {
+        self.clone()
+            .to_vec(&mut xfile)
+            .into_iter()
+            .map(|a| a.xfile_into(&mut xfile))
+            .collect()
+    }
+}
+
 #[derive(Copy, Clone, Debug, Deserialize)]
 #[repr(C, packed)]
 struct XFileHeader {
@@ -1081,6 +1119,7 @@ enum XAsset {
     Font(Option<Box<font::Font>>),
     LocalizeEntry(Option<Box<LocalizeEntry>>),
     Fx(Option<Box<fx::FxEffectDef>>),
+    ImpactFx(Option<Box<fx::FxImpactTable>>),
     RawFile(Option<Box<RawFile>>),
     StringTable(Option<Box<StringTable>>),
     PackIndex(Option<Box<PackIndex>>),
@@ -1154,6 +1193,9 @@ impl<'a> XFileInto<XAsset> for XAssetRaw<'a> {
                 self.asset_data
                     .cast::<fx::FxEffectDefRaw>()
                     .xfile_into(xfile),
+            ),
+            XAssetType::IMPACT_FX => XAsset::ImpactFx(
+                self.asset_data.cast::<fx::FxImpactTableRaw>().xfile_into(xfile)
             ),
             XAssetType::RAWFILE => {
                 XAsset::RawFile(self.asset_data.cast::<RawFileRaw>().xfile_into(xfile))

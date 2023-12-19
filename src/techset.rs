@@ -5,7 +5,6 @@ use crate::{
 use num_derive::FromPrimitive;
 
 #[derive(Copy, Clone, Debug, Deserialize)]
-#[repr(C, packed)]
 pub struct MaterialTechniqueSetRaw<'a> {
     pub name: XString<'a>,
     pub world_vert_format: u8,

@@ -23,12 +23,14 @@ pub struct FxEffectDefRaw<'a> {
 assert_size!(FxEffectDefRaw, 60);
 
 bitflags! {
+    #[derive(Clone, Debug)]
     pub struct FxEffectDefFlags: u8 {
         const NEEDS_LIGHTING = 0x01;
         const IS_SEE_THRU_DECAL = 0x02;
     }
 }
 
+#[derive(Clone, Debug)]
 pub struct FxEffectDef {
     pub name: String,
     pub flags: FxEffectDefFlags,
@@ -121,7 +123,7 @@ pub struct FxElemDefRaw<'a> {
 }
 assert_size!(FxElemDefRaw, 292);
 
-#[derive(Copy, Clone, Debug, PartialOrd, Ord, PartialEq, Eq, FromPrimitive)]
+#[derive(Clone, Debug, PartialOrd, Ord, PartialEq, Eq, FromPrimitive)]
 #[repr(u8)]
 pub enum FxElemType {
     TRAIL = 0x05,
@@ -133,11 +135,13 @@ pub enum FxElemType {
     RUNNER = 0x0C,
 }
 
+#[derive(Clone, Debug)]
 pub enum FxElemDefUnion {
     Billboard(FxBillboardTrim),
     CloudDensityRange(FxIntRange),
 }
 
+#[derive(Clone, Debug)]
 pub struct FxBillboardTrim {
     pub top_width: f32,
     pub bottom_width: f32,
@@ -152,11 +156,13 @@ impl<'a> XFileInto<FxEffectDefRef> for FxEffectDefRefRaw<'a> {
     }
 }
 
+#[derive(Clone, Debug)]
 pub enum FxEffectDefRef {
     Name(String),
     Handle(Option<Box<FxEffectDef>>),
 }
 
+#[derive(Clone, Debug)]
 pub enum FxElemVisuals {
     Material(Option<Box<techset::Material>>),
     Model(Option<Box<xmodel::XModel>>),
@@ -164,6 +170,7 @@ pub enum FxElemVisuals {
     SoundName(String),
 }
 
+#[derive(Clone, Debug)]
 pub enum FxElemDefVisuals {
     MarkArray(Vec<FxElemMarkVisuals>),
     Array(Vec<FxElemVisuals>),
@@ -175,6 +182,7 @@ pub struct FxElemMarkVisualsRaw<'a> {
     pub materials: [Ptr32<'a, techset::MaterialRaw<'a>>; 2],
 }
 
+#[derive(Clone, Debug)]
 pub struct FxElemMarkVisuals {
     pub materials: [Option<Box<techset::Material>>; 2],
 }
@@ -191,6 +199,7 @@ impl<'a> XFileInto<FxElemMarkVisuals> for FxElemMarkVisualsRaw<'a> {
 }
 
 bitflags! {
+    #[derive(Clone, Debug)]
     pub struct FxElemFlags: u32 {
         const SPAWN_RELATIVE_TO_EFFECT = 0x00000002;
         const SPAWN_FRUSTUM_CULL = 0x00000004;
@@ -217,6 +226,7 @@ bitflags! {
     }
 }
 
+#[derive(Clone, Debug)]
 pub struct FxElemDef {
     pub flags: FxElemFlags,
     pub spawn: [i32; 2],
@@ -435,6 +445,7 @@ pub struct FxElemVisStateSampleRaw {
 }
 assert_size!(FxElemVisStateSampleRaw, 48);
 
+#[derive(Clone, Debug)]
 pub struct FxElemVisStateSample {
     pub base: FxElemVisualState,
     pub amplitude: FxElemVisualState,
@@ -459,6 +470,7 @@ pub struct FxElemVisualStateRaw {
 }
 assert_size!(FxElemVisualStateRaw, 24);
 
+#[derive(Clone, Debug)]
 pub struct FxElemVisualState {
     pub color: [u8; 4],
     pub rotation_delta: f32,
@@ -489,6 +501,7 @@ pub struct FxTrailDefRaw<'a> {
 }
 assert_size!(FxTrailDefRaw, 28);
 
+#[derive(Clone, Debug)]
 pub struct FxTrailDef {
     pub scroll_time_msec: i32,
     pub repeat_dist: i32,
@@ -522,6 +535,7 @@ pub struct FxTrailVertexRaw {
 }
 assert_size!(FxTrailVertexRaw, 20);
 
+#[derive(Clone, Debug)]
 pub struct FxTrailVertex {
     pub pos: Vec2,
     pub normal: Vec2,
@@ -544,6 +558,7 @@ pub struct FxElemSpawnSoundRaw<'a> {
 }
 assert_size!(FxElemSpawnSoundRaw, 4);
 
+#[derive(Clone, Debug)]
 pub struct FxElemSpawnSound {
     pub spawn_sound: String,
 }
@@ -553,5 +568,55 @@ impl<'a> XFileInto<FxElemSpawnSound> for FxElemSpawnSoundRaw<'a> {
         FxElemSpawnSound {
             spawn_sound: self.spawn_sound.xfile_into(xfile),
         }
+    }
+}
+
+#[derive(Copy, Clone, Debug, Deserialize)]
+pub struct FxImpactTableRaw<'a> {
+    pub name: XString<'a>,
+    pub table: Ptr32ArrayConst<'a, FxImpactEntryRaw<'a>, 21>,
+}
+
+#[derive(Clone, Debug)]
+pub struct FxImpactTable {
+    pub name: String,
+    pub table: Vec<FxImpactEntry>
+}
+
+impl<'a> XFileInto<FxImpactTable> for FxImpactTableRaw<'a> {
+    fn xfile_into(&self, mut xfile: impl Read + Seek) -> FxImpactTable {
+        FxImpactTable { name: self.name.xfile_into(&mut xfile), table: self.table.to_vec(&mut xfile).into_iter().map(|e| e.xfile_into(&mut xfile)).collect() }
+    }
+}
+
+#[derive(Copy, Clone, Debug, Deserialize)]
+pub struct FxImpactEntryRaw<'a> {
+    pub nonflesh: [Ptr32<'a, FxEffectDefRaw<'a>>; 31],
+    pub flesh: [Ptr32<'a, FxEffectDefRaw<'a>>; 4],
+}
+
+#[derive(Clone, Debug)]
+pub struct FxImpactEntry {
+    pub nonflesh: [Option<Box<FxEffectDef>>; 31],
+    pub flesh: [Option<Box<FxEffectDef>>; 4],
+}
+
+impl<'a> XFileInto<FxImpactEntry> for FxImpactEntryRaw<'a> {
+    fn xfile_into(&self, mut xfile: impl Read + Seek) -> FxImpactEntry {
+        let nonflesh = self.nonflesh
+            .iter()
+            .map(|p| p.xfile_into(&mut xfile))
+            .collect::<Vec<_>>()
+            .try_into()
+            .unwrap();
+
+        let flesh = self.flesh
+            .iter()
+            .map(|p| p.xfile_into(&mut xfile))
+            .collect::<Vec<_>>()
+            .try_into()
+            .unwrap();
+
+        FxImpactEntry { nonflesh, flesh }
     }
 }
