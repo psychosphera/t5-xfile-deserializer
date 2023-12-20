@@ -74,9 +74,9 @@ pub struct XModel {
     pub phys_constraints: Option<Box<PhysConstraints>>,
 }
 
-impl<'a> XFileInto<XModel> for XModelRaw<'a> {
-    fn xfile_into(&self, mut xfile: impl Read + Seek) -> XModel {
-        let name = self.name.xfile_into(&mut xfile);
+impl<'a> XFileInto<XModel, ()> for XModelRaw<'a> {
+    fn xfile_into(&self, mut xfile: impl Read + Seek, _data: ()) -> XModel {
+        let name = self.name.xfile_into(&mut xfile, ());
         let bone_names = self
             .bone_names
             .to_array(self.num_bones as _)
@@ -111,14 +111,14 @@ impl<'a> XFileInto<XModel> for XModelRaw<'a> {
             .surfs
             .clone()
             .to_array(self.numsurfs as _)
-            .xfile_into(&mut xfile)
+            .xfile_into(&mut xfile, ())
             .into_iter()
             .map(Box::new)
             .collect();
         let material_handles = self
             .material_handles
             .to_array(self.numsurfs as _)
-            .xfile_into(&mut xfile)
+            .xfile_into(&mut xfile, ())
             .into_iter()
             .filter_map(|h| h)
             .collect();
@@ -128,7 +128,7 @@ impl<'a> XFileInto<XModel> for XModelRaw<'a> {
             self.lod_info[2].into(),
             self.lod_info[3].into(),
         ];
-        let coll_surfs = self.coll_surfs.xfile_into(&mut xfile);
+        let coll_surfs = self.coll_surfs.xfile_into(&mut xfile, ());
         let bone_info = self
             .bone_info
             .to_array(self.num_bones as _)
@@ -136,15 +136,15 @@ impl<'a> XFileInto<XModel> for XModelRaw<'a> {
             .into_iter()
             .map(Into::into)
             .collect();
-        let stream_info = self.stream_info.xfile_into(&mut xfile);
-        let phys_preset = self.phys_preset.xfile_into(&mut xfile);
+        let stream_info = self.stream_info.xfile_into(&mut xfile, ());
+        let phys_preset = self.phys_preset.xfile_into(&mut xfile, ());
         let collmaps = self
             .collmaps
-            .xfile_into(&mut xfile)
+            .xfile_into(&mut xfile, ())
             .into_iter()
             .map(Box::new)
             .collect();
-        let phys_constraints = self.phys_constraints.xfile_into(xfile);
+        let phys_constraints = self.phys_constraints.xfile_into(xfile, ());
 
         XModel {
             name,
@@ -250,9 +250,9 @@ pub struct XSurface {
     pub part_bits: [i32; 5],
 }
 
-impl<'a> XFileInto<XSurface> for XSurfaceRaw<'a> {
-    fn xfile_into(&self, mut xfile: impl Read + Seek) -> XSurface {
-        let vert_info = self.vert_info.xfile_into(&mut xfile);
+impl<'a> XFileInto<XSurface, ()> for XSurfaceRaw<'a> {
+    fn xfile_into(&self, mut xfile: impl Read + Seek, _data: ()) -> XSurface {
+        let vert_info = self.vert_info.xfile_into(&mut xfile, ());
         let verts0 = self
             .verts0
             .to_array(self.vert_count as _)
@@ -263,7 +263,7 @@ impl<'a> XFileInto<XSurface> for XSurfaceRaw<'a> {
         let vert_list = self
             .vert_list
             .to_array(self.vert_list_count as _)
-            .xfile_into(&mut xfile)
+            .xfile_into(&mut xfile, ())
             .into_iter()
             .map(Box::new)
             .collect();
@@ -300,8 +300,8 @@ pub struct XSurfaceVertexInfo {
     pub tension_data: Vec<f32>,
 }
 
-impl<'a> XFileInto<XSurfaceVertexInfo> for XSurfaceVertexInfoRaw<'a> {
-    fn xfile_into(&self, mut xfile: impl Read + Seek) -> XSurfaceVertexInfo {
+impl<'a> XFileInto<XSurfaceVertexInfo, ()> for XSurfaceVertexInfoRaw<'a> {
+    fn xfile_into(&self, mut xfile: impl Read + Seek, _data: ()) -> XSurfaceVertexInfo {
         let blend_count = self.vert_count[0] as usize
             + self.vert_count[1] as usize * 3
             + self.vert_count[2] as usize * 5
@@ -385,14 +385,14 @@ pub struct XRigidVertList {
     pub collision_tree: Option<Box<XSurfaceCollisionTree>>,
 }
 
-impl<'a> XFileInto<XRigidVertList> for XRigidVertListRaw<'a> {
-    fn xfile_into(&self, xfile: impl Read + Seek) -> XRigidVertList {
+impl<'a> XFileInto<XRigidVertList, ()> for XRigidVertListRaw<'a> {
+    fn xfile_into(&self, xfile: impl Read + Seek, _data: ()) -> XRigidVertList {
         XRigidVertList {
             bone_offset: self.bone_offset as _,
             vert_count: self.vert_count as _,
             tri_offset: self.tri_offset as _,
             tri_count: self.tri_count as _,
-            collision_tree: self.collision_tree.xfile_into(xfile),
+            collision_tree: self.collision_tree.xfile_into(xfile, ()),
         }
     }
 }
@@ -414,8 +414,8 @@ pub struct XSurfaceCollisionTree {
     pub leafs: Vec<XSurfaceCollisionLeaf>,
 }
 
-impl<'a> XFileInto<XSurfaceCollisionTree> for XSurfaceCollisionTreeRaw<'a> {
-    fn xfile_into(&self, mut xfile: impl Read + Seek) -> XSurfaceCollisionTree {
+impl<'a> XFileInto<XSurfaceCollisionTree, ()> for XSurfaceCollisionTreeRaw<'a> {
+    fn xfile_into(&self, mut xfile: impl Read + Seek, _data: ()) -> XSurfaceCollisionTree {
         XSurfaceCollisionTree {
             trans: self.trans.into(),
             scale: self.scale.into(),
@@ -555,8 +555,8 @@ pub struct XModelCollSurf {
     pub surf_flags: i32,
 }
 
-impl<'a> XFileInto<XModelCollSurf> for XModelCollSurfRaw<'a> {
-    fn xfile_into(&self, xfile: impl Read + Seek) -> XModelCollSurf {
+impl<'a> XFileInto<XModelCollSurf, ()> for XModelCollSurfRaw<'a> {
+    fn xfile_into(&self, xfile: impl Read + Seek, _data: ()) -> XModelCollSurf {
         XModelCollSurf {
             coll_tris: self
                 .coll_tris
@@ -637,8 +637,8 @@ pub struct XModelStreamInfo {
     pub high_mip_bounds: Option<Box<XModelHighMipBounds>>,
 }
 
-impl<'a> XFileInto<XModelStreamInfo> for XModelStreamInfoRaw<'a> {
-    fn xfile_into(&self, mut xfile: impl Read + Seek) -> XModelStreamInfo {
+impl<'a> XFileInto<XModelStreamInfo, ()> for XModelStreamInfoRaw<'a> {
+    fn xfile_into(&self, mut xfile: impl Read + Seek, _data: ()) -> XModelStreamInfo {
         XModelStreamInfo {
             high_mip_bounds: self
                 .high_mip_bounds
@@ -709,17 +709,17 @@ pub struct PhysPreset {
     pub buoyancy_box_max: Vec3,
 }
 
-impl<'a> XFileInto<PhysPreset> for PhysPresetRaw<'a> {
-    fn xfile_into(&self, mut xfile: impl Read + Seek) -> PhysPreset {
+impl<'a> XFileInto<PhysPreset, ()> for PhysPresetRaw<'a> {
+    fn xfile_into(&self, mut xfile: impl Read + Seek, _data: ()) -> PhysPreset {
         PhysPreset {
-            name: self.name.xfile_into(&mut xfile),
+            name: self.name.xfile_into(&mut xfile, ()),
             flags: self.flags,
             mass: self.mass,
             bounce: self.bounce,
             friction: self.friction,
             bullet_force_scale: self.bullet_force_scale,
             explosive_force_scale: self.explosive_force_scale,
-            snd_alias_prefix: self.snd_alias_prefix.xfile_into(&mut xfile),
+            snd_alias_prefix: self.snd_alias_prefix.xfile_into(&mut xfile, ()),
             pieces_spread_fraction: self.pieces_spread_fraction,
             pieces_upward_velocity: self.pieces_upward_velocity,
             can_float: self.can_float as _,
@@ -742,10 +742,10 @@ pub struct Collmap {
     pub geom_list: Option<Box<PhysGeomList>>,
 }
 
-impl<'a> XFileInto<Collmap> for CollmapRaw<'a> {
-    fn xfile_into(&self, xfile: impl Read + Seek) -> Collmap {
+impl<'a> XFileInto<Collmap, ()> for CollmapRaw<'a> {
+    fn xfile_into(&self, xfile: impl Read + Seek, _data: ()) -> Collmap {
         Collmap {
-            geom_list: self.geom_list.xfile_into(xfile),
+            geom_list: self.geom_list.xfile_into(xfile, ()),
         }
     }
 }
@@ -763,10 +763,10 @@ pub struct PhysGeomList {
     pub contents: i32,
 }
 
-impl<'a> XFileInto<PhysGeomList> for PhysGeomListRaw<'a> {
-    fn xfile_into(&self, xfile: impl Read + Seek) -> PhysGeomList {
+impl<'a> XFileInto<PhysGeomList, ()> for PhysGeomListRaw<'a> {
+    fn xfile_into(&self, xfile: impl Read + Seek, _data: ()) -> PhysGeomList {
         PhysGeomList {
-            geoms: self.geoms.xfile_into(xfile),
+            geoms: self.geoms.xfile_into(xfile, ()),
             contents: self.contents,
         }
     }
@@ -800,10 +800,10 @@ pub struct PhysGeomInfo {
     pub half_lengths: Vec3,
 }
 
-impl<'a> XFileInto<PhysGeomInfo> for PhysGeomInfoRaw<'a> {
-    fn xfile_into(&self, xfile: impl Read + Seek) -> PhysGeomInfo {
+impl<'a> XFileInto<PhysGeomInfo, ()> for PhysGeomInfoRaw<'a> {
+    fn xfile_into(&self, xfile: impl Read + Seek, _data: ()) -> PhysGeomInfo {
         PhysGeomInfo {
-            brush: self.brush.xfile_into(xfile),
+            brush: self.brush.xfile_into(xfile, ()),
             type_: num::FromPrimitive::from_i32(self.type_).unwrap(),
             orientation: self.orientation.into(),
             offset: self.offset.into(),
@@ -837,13 +837,13 @@ pub struct BrushWrapper {
     pub planes: Vec<Option<Box<CPlane>>>,
 }
 
-impl<'a> XFileInto<BrushWrapper> for BrushWrapperRaw<'a> {
-    fn xfile_into(&self, mut xfile: impl Read + Seek) -> BrushWrapper {
+impl<'a> XFileInto<BrushWrapper, ()> for BrushWrapperRaw<'a> {
+    fn xfile_into(&self, mut xfile: impl Read + Seek, _data: ()) -> BrushWrapper {
         BrushWrapper {
             mins: self.mins.into(),
             contents: self.contents,
             maxs: self.maxs.into(),
-            sides: self.sides.xfile_into(&mut xfile),
+            sides: self.sides.xfile_into(&mut xfile, ()),
             axial_cflags: self.axial_cflags,
             axial_sflags: self.axial_sflags,
             verts: self
@@ -878,8 +878,8 @@ pub struct CBrushSide {
     pub sflags: i32,
 }
 
-impl<'a> XFileInto<CBrushSide> for CBrushSideRaw<'a> {
-    fn xfile_into(&self, xfile: impl Read + Seek) -> CBrushSide {
+impl<'a> XFileInto<CBrushSide, ()> for CBrushSideRaw<'a> {
+    fn xfile_into(&self, xfile: impl Read + Seek, _data: ()) -> CBrushSide {
         CBrushSide {
             plane: self.plane.xfile_get(xfile).map(|p| Box::new((*p).into())),
             cflags: self.cflags,
@@ -992,12 +992,12 @@ pub struct PhysConstraints {
     data: Vec<PhysConstraint>,
 }
 
-impl<'a> XFileInto<PhysConstraints> for PhysConstraintsRaw<'a> {
-    fn xfile_into(&self, mut xfile: impl Read + Seek) -> PhysConstraints {
+impl<'a> XFileInto<PhysConstraints, ()> for PhysConstraintsRaw<'a> {
+    fn xfile_into(&self, mut xfile: impl Read + Seek, _data: ()) -> PhysConstraints {
         PhysConstraints {
-            name: self.name.xfile_into(&mut xfile),
+            name: self.name.xfile_into(&mut xfile, ()),
             count: self.count as _,
-            data: self.data.iter().map(|r| r.xfile_into(&mut xfile)).collect(),
+            data: self.data.iter().map(|r| r.xfile_into(&mut xfile, ())).collect(),
         }
     }
 }
@@ -1099,19 +1099,19 @@ pub struct PhysConstraint {
     pub centity_num: [i32; 4],
 }
 
-impl<'a> XFileInto<PhysConstraint> for PhysConstraintRaw<'a> {
-    fn xfile_into(&self, mut xfile: impl Read + Seek) -> PhysConstraint {
+impl<'a> XFileInto<PhysConstraint, ()> for PhysConstraintRaw<'a> {
+    fn xfile_into(&self, mut xfile: impl Read + Seek, _data: ()) -> PhysConstraint {
         PhysConstraint {
             targetname: self.targetname.to_string(),
             type_: num::FromPrimitive::from_i32(self.type_).unwrap(),
             attach_point_type1: num::FromPrimitive::from_i32(self.attach_point_type1).unwrap(),
             target_index1: self.target_index1 as _,
             target_ent1: self.target_ent1.to_string(),
-            target_bone1: self.target_bone1.xfile_into(&mut xfile),
+            target_bone1: self.target_bone1.xfile_into(&mut xfile, ()),
             attach_point_type2: num::FromPrimitive::from_i32(self.attach_point_type2).unwrap(),
             target_index2: self.target_index2 as _,
             target_ent2: self.target_ent2.to_string(),
-            target_bone2: self.target_bone2.xfile_into(&mut xfile),
+            target_bone2: self.target_bone2.xfile_into(&mut xfile, ()),
             offset: self.offset.into(),
             pos: self.pos.into(),
             pos2: self.pos2.into(),
@@ -1127,7 +1127,7 @@ impl<'a> XFileInto<PhysConstraint> for PhysConstraintRaw<'a> {
             spin_scale: self.spin_scale,
             min_angle: self.spin_scale,
             max_angle: self.spin_scale,
-            material: self.material.xfile_into(xfile),
+            material: self.material.xfile_into(xfile, ()),
             constraint_handle: self.constraint_handle,
             rope_index: self.rope_index as _,
             centity_num: self.centity_num,

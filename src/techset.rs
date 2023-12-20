@@ -35,18 +35,18 @@ pub struct MaterialTechniqueSet {
     pub techniques: Vec<Box<MaterialTechnique>>,
 }
 
-impl<'a> XFileInto<MaterialTechniqueSet> for MaterialTechniqueSetRaw<'a> {
-    fn xfile_into(&self, mut xfile: impl Read + Seek) -> MaterialTechniqueSet {
+impl<'a> XFileInto<MaterialTechniqueSet, ()> for MaterialTechniqueSetRaw<'a> {
+    fn xfile_into(&self, mut xfile: impl Read + Seek, _data: ()) -> MaterialTechniqueSet {
         //dbg!(*self);
 
         let name = self.name;
-        let name = name.xfile_into(&mut xfile);
+        let name = name.xfile_into(&mut xfile, ());
         //dbg!(&name);
 
         let techniques = self.techniques;
         let techniques = techniques
             .iter()
-            .flat_map(|p| p.xfile_into(&mut xfile))
+            .flat_map(|p| p.xfile_into(&mut xfile, ()))
             .collect::<Vec<_>>();
 
         assert!(techniques.len() <= 130);
@@ -77,8 +77,8 @@ pub struct MaterialTechnique {
     pub passes: Vec<MaterialPass>,
 }
 
-impl<'a> XFileInto<MaterialTechnique> for MaterialTechniqueRaw<'a> {
-    fn xfile_into(&self, mut xfile: impl Read + Seek) -> MaterialTechnique {
+impl<'a> XFileInto<MaterialTechnique, ()> for MaterialTechniqueRaw<'a> {
+    fn xfile_into(&self, mut xfile: impl Read + Seek, _data: ()) -> MaterialTechnique {
         //dbg!(*self);
 
         //dbg!(self.passes);
@@ -88,12 +88,12 @@ impl<'a> XFileInto<MaterialTechnique> for MaterialTechniqueRaw<'a> {
             .passes
             .to_vec(&mut xfile)
             .iter()
-            .map(|t| t.xfile_into(&mut xfile))
+            .map(|t| t.xfile_into(&mut xfile, ()))
             .collect();
         //dbg!(&passes);
 
         let name = self.name;
-        let name = name.xfile_into(&mut xfile);
+        let name = name.xfile_into(&mut xfile, ());
         //dbg!(&name);
 
         MaterialTechnique {
@@ -130,8 +130,8 @@ pub struct MaterialPass {
     pub args: Vec<MaterialShaderArgument>,
 }
 
-impl<'a> XFileInto<MaterialPass> for MaterialPassRaw<'a> {
-    fn xfile_into(&self, mut xfile: impl Read + Seek) -> MaterialPass {
+impl<'a> XFileInto<MaterialPass, ()> for MaterialPassRaw<'a> {
+    fn xfile_into(&self, mut xfile: impl Read + Seek, _data: ()) -> MaterialPass {
         //dbg!(*self);
         //let pos = xfile.stream_position().unwrap();
         //dbg!(pos);
@@ -139,10 +139,10 @@ impl<'a> XFileInto<MaterialPass> for MaterialPassRaw<'a> {
         let vertex_decl = self.vertex_decl.xfile_get(&mut xfile);
         //dbg!(&vertex_decl);
         let vertex_shader = self.vertex_shader;
-        let vertex_shader = vertex_shader.xfile_into(&mut xfile);
+        let vertex_shader = vertex_shader.xfile_into(&mut xfile, ());
         //dbg!(&vertex_shader);
         let pixel_shader = self.pixel_shader;
-        let pixel_shader = pixel_shader.xfile_into(&mut xfile);
+        let pixel_shader = pixel_shader.xfile_into(&mut xfile, ());
         //dbg!(&pixel_shader);
 
         let argc = self.per_prim_arg_count as u16
@@ -158,7 +158,7 @@ impl<'a> XFileInto<MaterialPass> for MaterialPassRaw<'a> {
                 let arg_raw = load_from_xfile::<MaterialShaderArgumentRaw>(&mut xfile);
                 //let pos = xfile.stream_position().unwrap();
                 //dbg!(pos);
-                let arg = arg_raw.xfile_into(&mut xfile);
+                let arg = arg_raw.xfile_into(&mut xfile, ());
                 args.push(arg);
             }
         }
@@ -219,19 +219,19 @@ pub struct MaterialVertexShader {
     pub prog: MaterialVertexShaderProgram,
 }
 
-impl<'a> XFileInto<MaterialVertexShader> for MaterialVertexShaderRaw<'a> {
-    fn xfile_into(&self, mut xfile: impl Read + Seek) -> MaterialVertexShader {
+impl<'a> XFileInto<MaterialVertexShader, ()> for MaterialVertexShaderRaw<'a> {
+    fn xfile_into(&self, mut xfile: impl Read + Seek, _data: ()) -> MaterialVertexShader {
         //dbg!(*self);
         //let pos = xfile.stream_position().unwrap();
         //dbg!(pos);
 
         let name = self.name;
-        let name = name.xfile_into(&mut xfile);
+        let name = name.xfile_into(&mut xfile, ());
         //dbg!(&name);
 
         MaterialVertexShader {
             name,
-            prog: self.prog.xfile_into(&mut xfile),
+            prog: self.prog.xfile_into(&mut xfile, ()),
         }
     }
 }
@@ -250,13 +250,13 @@ pub struct MaterialVertexShaderProgram {
     pub load_def: GfxVertexShaderLoadDef,
 }
 
-impl<'a> XFileInto<MaterialVertexShaderProgram> for MaterialVertexShaderProgramRaw<'a> {
-    fn xfile_into(&self, mut xfile: impl Read + Seek) -> MaterialVertexShaderProgram {
+impl<'a> XFileInto<MaterialVertexShaderProgram, ()> for MaterialVertexShaderProgramRaw<'a> {
+    fn xfile_into(&self, mut xfile: impl Read + Seek, _data: ()) -> MaterialVertexShaderProgram {
         //dbg!(*self);
 
         MaterialVertexShaderProgram {
             vs: None,
-            load_def: self.load_def.xfile_into(&mut xfile),
+            load_def: self.load_def.xfile_into(&mut xfile, ()),
         }
     }
 }
@@ -273,8 +273,8 @@ pub struct GfxVertexShaderLoadDef {
     pub program: Vec<u32>,
 }
 
-impl<'a> XFileInto<GfxVertexShaderLoadDef> for GfxVertexShaderLoadDefRaw<'a> {
-    fn xfile_into(&self, xfile: impl Read + Seek) -> GfxVertexShaderLoadDef {
+impl<'a> XFileInto<GfxVertexShaderLoadDef, ()> for GfxVertexShaderLoadDefRaw<'a> {
+    fn xfile_into(&self, xfile: impl Read + Seek, _data: ()) -> GfxVertexShaderLoadDef {
         //dbg!(*self);
 
         let program = self.program.to_vec(xfile);
@@ -303,17 +303,17 @@ pub struct MaterialPixelShader {
     pub prog: MaterialPixelShaderProgram,
 }
 
-impl<'a> XFileInto<MaterialPixelShader> for MaterialPixelShaderRaw<'a> {
-    fn xfile_into(&self, mut xfile: impl Read + Seek) -> MaterialPixelShader {
+impl<'a> XFileInto<MaterialPixelShader, ()> for MaterialPixelShaderRaw<'a> {
+    fn xfile_into(&self, mut xfile: impl Read + Seek, _data: ()) -> MaterialPixelShader {
         //dbg!(*self);
 
         let name = self.name;
-        let name = name.xfile_into(&mut xfile);
+        let name = name.xfile_into(&mut xfile, ());
         //dbg!(&name);
 
         MaterialPixelShader {
             name,
-            prog: self.prog.xfile_into(&mut xfile),
+            prog: self.prog.xfile_into(&mut xfile, ()),
         }
     }
 }
@@ -332,13 +332,13 @@ pub struct MaterialPixelShaderProgram {
     pub load_def: GfxPixelShaderLoadDef,
 }
 
-impl<'a> XFileInto<MaterialPixelShaderProgram> for MaterialPixelShaderProgramRaw<'a> {
-    fn xfile_into(&self, mut xfile: impl Read + Seek) -> MaterialPixelShaderProgram {
+impl<'a> XFileInto<MaterialPixelShaderProgram, ()> for MaterialPixelShaderProgramRaw<'a> {
+    fn xfile_into(&self, mut xfile: impl Read + Seek, _data: ()) -> MaterialPixelShaderProgram {
         //dbg!(*self);
 
         MaterialPixelShaderProgram {
             ps: None,
-            load_def: self.load_def.xfile_into(&mut xfile),
+            load_def: self.load_def.xfile_into(&mut xfile, ()),
         }
     }
 }
@@ -355,8 +355,8 @@ pub struct GfxPixelShaderLoadDef {
     pub program: Vec<u32>,
 }
 
-impl<'a> XFileInto<GfxPixelShaderLoadDef> for GfxPixelShaderLoadDefRaw<'a> {
-    fn xfile_into(&self, xfile: impl Read + Seek) -> GfxPixelShaderLoadDef {
+impl<'a> XFileInto<GfxPixelShaderLoadDef, ()> for GfxPixelShaderLoadDefRaw<'a> {
+    fn xfile_into(&self, xfile: impl Read + Seek, _data: ()) -> GfxPixelShaderLoadDef {
         //dbg!(*self);
         //let pos = xfile.stream_position().unwrap();
         //dbg!(pos);
@@ -383,9 +383,9 @@ pub enum MaterialArgumentDef {
     NameHash(u32),
 }
 
-impl XFileInto<MaterialArgumentDef> for MaterialArgumentDefRaw {
-    fn xfile_into(&self, _xfile: impl Read + Seek) -> MaterialArgumentDef {
-        match *self {
+impl Into<MaterialArgumentDef> for MaterialArgumentDefRaw {
+    fn into(self) -> MaterialArgumentDef {
+        match self {
             Self::LiteralConst(v) => MaterialArgumentDef::LiteralConst(v.into()),
             Self::CodeConst(c) => MaterialArgumentDef::CodeConst(c),
             Self::CodeSampler(s) => MaterialArgumentDef::CodeSampler(s),
@@ -410,8 +410,8 @@ pub struct MaterialShaderArgument {
     pub u: MaterialArgumentDef,
 }
 
-impl XFileInto<MaterialShaderArgument> for MaterialShaderArgumentRaw {
-    fn xfile_into(&self, mut xfile: impl Read + Seek) -> MaterialShaderArgument {
+impl XFileInto<MaterialShaderArgument, ()> for MaterialShaderArgumentRaw {
+    fn xfile_into(&self, mut xfile: impl Read + Seek, _data: ()) -> MaterialShaderArgument {
         //let pos = xfile.stream_position().unwrap();
         //dbg!(pos);
 
@@ -436,7 +436,7 @@ impl XFileInto<MaterialShaderArgument> for MaterialShaderArgumentRaw {
         MaterialShaderArgument {
             arg_type: unsafe { transmute(self.arg_type) },
             dest: self.dest,
-            u: u.xfile_into(xfile),
+            u: u.into(),
         }
     }
 }
@@ -545,14 +545,14 @@ impl Default for Material {
     }
 }
 
-impl<'a> XFileInto<Material> for MaterialRaw<'a> {
-    fn xfile_into(&self, mut xfile: impl Read + Seek) -> Material {
-        let info = self.info.xfile_into(&mut xfile);
-        let technique_set = self.technique_set.xfile_into(&mut xfile);
+impl<'a> XFileInto<Material, ()> for MaterialRaw<'a> {
+    fn xfile_into(&self, mut xfile: impl Read + Seek, _data: ()) -> Material {
+        let info = self.info.xfile_into(&mut xfile, ());
+        let technique_set = self.technique_set.xfile_into(&mut xfile, ());
         let mut textures = Vec::new();
         for _ in 0..self.texture_count {
             textures
-                .push(load_from_xfile::<MaterialTextureDefRaw>(&mut xfile).xfile_into(&mut xfile));
+                .push(load_from_xfile::<MaterialTextureDefRaw>(&mut xfile).xfile_into(&mut xfile, ()));
         }
         let mut constants = Vec::new();
         for _ in 0..self.constant_count {
@@ -606,10 +606,10 @@ pub struct MaterialInfo {
     pub hash_index: usize,
 }
 
-impl<'a> XFileInto<MaterialInfo> for MaterialInfoRaw<'a> {
-    fn xfile_into(&self, mut xfile: impl Read + Seek) -> MaterialInfo {
+impl<'a> XFileInto<MaterialInfo, ()> for MaterialInfoRaw<'a> {
+    fn xfile_into(&self, mut xfile: impl Read + Seek, _data: ()) -> MaterialInfo {
         MaterialInfo {
-            name: self.name.xfile_into(&mut xfile),
+            name: self.name.xfile_into(&mut xfile, ()),
             game_flags: self.game_flags,
             sort_key: self.sort_key,
             texture_atlas_row_count: self.texture_atlas_row_count,
@@ -652,16 +652,16 @@ pub struct MaterialTextureDef {
     pub u: MaterialTextureDefInfo,
 }
 
-impl<'a> XFileInto<MaterialTextureDef> for MaterialTextureDefRaw<'a> {
-    fn xfile_into(&self, xfile: impl Read + Seek) -> MaterialTextureDef {
+impl<'a> XFileInto<MaterialTextureDef, ()> for MaterialTextureDefRaw<'a> {
+    fn xfile_into(&self, xfile: impl Read + Seek, _data: ()) -> MaterialTextureDef {
         let semantic = num::FromPrimitive::from_u8(self.semantic).unwrap();
         let info = if semantic == Semantic::WATER_MAP {
             let p = self.u.p.cast::<WaterRaw>();
-            let w = p.xfile_into(xfile);
+            let w = p.xfile_into(xfile, ());
             MaterialTextureDefInfo::Water(w)
         } else {
             let p = self.u.p.cast::<GfxImageRaw>();
-            let i = p.xfile_into(xfile);
+            let i = p.xfile_into(xfile, ());
             MaterialTextureDefInfo::Image(i)
         };
 
@@ -743,8 +743,8 @@ pub struct Water {
     pub image: Option<Box<GfxImage>>,
 }
 
-impl<'a> XFileInto<Water> for WaterRaw<'a> {
-    fn xfile_into(&self, mut xfile: impl Read + Seek) -> Water {
+impl<'a> XFileInto<Water, ()> for WaterRaw<'a> {
+    fn xfile_into(&self, mut xfile: impl Read + Seek, _data: ()) -> Water {
         let h0 = if self.h0.0 != 0 {
             let mut h0 = Vec::new();
             for _ in 0..self.m * self.n {
@@ -777,7 +777,7 @@ impl<'a> XFileInto<Water> for WaterRaw<'a> {
             winddir: self.winddir.into(),
             amplitude: self.amplitude,
             code_constant: self.code_constant.into(),
-            image: self.image.xfile_into(xfile),
+            image: self.image.xfile_into(xfile, ()),
         }
     }
 }
@@ -843,9 +843,9 @@ pub struct GfxImage {
     pub hash: u32,
 }
 
-impl<'a> XFileInto<GfxImage> for GfxImageRaw<'a> {
-    fn xfile_into(&self, mut xfile: impl Read + Seek) -> GfxImage {
-        let name = self.name.xfile_into(&mut xfile);
+impl<'a> XFileInto<GfxImage, ()> for GfxImageRaw<'a> {
+    fn xfile_into(&self, mut xfile: impl Read + Seek, _data: ()) -> GfxImage {
+        let name = self.name.xfile_into(&mut xfile, ());
 
         let map_type = num::FromPrimitive::from_u8(self.map_type).unwrap();
         let semantic = num::FromPrimitive::from_u8(self.semantic).unwrap();
@@ -861,7 +861,7 @@ impl<'a> XFileInto<GfxImage> for GfxImageRaw<'a> {
             .texture
             .p
             .cast::<GfxImageLoadDefRaw>()
-            .xfile_into(xfile);
+            .xfile_into(xfile, ());
         GfxImage {
             texture: GfxTexture::LoadDef(texture),
             map_type,
@@ -994,8 +994,8 @@ pub struct GfxImageLoadDef {
 
 type D3DFORMAT = i32;
 
-impl XFileInto<GfxImageLoadDef> for GfxImageLoadDefRaw {
-    fn xfile_into(&self, xfile: impl Read + Seek) -> GfxImageLoadDef {
+impl XFileInto<GfxImageLoadDef, ()> for GfxImageLoadDefRaw {
+    fn xfile_into(&self, xfile: impl Read + Seek, _data: ()) -> GfxImageLoadDef {
         GfxImageLoadDef {
             level_count: self.level_count,
             flags: self.flags,

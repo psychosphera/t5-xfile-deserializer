@@ -16,11 +16,11 @@ pub struct GameWorldSp {
     pub path: PathData,
 }
 
-impl<'a> XFileInto<GameWorldSp> for GameWorldSpRaw<'a> {
-    fn xfile_into(&self, mut xfile: impl Read + Seek) -> GameWorldSp {
+impl<'a> XFileInto<GameWorldSp, ()> for GameWorldSpRaw<'a> {
+    fn xfile_into(&self, mut xfile: impl Read + Seek, _data: ()) -> GameWorldSp {
         GameWorldSp {
-            name: self.name.xfile_into(&mut xfile),
-            path: self.path.xfile_into(xfile),
+            name: self.name.xfile_into(&mut xfile, ()),
+            path: self.path.xfile_into(xfile, ()),
         }
     }
 }
@@ -36,11 +36,11 @@ pub struct GameWorldMp {
     pub path: PathData,
 }
 
-impl<'a> XFileInto<GameWorldMp> for GameWorldMpRaw<'a> {
-    fn xfile_into(&self, mut xfile: impl Read + Seek) -> GameWorldMp {
+impl<'a> XFileInto<GameWorldMp, ()> for GameWorldMpRaw<'a> {
+    fn xfile_into(&self, mut xfile: impl Read + Seek, _data: ()) -> GameWorldMp {
         GameWorldMp {
-            name: self.name.xfile_into(&mut xfile),
-            path: self.path.xfile_into(xfile),
+            name: self.name.xfile_into(&mut xfile, ()),
+            path: self.path.xfile_into(xfile, ()),
         }
     }
 }
@@ -68,14 +68,14 @@ pub struct PathData {
     pub node_tree: Vec<PathNodeTree>,
 }
 
-impl<'a> XFileInto<PathData> for PathDataRaw<'a> {
-    fn xfile_into(&self, mut xfile: impl Read + Seek) -> PathData {
+impl<'a> XFileInto<PathData, ()> for PathDataRaw<'a> {
+    fn xfile_into(&self, mut xfile: impl Read + Seek, _data: ()) -> PathData {
         let nodes = self
             .nodes
             .to_array(self.node_count as usize + 128)
             .to_vec(&mut xfile)
             .into_iter()
-            .map(|n| n.xfile_into(&mut xfile))
+            .map(|n| n.xfile_into(&mut xfile, ()))
             .collect();
         let basenodes = self
             .basenodes
@@ -97,7 +97,7 @@ impl<'a> XFileInto<PathData> for PathDataRaw<'a> {
             .node_tree
             .to_vec(&mut xfile)
             .into_iter()
-            .map(|t| t.xfile_into(&mut xfile))
+            .map(|t| t.xfile_into(&mut xfile, ()))
             .collect();
 
         PathData {
@@ -126,10 +126,10 @@ pub struct PathNode {
     pub transient: PathNodeTransient,
 }
 
-impl<'a> XFileInto<PathNode> for PathNodeRaw<'a> {
-    fn xfile_into(&self, mut xfile: impl Read + Seek) -> PathNode {
+impl<'a> XFileInto<PathNode, ()> for PathNodeRaw<'a> {
+    fn xfile_into(&self, mut xfile: impl Read + Seek, _data: ()) -> PathNode {
         PathNode {
-            constant: self.constant.xfile_into(&mut xfile),
+            constant: self.constant.xfile_into(&mut xfile, ()),
             dynamic: self.dynamic.into(),
             transient: self.transient.into(),
         }
@@ -238,8 +238,8 @@ pub struct PathNodeConstant {
     pub links: Vec<PathLink>,
 }
 
-impl<'a> XFileInto<PathNodeConstant> for PathNodeConstantRaw<'a> {
-    fn xfile_into(&self, xfile: impl Read + Seek) -> PathNodeConstant {
+impl<'a> XFileInto<PathNodeConstant, ()> for PathNodeConstantRaw<'a> {
+    fn xfile_into(&self, xfile: impl Read + Seek, _data: ()) -> PathNodeConstant {
         PathNodeConstant {
             type_: num::FromPrimitive::from_u16(self.type_).unwrap(),
             spawnflags: SpawnFlags::from_bits(self.spawnflags).unwrap(),
@@ -393,11 +393,11 @@ pub struct PathNodeTree {
     pub u: PathNodeTreeInfo,
 }
 
-impl<'a> XFileInto<PathNodeTree> for PathNodeTreeRaw {
-    fn xfile_into(&self, mut xfile: impl Read + Seek) -> PathNodeTree {
+impl<'a> XFileInto<PathNodeTree, ()> for PathNodeTreeRaw {
+    fn xfile_into(&self, mut xfile: impl Read + Seek, _data: ()) -> PathNodeTree {
         let u = if self.axis < 0 {
             PathNodeTreeInfo::S(
-                unsafe { std::mem::transmute::<_, PathNodeTreeNodesRaw>(self.u) }.xfile_into(xfile),
+                unsafe { std::mem::transmute::<_, PathNodeTreeNodesRaw>(self.u) }.xfile_into(xfile, ()),
             )
         } else {
             unimplemented!()
@@ -421,8 +421,8 @@ pub struct PathNodeTreeNodes {
     pub nodes: Vec<u16>,
 }
 
-impl<'a> XFileInto<PathNodeTreeNodes> for PathNodeTreeNodesRaw<'a> {
-    fn xfile_into(&self, xfile: impl Read + Seek) -> PathNodeTreeNodes {
+impl<'a> XFileInto<PathNodeTreeNodes, ()> for PathNodeTreeNodesRaw<'a> {
+    fn xfile_into(&self, xfile: impl Read + Seek, _data: ()) -> PathNodeTreeNodes {
         PathNodeTreeNodes {
             nodes: self.nodes.to_vec(xfile),
         }

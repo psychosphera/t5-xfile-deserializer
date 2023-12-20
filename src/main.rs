@@ -187,7 +187,7 @@ pub fn load_from_xfile<T: DeserializeOwned>(xfile: impl Read + Seek) -> T {
 /// them very unergonomic to use. Since, if we were to deserialze them without
 /// any such conversion, we'd probably end up converting them separately later
 /// anyways, it's a nice touch to have both done in one go.
-trait XFileInto<T> {
+trait XFileInto<T, U: Copy> {
     /// Deserialize [`Self`] from [`xfile`], then convert [`Self`] to [`T`].
     ///
     /// [`Self`] may have [`repr`] attributes ([`C`], [`packed`]) or members
@@ -196,18 +196,19 @@ trait XFileInto<T> {
     /// without any such conversion, we'd probably end up converting them
     /// separately later anyways, it's a nice touch to have both done in one
     /// go.
-    fn xfile_into(&self, xfile: impl Read + Seek) -> T;
+    fn xfile_into(&self, xfile: impl Read + Seek, data: U) -> T;
 }
 
-impl<'a, T, U, const N: usize> XFileInto<[U; N]> for [T; N]
+impl<'a, T, U, V, const N: usize> XFileInto<[U; N], V> for [T; N]
 where
     U: Debug + 'a,
     [U; N]: TryFrom<&'a [U]>,
     <&'a [U] as TryInto<[U; N]>>::Error: Debug,
-    T: DeserializeOwned + Clone + Debug + XFileInto<U>,
+    T: DeserializeOwned + Clone + Debug + XFileInto<U, V>,
+    V: Copy
 {
-    fn xfile_into(&self, mut xfile: impl Read + Seek) -> [U; N] {
-        self.iter().cloned().map(|t| t.xfile_into(&mut xfile)).collect::<Vec<_>>().try_into().unwrap()
+    fn xfile_into(&self, mut xfile: impl Read + Seek, data: V) -> [U; N] {
+        self.iter().cloned().map(|t| t.xfile_into(&mut xfile, data)).collect::<Vec<_>>().try_into().unwrap()
     }
 }
 
@@ -300,10 +301,10 @@ trait SeekAnd: Read + Seek {
 
 impl<S: Read + Seek> SeekAnd for S {}
 
-impl<'a, T: DeserializeOwned + Clone + Debug + XFileInto<U>, U> XFileInto<Option<Box<U>>>
+impl<'a, T: DeserializeOwned + Clone + Debug + XFileInto<U, V>, U, V: Copy> XFileInto<Option<Box<U>>, V>
     for Ptr32<'a, T>
 {
-    fn xfile_into(&self, mut xfile: impl Read + Seek) -> Option<Box<U>> {
+    fn xfile_into(&self, mut xfile: impl Read + Seek, data: V) -> Option<Box<U>> {
         if self.0 == 0x00000000 {
             return None;
         }
@@ -323,7 +324,7 @@ impl<'a, T: DeserializeOwned + Clone + Debug + XFileInto<U>, U> XFileInto<Option
                 bincode::deserialize_from::<_, T>(f).unwrap()
             })
             .ok()
-            .map(|t| Box::new(t.xfile_into(xfile)))
+            .map(|t| Box::new(t.xfile_into(xfile, data)))
     }
 }
 
@@ -471,14 +472,14 @@ impl<'a, T: DeserializeOwned + Debug + Clone> FatPointerCountFirstU16<'a, T> {
     }
 }
 
-impl<'a, T: DeserializeOwned + Debug + Clone + XFileInto<U>, U> XFileInto<Vec<U>>
+impl<'a, T: DeserializeOwned + Debug + Clone + XFileInto<U, V>, U, V: Copy> XFileInto<Vec<U>, V>
     for FatPointerCountFirstU16<'a, T>
 {
-    fn xfile_into(&self, mut xfile: impl Read + Seek) -> Vec<U> {
+    fn xfile_into(&self, mut xfile: impl Read + Seek, data: V) -> Vec<U> {
         self.clone()
             .to_vec(&mut xfile)
             .into_iter()
-            .map(|a| a.xfile_into(&mut xfile))
+            .map(|a| a.xfile_into(&mut xfile, data))
             .collect()
     }
 }
@@ -520,14 +521,14 @@ impl<'a, T: DeserializeOwned + Debug> FatPointerCountFirstU32<'a, T> {
     }
 }
 
-impl<'a, T: DeserializeOwned + Debug + Clone + XFileInto<U>, U> XFileInto<Vec<U>>
+impl<'a, T: DeserializeOwned + Debug + Clone + XFileInto<U, V>, U, V: Copy> XFileInto<Vec<U>, V>
     for FatPointerCountFirstU32<'a, T>
 {
-    fn xfile_into(&self, mut xfile: impl Read + Seek) -> Vec<U> {
+    fn xfile_into(&self, mut xfile: impl Read + Seek, data: V) -> Vec<U> {
         self.clone()
             .to_vec(&mut xfile)
             .into_iter()
-            .map(|a| a.xfile_into(&mut xfile))
+            .map(|a| a.xfile_into(&mut xfile, data))
             .collect()
     }
 }
@@ -569,14 +570,14 @@ impl<'a, T: DeserializeOwned + Debug> FatPointerCountLastU16<'a, T> {
     }
 }
 
-impl<'a, T: DeserializeOwned + Debug + Clone + XFileInto<U>, U> XFileInto<Vec<U>>
+impl<'a, T: DeserializeOwned + Debug + Clone + XFileInto<U, V>, U, V: Copy> XFileInto<Vec<U>, V>
     for FatPointerCountLastU16<'a, T>
 {
-    fn xfile_into(&self, mut xfile: impl Read + Seek) -> Vec<U> {
+    fn xfile_into(&self, mut xfile: impl Read + Seek, data: V) -> Vec<U> {
         self.clone()
             .to_vec(&mut xfile)
             .into_iter()
-            .map(|a| a.xfile_into(&mut xfile))
+            .map(|a| a.xfile_into(&mut xfile, data))
             .collect()
     }
 }
@@ -618,14 +619,14 @@ impl<'a, T: DeserializeOwned + Debug> FatPointerCountLastU32<'a, T> {
     }
 }
 
-impl<'a, T: DeserializeOwned + Debug + Clone + XFileInto<U>, U> XFileInto<Vec<U>>
+impl<'a, T: DeserializeOwned + Debug + Clone + XFileInto<U, V>, U, V: Copy> XFileInto<Vec<U>, V>
     for FatPointerCountLastU32<'a, T>
 {
-    fn xfile_into(&self, mut xfile: impl Read + Seek) -> Vec<U> {
+    fn xfile_into(&self, mut xfile: impl Read + Seek, data: V) -> Vec<U> {
         self.clone()
             .to_vec(&mut xfile)
             .into_iter()
-            .map(|a| a.xfile_into(&mut xfile))
+            .map(|a| a.xfile_into(&mut xfile, data))
             .collect()
     }
 }
@@ -658,14 +659,14 @@ impl<'a, T: DeserializeOwned + Debug> Ptr32Array<'a, T> {
     }
 }
 
-impl<'a, T: DeserializeOwned + Debug + Clone + XFileInto<U>, U> XFileInto<Vec<U>>
+impl<'a, T: DeserializeOwned + Debug + Clone + XFileInto<U, V>, U, V: Copy> XFileInto<Vec<U>, V>
     for Ptr32Array<'a, T>
 {
-    fn xfile_into(&self, mut xfile: impl Read + Seek) -> Vec<U> {
+    fn xfile_into(&self, mut xfile: impl Read + Seek, data: V) -> Vec<U> {
         self.clone()
             .to_vec(&mut xfile)
             .into_iter()
-            .map(|a| a.xfile_into(&mut xfile))
+            .map(|a| a.xfile_into(&mut xfile, data))
             .collect()
     }
 }
@@ -695,14 +696,14 @@ impl<'a, T: Clone + DeserializeOwned + Debug, const N: usize> Ptr32ArrayConst<'a
     }
 }
 
-impl<'a, T: DeserializeOwned + Debug + Clone + XFileInto<U>, U, const N: usize> XFileInto<Vec<U>>
+impl<'a, T: DeserializeOwned + Debug + Clone + XFileInto<U, V>, U, V: Copy, const N: usize> XFileInto<Vec<U>, V>
     for Ptr32ArrayConst<'a, T, N>
 {
-    fn xfile_into(&self, mut xfile: impl Read + Seek) -> Vec<U> {
+    fn xfile_into(&self, mut xfile: impl Read + Seek, data: V) -> Vec<U> {
         self.clone()
             .to_vec(&mut xfile)
             .into_iter()
-            .map(|a| a.xfile_into(&mut xfile))
+            .map(|a| a.xfile_into(&mut xfile, data))
             .collect()
     }
 }
@@ -812,10 +813,10 @@ struct RawFile {
     buffer: Vec<u8>,
 }
 
-impl<'a> XFileInto<RawFile> for RawFileRaw<'a> {
-    fn xfile_into(&self, mut xfile: impl Read + Seek) -> RawFile {
+impl<'a> XFileInto<RawFile, ()> for RawFileRaw<'a> {
+    fn xfile_into(&self, mut xfile: impl Read + Seek, _data: ()) -> RawFile {
         RawFile {
-            name: self.name.xfile_into(&mut xfile),
+            name: self.name.xfile_into(&mut xfile, ()),
             buffer: self.buffer.to_vec(xfile),
         }
     }
@@ -839,15 +840,15 @@ struct StringTable {
     cell_index: Vec<i16>,
 }
 
-impl<'a> XFileInto<StringTable> for StringTableRaw<'a> {
-    fn xfile_into(&self, mut xfile: impl Read + Seek) -> StringTable {
+impl<'a> XFileInto<StringTable, ()> for StringTableRaw<'a> {
+    fn xfile_into(&self, mut xfile: impl Read + Seek, _data: ()) -> StringTable {
         let size = self.column_count as usize * self.row_count as usize;
 
         StringTable {
-            name: self.name.xfile_into(&mut xfile),
+            name: self.name.xfile_into(&mut xfile, ()),
             column_count: self.column_count as _,
             row_count: self.row_count as _,
-            values: self.values.to_array(size).xfile_into(&mut xfile),
+            values: self.values.to_array(size).xfile_into(&mut xfile, ()),
             cell_index: self.cell_index.to_array(size).to_vec(xfile),
         }
     }
@@ -865,10 +866,10 @@ struct StringTableCell {
     hash: i32,
 }
 
-impl<'a> XFileInto<StringTableCell> for StringTableCellRaw<'a> {
-    fn xfile_into(&self, xfile: impl Read + Seek) -> StringTableCell {
+impl<'a> XFileInto<StringTableCell, ()> for StringTableCellRaw<'a> {
+    fn xfile_into(&self, xfile: impl Read + Seek, _data: ()) -> StringTableCell {
         StringTableCell {
-            name: self.name.xfile_into(xfile),
+            name: self.name.xfile_into(xfile, ()),
             hash: self.hash,
         }
     }
@@ -888,10 +889,10 @@ struct PackIndex {
     entries: Vec<PackIndexEntry>,
 }
 
-impl<'a> XFileInto<PackIndex> for PackIndexRaw<'a> {
-    fn xfile_into(&self, mut xfile: impl Read + Seek) -> PackIndex {
+impl<'a> XFileInto<PackIndex, ()> for PackIndexRaw<'a> {
+    fn xfile_into(&self, mut xfile: impl Read + Seek, _data: ()) -> PackIndex {
         PackIndex {
-            name: self.name.xfile_into(&mut xfile),
+            name: self.name.xfile_into(&mut xfile, ()),
             header: self.header.into(),
             entries: self
                 .entries
@@ -970,9 +971,9 @@ struct MapEnts {
     entity_string: String,
 }
 
-impl<'a> XFileInto<MapEnts> for MapEntsRaw<'a> {
-    fn xfile_into(&self, mut xfile: impl Read + Seek) -> MapEnts {
-        let name = self.name.xfile_into(&mut xfile);
+impl<'a> XFileInto<MapEnts, ()> for MapEntsRaw<'a> {
+    fn xfile_into(&self, mut xfile: impl Read + Seek, _data: ()) -> MapEnts {
+        let name = self.name.xfile_into(&mut xfile, ());
 
         let mut chars = self.entity_string.to_vec(xfile);
         if chars.bytes().last().unwrap().unwrap() != b'\0' {
@@ -1002,11 +1003,11 @@ pub struct LocalizeEntry {
     name: String,
 }
 
-impl<'a> XFileInto<LocalizeEntry> for LocalizeEntryRaw<'a> {
-    fn xfile_into(&self, mut xfile: impl Read + Seek) -> LocalizeEntry {
+impl<'a> XFileInto<LocalizeEntry, ()> for LocalizeEntryRaw<'a> {
+    fn xfile_into(&self, mut xfile: impl Read + Seek, _data: ()) -> LocalizeEntry {
         LocalizeEntry {
-            value: self.value.xfile_into(&mut xfile),
-            name: self.name.xfile_into(xfile),
+            value: self.value.xfile_into(&mut xfile, ()),
+            name: self.name.xfile_into(xfile, ()),
         }
     }
 }
@@ -1032,10 +1033,10 @@ pub struct XGlobals {
     pub screen_clear_color: Vec4,
 }
 
-impl<'a> XFileInto<XGlobals> for XGlobalsRaw<'a> {
-    fn xfile_into(&self, xfile: impl Read + Seek) -> XGlobals {
+impl<'a> XFileInto<XGlobals, ()> for XGlobalsRaw<'a> {
+    fn xfile_into(&self, xfile: impl Read + Seek, _data: ()) -> XGlobals {
         XGlobals {
-            name: self.name.xfile_into(xfile),
+            name: self.name.xfile_into(xfile, ()),
             xanim_stream_buffer_size: self.xanim_stream_buffer_size,
             cinematic_max_width: self.cinematic_max_width,
             cinematic_max_height: self.cinematic_max_height,
@@ -1109,6 +1110,7 @@ enum XAsset {
     PhysPreset(Option<Box<xmodel::PhysPreset>>),
     PhysConstraints(Option<Box<xmodel::PhysConstraints>>),
     DestructibleDef(Option<Box<destructible::DestructibleDef>>),
+    XAnimParts(Option<Box<xanim::XAnimParts>>),
     XModel(Option<Box<xmodel::XModel>>),
     Material(Option<Box<techset::Material>>),
     TechniqueSet(Option<Box<techset::MaterialTechniqueSet>>),
@@ -1127,88 +1129,93 @@ enum XAsset {
     XGlobals(Option<Box<XGlobals>>),
 }
 
-impl<'a> XFileInto<XAsset> for XAssetRaw<'a> {
-    fn xfile_into(&self, xfile: impl Read + Seek) -> XAsset {
+impl<'a> XFileInto<XAsset, ()> for XAssetRaw<'a> {
+    fn xfile_into(&self, xfile: impl Read + Seek, _data: ()) -> XAsset {
         let asset_type = num::FromPrimitive::from_u32(self.asset_type).unwrap();
         match asset_type {
             XAssetType::PHYSPRESET => XAsset::PhysPreset(
                 self.asset_data
                     .cast::<xmodel::PhysPresetRaw>()
-                    .xfile_into(xfile),
+                    .xfile_into(xfile, ()),
             ),
             XAssetType::PHYSCONSTRAINTS => XAsset::PhysConstraints(
                 self.asset_data
                     .cast::<xmodel::PhysConstraintsRaw>()
-                    .xfile_into(xfile),
+                    .xfile_into(xfile, ()),
             ),
             XAssetType::DESTRUCTIBLEDEF => XAsset::DestructibleDef(
                 self.asset_data
                     .cast::<destructible::DestructibleDefRaw>()
-                    .xfile_into(xfile),
+                    .xfile_into(xfile, ()),
+            ),
+            XAssetType::XANIMPARTS => XAsset::XAnimParts(
+                self.asset_data
+                    .cast::<xanim::XAnimPartsRaw>()
+                    .xfile_into(xfile, ()),   
             ),
             XAssetType::XMODEL => XAsset::XModel(
                 self.asset_data
                     .cast::<xmodel::XModelRaw>()
-                    .xfile_into(xfile),
+                    .xfile_into(xfile, ()),
             ),
             XAssetType::MATERIAL => XAsset::Material(
                 self.asset_data
                     .cast::<techset::MaterialRaw>()
-                    .xfile_into(xfile),
+                    .xfile_into(xfile, ()),
             ),
             XAssetType::TECHNIQUE_SET => XAsset::TechniqueSet(
                 self.asset_data
                     .cast::<techset::MaterialTechniqueSetRaw>()
-                    .xfile_into(xfile),
+                    .xfile_into(xfile, ()),
             ),
             XAssetType::IMAGE => XAsset::Image(
                 self.asset_data
                     .cast::<techset::GfxImageRaw>()
-                    .xfile_into(xfile),
+                    .xfile_into(xfile, ()),
             ),
             XAssetType::GAMEWORLD_SP => XAsset::GameWorldSp(
                 self.asset_data
                     .cast::<gameworld::GameWorldSpRaw>()
-                    .xfile_into(xfile),
+                    .xfile_into(xfile, ()),
             ),
             XAssetType::GAMEWORLD_MP => XAsset::GameWorldMp(
                 self.asset_data
                     .cast::<gameworld::GameWorldMpRaw>()
-                    .xfile_into(xfile),
+                    .xfile_into(xfile, ()),
             ),
             XAssetType::MAP_ENTS => {
-                XAsset::MapEnts(self.asset_data.cast::<MapEntsRaw>().xfile_into(xfile))
+                XAsset::MapEnts(self.asset_data.cast::<MapEntsRaw>().xfile_into(xfile, ()))
             }
             XAssetType::LIGHT_DEF => XAsset::LightDef(
                 self.asset_data
                     .cast::<light::GfxLightDefRaw>()
-                    .xfile_into(xfile),
+                    .xfile_into(xfile, ()),
             ),
             XAssetType::FONT => {
-                XAsset::Font(self.asset_data.cast::<font::FontRaw>().xfile_into(xfile))
+                XAsset::Font(self.asset_data.cast::<font::FontRaw>().xfile_into(xfile, ()))
             }
             XAssetType::LOCALIZE_ENTRY => {
-                XAsset::LocalizeEntry(self.asset_data.cast::<LocalizeEntryRaw>().xfile_into(xfile))
+                XAsset::LocalizeEntry(self.asset_data.cast::<LocalizeEntryRaw>().xfile_into(xfile, ()))
             }
             XAssetType::FX => XAsset::Fx(
                 self.asset_data
                     .cast::<fx::FxEffectDefRaw>()
-                    .xfile_into(xfile),
+                    .xfile_into(xfile, ()),
             ),
             XAssetType::IMPACT_FX => XAsset::ImpactFx(
-                self.asset_data.cast::<fx::FxImpactTableRaw>().xfile_into(xfile)
+                self.asset_data.cast::<fx::FxImpactTableRaw>().xfile_into(xfile, ())
             ),
             XAssetType::RAWFILE => {
-                XAsset::RawFile(self.asset_data.cast::<RawFileRaw>().xfile_into(xfile))
+                XAsset::RawFile(self.asset_data.cast::<RawFileRaw>().xfile_into(xfile, ()))
             }
             XAssetType::STRINGTABLE => {
-                XAsset::StringTable(self.asset_data.cast::<StringTableRaw>().xfile_into(xfile))
+                XAsset::StringTable(self.asset_data.cast::<StringTableRaw>().xfile_into(xfile, ()))
             }
             XAssetType::PACKINDEX => {
-                XAsset::PackIndex(self.asset_data.cast::<PackIndexRaw>().xfile_into(xfile))
+                XAsset::PackIndex(self.asset_data.cast::<PackIndexRaw>().xfile_into(xfile, ()))
             }
             XAssetType::XGLOBALS => {
-                XAsset::XGlobals(self.asset_data.cast::<XGlobalsRaw>().xfile_into(xfile))
+                XAsset::XGlobals(self.asset_data.cast::<XGlobalsRaw>().xfile_into(xfile, ()))
             }
             _ => {
                 dbg!(asset_type);
@@ -1233,8 +1240,8 @@ impl<'a> XString<'a> {
     }
 }
 
-impl<'a> XFileInto<String> for XString<'a> {
-    fn xfile_into(&self, mut xfile: impl Read + Seek) -> String {
+impl<'a> XFileInto<String, ()> for XString<'a> {
+    fn xfile_into(&self, mut xfile: impl Read + Seek, _data: ()) -> String {
         //dbg!(*self);
 
         if self.as_u32() == 0x00000000 {
@@ -1337,7 +1344,7 @@ fn main() {
         .strings
         .to_vec(&mut file)
         .into_iter()
-        .map(|s| s.xfile_into(&mut file))
+        .map(|s| s.xfile_into(&mut file, ()))
         .collect::<Vec<_>>();
     dbg!(&strings);
     SCRIPT_STRINGS.set(strings).unwrap();
@@ -1349,7 +1356,7 @@ fn main() {
     for asset in assets {
         dbg!(asset);
 
-        let a = asset.xfile_into(&mut file);
+        let a = asset.xfile_into(&mut file, ());
 
         deserialized_assets.push(a);
     }

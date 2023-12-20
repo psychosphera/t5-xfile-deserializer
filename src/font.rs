@@ -19,13 +19,13 @@ pub struct Font {
     pub glyphs: Vec<Glyph>,
 }
 
-impl<'a> XFileInto<Font> for FontRaw<'a> {
-    fn xfile_into(&self, mut xfile: impl Read + Seek) -> Font {
+impl<'a> XFileInto<Font, ()> for FontRaw<'a> {
+    fn xfile_into(&self, mut xfile: impl Read + Seek, _data: ()) -> Font {
         Font {
-            font_name: self.font_name.xfile_into(&mut xfile),
+            font_name: self.font_name.xfile_into(&mut xfile, ()),
             pixel_height: self.pixel_height,
-            material: self.material.xfile_into(&mut xfile),
-            glow_material: self.glow_material.xfile_into(&mut xfile),
+            material: self.material.xfile_into(&mut xfile, ()),
+            glow_material: self.glow_material.xfile_into(&mut xfile, ()),
             glyphs: self.glyphs.to_array(self.glyph_count as _).to_vec(xfile),
         }
     }

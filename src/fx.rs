@@ -45,10 +45,10 @@ pub struct FxEffectDef {
     pub bounding_sphere: Vec4,
 }
 
-impl<'a> XFileInto<FxEffectDef> for FxEffectDefRaw<'a> {
-    fn xfile_into(&self, mut xfile: impl Read + Seek) -> FxEffectDef {
+impl<'a> XFileInto<FxEffectDef, ()> for FxEffectDefRaw<'a> {
+    fn xfile_into(&self, mut xfile: impl Read + Seek, _data: ()) -> FxEffectDef {
         FxEffectDef {
-            name: self.name.xfile_into(&mut xfile),
+            name: self.name.xfile_into(&mut xfile, ()),
             flags: FxEffectDefFlags::from_bits(self.flags).unwrap(),
             ef_priority: self.ef_priority,
             total_size: self.total_size as _,
@@ -65,7 +65,7 @@ impl<'a> XFileInto<FxEffectDef> for FxEffectDefRaw<'a> {
                 )
                 .to_vec(&mut xfile)
                 .into_iter()
-                .map(|d| d.xfile_into(&mut xfile))
+                .map(|d| d.xfile_into(&mut xfile, ()))
                 .collect(),
             bounding_box_dim: self.bounding_box_dim.into(),
             bounding_sphere: self.bounding_sphere.into(),
@@ -150,9 +150,9 @@ pub struct FxBillboardTrim {
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
 pub struct FxEffectDefRefRaw<'a>(Ptr32<'a, ()>);
 
-impl<'a> XFileInto<FxEffectDefRef> for FxEffectDefRefRaw<'a> {
-    fn xfile_into(&self, xfile: impl Read + Seek) -> FxEffectDefRef {
-        FxEffectDefRef::Name(XString::from_u32(self.0.as_u32()).xfile_into(xfile))
+impl<'a> XFileInto<FxEffectDefRef, ()> for FxEffectDefRefRaw<'a> {
+    fn xfile_into(&self, xfile: impl Read + Seek, _data: ()) -> FxEffectDefRef {
+        FxEffectDefRef::Name(XString::from_u32(self.0.as_u32()).xfile_into(xfile, ()))
     }
 }
 
@@ -187,12 +187,12 @@ pub struct FxElemMarkVisuals {
     pub materials: [Option<Box<techset::Material>>; 2],
 }
 
-impl<'a> XFileInto<FxElemMarkVisuals> for FxElemMarkVisualsRaw<'a> {
-    fn xfile_into(&self, mut xfile: impl Read + Seek) -> FxElemMarkVisuals {
+impl<'a> XFileInto<FxElemMarkVisuals, ()> for FxElemMarkVisualsRaw<'a> {
+    fn xfile_into(&self, mut xfile: impl Read + Seek, _data: ()) -> FxElemMarkVisuals {
         FxElemMarkVisuals {
             materials: [
-                self.materials[0].xfile_into(&mut xfile),
-                self.materials[1].xfile_into(xfile),
+                self.materials[0].xfile_into(&mut xfile, ()),
+                self.materials[1].xfile_into(xfile, ()),
             ],
         }
     }
@@ -274,8 +274,8 @@ pub struct FxElemDef {
     pub billboard_pivot: Vec2,
 }
 
-impl<'a> XFileInto<FxElemDef> for FxElemDefRaw<'a> {
-    fn xfile_into(&self, mut xfile: impl Read + Seek) -> FxElemDef {
+impl<'a> XFileInto<FxElemDef, ()> for FxElemDefRaw<'a> {
+    fn xfile_into(&self, mut xfile: impl Read + Seek, _data: ()) -> FxElemDef {
         let vel_samples = self
             .vel_samples
             .to_array(self.vel_interval_count as _)
@@ -295,7 +295,7 @@ impl<'a> XFileInto<FxElemDef> for FxElemDefRaw<'a> {
                     .to_array(self.visual_count as _)
                     .to_vec(&mut xfile)
                     .into_iter()
-                    .map(|v| v.xfile_into(&mut xfile))
+                    .map(|v| v.xfile_into(&mut xfile, ()))
                     .collect(),
             )
         } else if self.visual_count < 2 {
@@ -303,16 +303,16 @@ impl<'a> XFileInto<FxElemDef> for FxElemDefRaw<'a> {
                 FxElemType::MODEL => FxElemVisuals::Model(
                     self.visuals
                         .cast::<xmodel::XModelRaw>()
-                        .xfile_into(&mut xfile),
+                        .xfile_into(&mut xfile, ()),
                 ),
-                FxElemType::RUNNER => unimplemented!(), // FxElemVisuals::EffectDef(FxEffectDefRef::Handle(self.visuals.cast::<FxEffectDefRaw>().xfile_into(&mut xfile))),
+                FxElemType::RUNNER => unimplemented!(), // FxElemVisuals::EffectDef(FxEffectDefRef::Handle(self.visuals.cast::<FxEffectDefRaw>().xfile_into(&mut xfile, ()))),
                 FxElemType::SOUND => FxElemVisuals::SoundName(
-                    XString::from_u32(self.visuals.0).xfile_into(&mut xfile),
+                    XString::from_u32(self.visuals.0).xfile_into(&mut xfile, ()),
                 ),
                 FxElemType::TRAIL => FxElemVisuals::Material(
                     self.visuals
                         .cast::<techset::MaterialRaw>()
-                        .xfile_into(&mut xfile),
+                        .xfile_into(&mut xfile, ()),
                 ),
                 _ => unreachable!(),
             })
@@ -325,14 +325,14 @@ impl<'a> XFileInto<FxElemDef> for FxElemDefRaw<'a> {
                     .into_iter()
                     .map(|v| match elem_type {
                         FxElemType::MODEL => FxElemVisuals::Model(
-                            v.cast::<xmodel::XModelRaw>().xfile_into(&mut xfile),
+                            v.cast::<xmodel::XModelRaw>().xfile_into(&mut xfile, ()),
                         ),
-                        FxElemType::RUNNER => unimplemented!(), // FxElemVisuals::EffectDef(FxEffectDefRef::Handle(v.cast::<FxEffectDefRaw>().xfile_into(&mut xfile))),
+                        FxElemType::RUNNER => unimplemented!(), // FxElemVisuals::EffectDef(FxEffectDefRef::Handle(v.cast::<FxEffectDefRaw>().xfile_into(&mut xfile, ()))),
                         FxElemType::SOUND => FxElemVisuals::SoundName(
-                            XString::from_u32(self.visuals.0).xfile_into(&mut xfile),
+                            XString::from_u32(self.visuals.0).xfile_into(&mut xfile, ()),
                         ),
                         FxElemType::TRAIL => FxElemVisuals::Material(
-                            v.cast::<techset::MaterialRaw>().xfile_into(&mut xfile),
+                            v.cast::<techset::MaterialRaw>().xfile_into(&mut xfile, ()),
                         ),
                         _ => unreachable!(),
                     })
@@ -371,13 +371,13 @@ impl<'a> XFileInto<FxElemDef> for FxElemDefRaw<'a> {
             visuals,
             coll_mins: self.coll_mins.into(),
             coll_maxs: self.coll_maxs.into(),
-            effect_on_impact: self.effect_on_impact.xfile_into(&mut xfile),
-            effect_on_death: self.effect_on_death.xfile_into(&mut xfile),
-            effect_emitted: self.effect_emitted.xfile_into(&mut xfile),
+            effect_on_impact: self.effect_on_impact.xfile_into(&mut xfile, ()),
+            effect_on_death: self.effect_on_death.xfile_into(&mut xfile, ()),
+            effect_emitted: self.effect_emitted.xfile_into(&mut xfile, ()),
             emit_dist: self.emit_dist,
             emit_dist_variance: self.emit_dist_variance,
-            effect_attached: self.effect_attached.xfile_into(&mut xfile),
-            trail_def: self.trail_def.xfile_into(&mut xfile),
+            effect_attached: self.effect_attached.xfile_into(&mut xfile, ()),
+            trail_def: self.trail_def.xfile_into(&mut xfile, ()),
             sort_order: self.sort_order,
             lighting_frac: self.lighting_frac,
             alpha_fade_time_msec: self.alpha_fade_time_msec,
@@ -385,7 +385,7 @@ impl<'a> XFileInto<FxElemDef> for FxElemDefRaw<'a> {
             spawn_interval_at_max_wind: self.spawn_interval_at_max_wind,
             lifespan_at_max_wind: self.lifespan_at_max_wind,
             u: None,
-            spawn_sound: self.spawn_sound.xfile_into(xfile),
+            spawn_sound: self.spawn_sound.xfile_into(xfile, ()),
             billboard_pivot: self.billboard_pivot.into(),
         }
     }
@@ -510,8 +510,8 @@ pub struct FxTrailDef {
     pub inds: Vec<u16>,
 }
 
-impl<'a> XFileInto<FxTrailDef> for FxTrailDefRaw<'a> {
-    fn xfile_into(&self, mut xfile: impl Read + Seek) -> FxTrailDef {
+impl<'a> XFileInto<FxTrailDef, ()> for FxTrailDefRaw<'a> {
+    fn xfile_into(&self, mut xfile: impl Read + Seek, _data: ()) -> FxTrailDef {
         FxTrailDef {
             scroll_time_msec: self.scroll_time_msec,
             repeat_dist: self.repeat_dist,
@@ -563,10 +563,10 @@ pub struct FxElemSpawnSound {
     pub spawn_sound: String,
 }
 
-impl<'a> XFileInto<FxElemSpawnSound> for FxElemSpawnSoundRaw<'a> {
-    fn xfile_into(&self, xfile: impl Read + Seek) -> FxElemSpawnSound {
+impl<'a> XFileInto<FxElemSpawnSound, ()> for FxElemSpawnSoundRaw<'a> {
+    fn xfile_into(&self, xfile: impl Read + Seek, _data: ()) -> FxElemSpawnSound {
         FxElemSpawnSound {
-            spawn_sound: self.spawn_sound.xfile_into(xfile),
+            spawn_sound: self.spawn_sound.xfile_into(xfile, ()),
         }
     }
 }
@@ -583,9 +583,9 @@ pub struct FxImpactTable {
     pub table: Vec<FxImpactEntry>
 }
 
-impl<'a> XFileInto<FxImpactTable> for FxImpactTableRaw<'a> {
-    fn xfile_into(&self, mut xfile: impl Read + Seek) -> FxImpactTable {
-        FxImpactTable { name: self.name.xfile_into(&mut xfile), table: self.table.to_vec(&mut xfile).into_iter().map(|e| e.xfile_into(&mut xfile)).collect() }
+impl<'a> XFileInto<FxImpactTable, ()> for FxImpactTableRaw<'a> {
+    fn xfile_into(&self, mut xfile: impl Read + Seek, _data: ()) -> FxImpactTable {
+        FxImpactTable { name: self.name.xfile_into(&mut xfile, ()), table: self.table.to_vec(&mut xfile).into_iter().map(|e| e.xfile_into(&mut xfile, ())).collect() }
     }
 }
 
@@ -601,18 +601,18 @@ pub struct FxImpactEntry {
     pub flesh: [Option<Box<FxEffectDef>>; 4],
 }
 
-impl<'a> XFileInto<FxImpactEntry> for FxImpactEntryRaw<'a> {
-    fn xfile_into(&self, mut xfile: impl Read + Seek) -> FxImpactEntry {
+impl<'a> XFileInto<FxImpactEntry, ()> for FxImpactEntryRaw<'a> {
+    fn xfile_into(&self, mut xfile: impl Read + Seek, _data: ()) -> FxImpactEntry {
         let nonflesh = self.nonflesh
             .iter()
-            .map(|p| p.xfile_into(&mut xfile))
+            .map(|p| p.xfile_into(&mut xfile, ()))
             .collect::<Vec<_>>()
             .try_into()
             .unwrap();
 
         let flesh = self.flesh
             .iter()
-            .map(|p| p.xfile_into(&mut xfile))
+            .map(|p| p.xfile_into(&mut xfile, ()))
             .collect::<Vec<_>>()
             .try_into()
             .unwrap();

@@ -18,13 +18,13 @@ pub struct DestructibleDef {
     pub client_only: bool,
 }
 
-impl<'a> XFileInto<DestructibleDef> for DestructibleDefRaw<'a> {
-    fn xfile_into(&self, mut xfile: impl Read + Seek) -> DestructibleDef {
+impl<'a> XFileInto<DestructibleDef, ()> for DestructibleDefRaw<'a> {
+    fn xfile_into(&self, mut xfile: impl Read + Seek, _data: ()) -> DestructibleDef {
         DestructibleDef {
-            name: self.name.xfile_into(&mut xfile),
-            model: self.model.xfile_into(&mut xfile),
-            pristine_model: self.pristine_model.xfile_into(&mut xfile),
-            pieces: self.pieces.xfile_into(xfile),
+            name: self.name.xfile_into(&mut xfile, ()),
+            model: self.model.xfile_into(&mut xfile, ()),
+            pristine_model: self.pristine_model.xfile_into(&mut xfile, ()),
+            pieces: self.pieces.xfile_into(xfile, ()),
             client_only: self.client_only != 0,
         }
     }
@@ -70,15 +70,15 @@ pub struct DestructiblePiece {
     pub hide_bones: [i32; 5],
 }
 
-impl<'a> XFileInto<DestructiblePiece> for DestructiblePieceRaw<'a> {
-    fn xfile_into(&self, mut xfile: impl Read + Seek) -> DestructiblePiece {
+impl<'a> XFileInto<DestructiblePiece, ()> for DestructiblePieceRaw<'a> {
+    fn xfile_into(&self, mut xfile: impl Read + Seek, _data: ()) -> DestructiblePiece {
         DestructiblePiece {
             stages: [
-                self.stages[0].xfile_into(&mut xfile),
-                self.stages[1].xfile_into(&mut xfile),
-                self.stages[2].xfile_into(&mut xfile),
-                self.stages[3].xfile_into(&mut xfile),
-                self.stages[4].xfile_into(&mut xfile),
+                self.stages[0].xfile_into(&mut xfile, ()),
+                self.stages[1].xfile_into(&mut xfile, ()),
+                self.stages[2].xfile_into(&mut xfile, ()),
+                self.stages[3].xfile_into(&mut xfile, ()),
+                self.stages[4].xfile_into(&mut xfile, ()),
             ],
             parent_piece: self.parent_piece,
             parent_damage_percent: self.parent_damage_percent,
@@ -87,11 +87,11 @@ impl<'a> XFileInto<DestructiblePiece> for DestructiblePieceRaw<'a> {
             melee_damage_scale: self.melee_damage_scale,
             impact_damage_scael: self.impact_damage_scael,
             entity_damage_transfer: self.entity_damage_transfer,
-            phys_constraints: self.phys_constraints.xfile_into(&mut xfile),
+            phys_constraints: self.phys_constraints.xfile_into(&mut xfile, ()),
             health: self.health,
-            damage_sound: self.damage_sound.xfile_into(&mut xfile),
-            burn_effect: self.burn_effect.xfile_into(&mut xfile),
-            burn_sound: self.burn_sound.xfile_into(&mut xfile),
+            damage_sound: self.damage_sound.xfile_into(&mut xfile, ()),
+            burn_effect: self.burn_effect.xfile_into(&mut xfile, ()),
+            burn_sound: self.burn_sound.xfile_into(&mut xfile, ()),
             enable_label: self.enable_label,
             hide_bones: self.hide_bones,
         }
@@ -126,23 +126,23 @@ pub struct DestructibleStage {
     pub phys_preset: Option<Box<xmodel::PhysPreset>>,
 }
 
-impl<'a> XFileInto<DestructibleStage> for DestructibleStageRaw<'a> {
-    fn xfile_into(&self, mut xfile: impl Read + Seek) -> DestructibleStage {
+impl<'a> XFileInto<DestructibleStage, ()> for DestructibleStageRaw<'a> {
+    fn xfile_into(&self, mut xfile: impl Read + Seek, _data: ()) -> DestructibleStage {
         DestructibleStage {
             show_bone: self.show_bone.to_string(),
             break_health: self.break_health,
             max_time: self.max_time,
             flags: self.flags,
-            break_effect: self.break_effect.xfile_into(&mut xfile),
-            break_sound: self.break_sound.xfile_into(&mut xfile),
-            break_notify: self.break_notify.xfile_into(&mut xfile),
-            loop_sound: self.loop_sound.xfile_into(&mut xfile),
+            break_effect: self.break_effect.xfile_into(&mut xfile, ()),
+            break_sound: self.break_sound.xfile_into(&mut xfile, ()),
+            break_notify: self.break_notify.xfile_into(&mut xfile, ()),
+            loop_sound: self.loop_sound.xfile_into(&mut xfile, ()),
             spawn_model: [
-                self.spawn_model[0].xfile_into(&mut xfile),
-                self.spawn_model[1].xfile_into(&mut xfile),
-                self.spawn_model[2].xfile_into(&mut xfile),
+                self.spawn_model[0].xfile_into(&mut xfile, ()),
+                self.spawn_model[1].xfile_into(&mut xfile, ()),
+                self.spawn_model[2].xfile_into(&mut xfile, ()),
             ],
-            phys_preset: self.phys_preset.xfile_into(xfile),
+            phys_preset: self.phys_preset.xfile_into(xfile, ()),
         }
     }
 }
