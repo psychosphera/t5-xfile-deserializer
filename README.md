@@ -54,6 +54,6 @@ Building requires a nightly toolchain.
 ```
 
 ## Running
-To run, you'll need to supply an `XFile` (which I naturally can't provide here). `XFile`s aren't backwards nor forwards compatible (see `main.rs` for an explanation), so it'll have to be an XFile from the most recent build of BO1 specifically. Earlier builds may or may not work, but I'm not going to test them, and the program will currently reject any that don't match the correct version. 
+To run, you'll need to supply an `XFile` (which I naturally can't provide here). `XFile`s aren't backwards nor forwards compatible (see `lib.rs` for an explanation), so it'll have to be an XFile from the most recent build of BO1 PC specifically. Earlier builds and builds for other platforms may or may not work, but I'm not going to test them, and the program will currently reject any that don't match the correct version. 
 
 I primarily created this to integrate into OpenT5 once it's done, but I figured it could be useful as a standalone project in case someone else has a use for it. Some of the structure definitions here are probably identical or very similar for, e.g., T4 or T6 (or even IW3), so this could probably serve as the groundwork for deserializing their `XFile`s (not something I plan on doing though).
