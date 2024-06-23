@@ -48,8 +48,8 @@ Data stored by `XFiles` includes shaders, the clipmap, the PVS, scripts, animati
 ## Building
 Building requires a nightly toolchain.
 ```bash
-    $ git clone https://github.com/Ashlyyn/OpenT5.git
-    $ cd OpenT5
+    $ git clone https://github.com/Ashlyyn/t5-xfile-deserializer.git
+    $ cd t5-xfile-deserializer
     $ cargo +nightly build
 ```
 
