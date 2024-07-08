@@ -4,9 +4,11 @@ use crate::{
 };
 
 use bitflags::bitflags;
+use num_derive::FromPrimitive;
 
+#[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Debug, Deserialize)]
-pub struct FxEffectDefRaw<'a> {
+pub(crate) struct FxEffectDefRaw<'a> {
     pub name: XString<'a>,
     pub flags: u8,
     pub ef_priority: u8,
@@ -23,6 +25,7 @@ pub struct FxEffectDefRaw<'a> {
 assert_size!(FxEffectDefRaw, 60);
 
 bitflags! {
+    #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
     #[derive(Clone, Debug)]
     pub struct FxEffectDefFlags: u8 {
         const NEEDS_LIGHTING = 0x01;
@@ -30,6 +33,7 @@ bitflags! {
     }
 }
 
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug)]
 pub struct FxEffectDef {
     pub name: String,
@@ -46,10 +50,11 @@ pub struct FxEffectDef {
 }
 
 impl<'a> XFileInto<FxEffectDef, ()> for FxEffectDefRaw<'a> {
-    fn xfile_into(&self, mut xfile: impl Read + Seek, _data: ()) -> FxEffectDef {
-        FxEffectDef {
-            name: self.name.xfile_into(&mut xfile, ()),
-            flags: FxEffectDefFlags::from_bits(self.flags).unwrap(),
+    fn xfile_into(&self, mut xfile: impl Read + Seek, _data: ()) -> Result<FxEffectDef> {
+        Ok(FxEffectDef {
+            name: self.name.xfile_into(&mut xfile, ())?,
+            flags: FxEffectDefFlags::from_bits(self.flags)
+                .ok_or(Error::BadBitflags(self.flags as _))?,
             ef_priority: self.ef_priority,
             total_size: self.total_size as _,
             msec_looping_life: self.msec_looping_life,
@@ -63,18 +68,16 @@ impl<'a> XFileInto<FxEffectDef, ()> for FxEffectDefRaw<'a> {
                         + self.elem_def_count_one_shot as usize
                         + self.elem_def_count_emission as usize,
                 )
-                .to_vec(&mut xfile)
-                .into_iter()
-                .map(|d| d.xfile_into(&mut xfile, ()))
-                .collect(),
+                .xfile_into(xfile, ())?,
             bounding_box_dim: self.bounding_box_dim.into(),
             bounding_sphere: self.bounding_sphere.into(),
-        }
+        })
     }
 }
 
+#[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Debug, Deserialize)]
-pub struct FxElemDefRaw<'a> {
+pub(crate) struct FxElemDefRaw<'a> {
     pub flags: i32,
     pub spawn: [i32; 2],
     pub spawn_range: FxFloatRange,
@@ -123,6 +126,7 @@ pub struct FxElemDefRaw<'a> {
 }
 assert_size!(FxElemDefRaw, 292);
 
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug, PartialOrd, Ord, PartialEq, Eq, FromPrimitive)]
 #[repr(u8)]
 pub enum FxElemType {
@@ -135,33 +139,40 @@ pub enum FxElemType {
     RUNNER = 0x0C,
 }
 
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug)]
 pub enum FxElemDefUnion {
     Billboard(FxBillboardTrim),
     CloudDensityRange(FxIntRange),
 }
 
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug)]
 pub struct FxBillboardTrim {
     pub top_width: f32,
     pub bottom_width: f32,
 }
 
+#[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
-pub struct FxEffectDefRefRaw<'a>(Ptr32<'a, ()>);
+pub(crate) struct FxEffectDefRefRaw<'a>(Ptr32<'a, ()>);
 
 impl<'a> XFileInto<FxEffectDefRef, ()> for FxEffectDefRefRaw<'a> {
-    fn xfile_into(&self, xfile: impl Read + Seek, _data: ()) -> FxEffectDefRef {
-        FxEffectDefRef::Name(XString::from_u32(self.0.as_u32()).xfile_into(xfile, ()))
+    fn xfile_into(&self, xfile: impl Read + Seek, _data: ()) -> Result<FxEffectDefRef> {
+        Ok(FxEffectDefRef::Name(
+            XString::from_u32(self.0.as_u32()).xfile_into(xfile, ())?,
+        ))
     }
 }
 
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug)]
 pub enum FxEffectDefRef {
     Name(String),
     Handle(Option<Box<FxEffectDef>>),
 }
 
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug)]
 pub enum FxElemVisuals {
     Material(Option<Box<techset::Material>>),
@@ -170,6 +181,7 @@ pub enum FxElemVisuals {
     SoundName(String),
 }
 
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug)]
 pub enum FxElemDefVisuals {
     MarkArray(Vec<FxElemMarkVisuals>),
@@ -177,28 +189,31 @@ pub enum FxElemDefVisuals {
     Instance(FxElemVisuals),
 }
 
+#[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Debug, Deserialize)]
-pub struct FxElemMarkVisualsRaw<'a> {
+pub(crate) struct FxElemMarkVisualsRaw<'a> {
     pub materials: [Ptr32<'a, techset::MaterialRaw<'a>>; 2],
 }
 
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug)]
 pub struct FxElemMarkVisuals {
     pub materials: [Option<Box<techset::Material>>; 2],
 }
 
 impl<'a> XFileInto<FxElemMarkVisuals, ()> for FxElemMarkVisualsRaw<'a> {
-    fn xfile_into(&self, mut xfile: impl Read + Seek, _data: ()) -> FxElemMarkVisuals {
-        FxElemMarkVisuals {
+    fn xfile_into(&self, mut xfile: impl Read + Seek, _data: ()) -> Result<FxElemMarkVisuals> {
+        Ok(FxElemMarkVisuals {
             materials: [
-                self.materials[0].xfile_into(&mut xfile, ()),
-                self.materials[1].xfile_into(xfile, ()),
+                self.materials[0].xfile_into(&mut xfile, ())?,
+                self.materials[1].xfile_into(xfile, ())?,
             ],
-        }
+        })
     }
 }
 
 bitflags! {
+    #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
     #[derive(Clone, Debug)]
     pub struct FxElemFlags: u32 {
         const SPAWN_RELATIVE_TO_EFFECT = 0x00000002;
@@ -226,6 +241,7 @@ bitflags! {
     }
 }
 
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug)]
 pub struct FxElemDef {
     pub flags: FxElemFlags,
@@ -275,44 +291,39 @@ pub struct FxElemDef {
 }
 
 impl<'a> XFileInto<FxElemDef, ()> for FxElemDefRaw<'a> {
-    fn xfile_into(&self, mut xfile: impl Read + Seek, _data: ()) -> FxElemDef {
+    fn xfile_into(&self, mut xfile: impl Read + Seek, _data: ()) -> Result<FxElemDef> {
         let vel_samples = self
             .vel_samples
             .to_array(self.vel_interval_count as _)
-            .to_vec(&mut xfile);
+            .to_vec(&mut xfile)?;
         let vis_samples = self
             .vis_samples
             .to_array(self.vis_state_interval_count as _)
-            .to_vec(&mut xfile)
-            .into_iter()
-            .map(Into::into)
-            .collect();
-        let elem_type = num::FromPrimitive::from_u8(self.elem_type).unwrap();
+            .to_vec_into(&mut xfile)?;
+        let elem_type = num::FromPrimitive::from_u8(self.elem_type)
+            .ok_or(Error::BadFromPrimitive(self.elem_type as _))?;
         let visuals = if elem_type == FxElemType::DECAL {
             FxElemDefVisuals::MarkArray(
                 self.visuals
                     .cast::<FxElemMarkVisualsRaw>()
                     .to_array(self.visual_count as _)
-                    .to_vec(&mut xfile)
-                    .into_iter()
-                    .map(|v| v.xfile_into(&mut xfile, ()))
-                    .collect(),
+                    .xfile_into(&mut xfile, ())?,
             )
         } else if self.visual_count < 2 {
             FxElemDefVisuals::Instance(match elem_type {
                 FxElemType::MODEL => FxElemVisuals::Model(
                     self.visuals
                         .cast::<xmodel::XModelRaw>()
-                        .xfile_into(&mut xfile, ()),
+                        .xfile_into(&mut xfile, ())?,
                 ),
                 FxElemType::RUNNER => unimplemented!(), // FxElemVisuals::EffectDef(FxEffectDefRef::Handle(self.visuals.cast::<FxEffectDefRaw>().xfile_into(&mut xfile, ()))),
                 FxElemType::SOUND => FxElemVisuals::SoundName(
-                    XString::from_u32(self.visuals.0).xfile_into(&mut xfile, ()),
+                    XString::from_u32(self.visuals.0).xfile_into(&mut xfile, ())?,
                 ),
                 FxElemType::TRAIL => FxElemVisuals::Material(
                     self.visuals
                         .cast::<techset::MaterialRaw>()
-                        .xfile_into(&mut xfile, ()),
+                        .xfile_into(&mut xfile, ())?,
                 ),
                 _ => unreachable!(),
             })
@@ -321,29 +332,32 @@ impl<'a> XFileInto<FxElemDef, ()> for FxElemDefRaw<'a> {
                 self.visuals
                     .cast::<Ptr32<'a, ()>>()
                     .to_array(self.visual_count as _)
-                    .to_vec(&mut xfile)
+                    .to_vec(&mut xfile)?
                     .into_iter()
                     .map(|v| match elem_type {
-                        FxElemType::MODEL => FxElemVisuals::Model(
-                            v.cast::<xmodel::XModelRaw>().xfile_into(&mut xfile, ()),
-                        ),
+                        FxElemType::MODEL => v
+                            .cast::<xmodel::XModelRaw>()
+                            .xfile_into(&mut xfile, ())
+                            .map(|m| FxElemVisuals::Model(m)),
                         FxElemType::RUNNER => unimplemented!(), // FxElemVisuals::EffectDef(FxEffectDefRef::Handle(v.cast::<FxEffectDefRaw>().xfile_into(&mut xfile, ()))),
-                        FxElemType::SOUND => FxElemVisuals::SoundName(
-                            XString::from_u32(self.visuals.0).xfile_into(&mut xfile, ()),
-                        ),
-                        FxElemType::TRAIL => FxElemVisuals::Material(
-                            v.cast::<techset::MaterialRaw>().xfile_into(&mut xfile, ()),
-                        ),
+                        FxElemType::SOUND => XString::from_u32(self.visuals.0)
+                            .xfile_into(&mut xfile, ())
+                            .map(|s| FxElemVisuals::SoundName(s)),
+                        FxElemType::TRAIL => v
+                            .cast::<techset::MaterialRaw>()
+                            .xfile_into(&mut xfile, ())
+                            .map(|m| FxElemVisuals::Material(m)),
                         _ => unreachable!(),
                     })
-                    .collect(),
+                    .collect::<Result<Vec<_>>>()?,
             )
         } else {
             unreachable!()
         };
 
-        FxElemDef {
-            flags: FxElemFlags::from_bits(self.flags as _).unwrap(),
+        Ok(FxElemDef {
+            flags: FxElemFlags::from_bits(self.flags as _)
+                .ok_or(Error::BadBitflags(self.flags as _))?,
             spawn: self.spawn,
             spawn_range: self.spawn_range,
             fade_in_range: self.fade_in_range,
@@ -371,13 +385,13 @@ impl<'a> XFileInto<FxElemDef, ()> for FxElemDefRaw<'a> {
             visuals,
             coll_mins: self.coll_mins.into(),
             coll_maxs: self.coll_maxs.into(),
-            effect_on_impact: self.effect_on_impact.xfile_into(&mut xfile, ()),
-            effect_on_death: self.effect_on_death.xfile_into(&mut xfile, ()),
-            effect_emitted: self.effect_emitted.xfile_into(&mut xfile, ()),
+            effect_on_impact: self.effect_on_impact.xfile_into(&mut xfile, ())?,
+            effect_on_death: self.effect_on_death.xfile_into(&mut xfile, ())?,
+            effect_emitted: self.effect_emitted.xfile_into(&mut xfile, ())?,
             emit_dist: self.emit_dist,
             emit_dist_variance: self.emit_dist_variance,
-            effect_attached: self.effect_attached.xfile_into(&mut xfile, ()),
-            trail_def: self.trail_def.xfile_into(&mut xfile, ()),
+            effect_attached: self.effect_attached.xfile_into(&mut xfile, ())?,
+            trail_def: self.trail_def.xfile_into(&mut xfile, ())?,
             sort_order: self.sort_order,
             lighting_frac: self.lighting_frac,
             alpha_fade_time_msec: self.alpha_fade_time_msec,
@@ -385,12 +399,13 @@ impl<'a> XFileInto<FxElemDef, ()> for FxElemDefRaw<'a> {
             spawn_interval_at_max_wind: self.spawn_interval_at_max_wind,
             lifespan_at_max_wind: self.lifespan_at_max_wind,
             u: None,
-            spawn_sound: self.spawn_sound.xfile_into(xfile, ()),
+            spawn_sound: self.spawn_sound.xfile_into(xfile, ())?,
             billboard_pivot: self.billboard_pivot.into(),
-        }
+        })
     }
 }
 
+#[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Debug, Deserialize)]
 pub struct FxFloatRange {
     pub base: f32,
@@ -398,6 +413,7 @@ pub struct FxFloatRange {
 }
 assert_size!(FxFloatRange, 8);
 
+#[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Debug, Deserialize)]
 pub struct FxIntRange {
     pub base: i32,
@@ -405,6 +421,7 @@ pub struct FxIntRange {
 }
 assert_size!(FxIntRange, 8);
 
+#[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Debug, Deserialize)]
 pub struct FxElemAtlas {
     pub behavior: u8,
@@ -417,6 +434,7 @@ pub struct FxElemAtlas {
 }
 assert_size!(FxElemAtlas, 8);
 
+#[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Debug, Deserialize)]
 pub struct FxElemVelStateSample {
     pub local: FxElemVelStateInFrame,
@@ -424,6 +442,7 @@ pub struct FxElemVelStateSample {
 }
 assert_size!(FxElemVelStateSample, 96);
 
+#[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Debug, Deserialize)]
 pub struct FxElemVelStateInFrame {
     pub velocity: FxElemVec3Range,
@@ -431,6 +450,7 @@ pub struct FxElemVelStateInFrame {
 }
 assert_size!(FxElemVelStateInFrame, 48);
 
+#[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Debug, Deserialize)]
 pub struct FxElemVec3Range {
     pub base: [f32; 3],
@@ -438,30 +458,33 @@ pub struct FxElemVec3Range {
 }
 assert_size!(FxElemVec3Range, 24);
 
+#[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Debug, Deserialize)]
-pub struct FxElemVisStateSampleRaw {
+pub(crate) struct FxElemVisStateSampleRaw {
     pub base: FxElemVisualStateRaw,
     pub amplitude: FxElemVisualStateRaw,
 }
 assert_size!(FxElemVisStateSampleRaw, 48);
 
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug)]
 pub struct FxElemVisStateSample {
     pub base: FxElemVisualState,
     pub amplitude: FxElemVisualState,
 }
 
-impl Into<FxElemVisStateSample> for FxElemVisStateSampleRaw {
-    fn into(self) -> FxElemVisStateSample {
-        FxElemVisStateSample {
-            base: self.base.into(),
-            amplitude: self.amplitude.into(),
+impl From<FxElemVisStateSampleRaw> for FxElemVisStateSample {
+    fn from(value: FxElemVisStateSampleRaw) -> Self {
+        Self {
+            base: value.base.into(),
+            amplitude: value.amplitude.into(),
         }
     }
 }
 
+#[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Debug, Deserialize)]
-pub struct FxElemVisualStateRaw {
+pub(crate) struct FxElemVisualStateRaw {
     pub color: [u8; 4],
     pub rotation_delta: f32,
     pub rotation_total: f32,
@@ -470,6 +493,7 @@ pub struct FxElemVisualStateRaw {
 }
 assert_size!(FxElemVisualStateRaw, 24);
 
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug)]
 pub struct FxElemVisualState {
     pub color: [u8; 4],
@@ -491,8 +515,9 @@ impl Into<FxElemVisualState> for FxElemVisualStateRaw {
     }
 }
 
+#[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Debug, Deserialize)]
-pub struct FxTrailDefRaw<'a> {
+pub(crate) struct FxTrailDefRaw<'a> {
     pub scroll_time_msec: i32,
     pub repeat_dist: i32,
     pub split_dist: i32,
@@ -501,6 +526,7 @@ pub struct FxTrailDefRaw<'a> {
 }
 assert_size!(FxTrailDefRaw, 28);
 
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug)]
 pub struct FxTrailDef {
     pub scroll_time_msec: i32,
@@ -511,30 +537,27 @@ pub struct FxTrailDef {
 }
 
 impl<'a> XFileInto<FxTrailDef, ()> for FxTrailDefRaw<'a> {
-    fn xfile_into(&self, mut xfile: impl Read + Seek, _data: ()) -> FxTrailDef {
-        FxTrailDef {
+    fn xfile_into(&self, mut xfile: impl Read + Seek, _data: ()) -> Result<FxTrailDef> {
+        Ok(FxTrailDef {
             scroll_time_msec: self.scroll_time_msec,
             repeat_dist: self.repeat_dist,
             split_dist: self.split_dist,
-            verts: self
-                .verts
-                .to_vec(&mut xfile)
-                .into_iter()
-                .map(Into::into)
-                .collect(),
-            inds: self.inds.to_vec(xfile),
-        }
+            verts: self.verts.to_vec_into(&mut xfile)?,
+            inds: self.inds.to_vec(xfile)?,
+        })
     }
 }
 
+#[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Debug, Deserialize)]
-pub struct FxTrailVertexRaw {
+pub(crate) struct FxTrailVertexRaw {
     pub pos: [f32; 2],
     pub normal: [f32; 2],
     pub tex_coord: f32,
 }
 assert_size!(FxTrailVertexRaw, 20);
 
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug)]
 pub struct FxTrailVertex {
     pub pos: Vec2,
@@ -542,59 +565,68 @@ pub struct FxTrailVertex {
     pub tex_coord: f32,
 }
 
-impl Into<FxTrailVertex> for FxTrailVertexRaw {
-    fn into(self) -> FxTrailVertex {
-        FxTrailVertex {
-            pos: self.pos.into(),
-            normal: self.normal.into(),
-            tex_coord: self.tex_coord,
+impl From<FxTrailVertexRaw> for FxTrailVertex {
+    fn from(value: FxTrailVertexRaw) -> Self {
+        Self {
+            pos: value.pos.into(),
+            normal: value.normal.into(),
+            tex_coord: value.tex_coord,
         }
     }
 }
 
+#[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Debug, Deserialize)]
-pub struct FxElemSpawnSoundRaw<'a> {
+pub(crate) struct FxElemSpawnSoundRaw<'a> {
     pub spawn_sound: XString<'a>,
 }
 assert_size!(FxElemSpawnSoundRaw, 4);
 
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug)]
 pub struct FxElemSpawnSound {
     pub spawn_sound: String,
 }
 
 impl<'a> XFileInto<FxElemSpawnSound, ()> for FxElemSpawnSoundRaw<'a> {
-    fn xfile_into(&self, xfile: impl Read + Seek, _data: ()) -> FxElemSpawnSound {
-        FxElemSpawnSound {
-            spawn_sound: self.spawn_sound.xfile_into(xfile, ()),
-        }
+    fn xfile_into(&self, xfile: impl Read + Seek, _data: ()) -> Result<FxElemSpawnSound> {
+        Ok(FxElemSpawnSound {
+            spawn_sound: self.spawn_sound.xfile_into(xfile, ())?,
+        })
     }
 }
 
+#[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Debug, Deserialize)]
-pub struct FxImpactTableRaw<'a> {
+pub(crate) struct FxImpactTableRaw<'a> {
     pub name: XString<'a>,
     pub table: Ptr32ArrayConst<'a, FxImpactEntryRaw<'a>, 21>,
 }
 
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug)]
 pub struct FxImpactTable {
     pub name: String,
-    pub table: Vec<FxImpactEntry>
+    pub table: Vec<FxImpactEntry>,
 }
 
 impl<'a> XFileInto<FxImpactTable, ()> for FxImpactTableRaw<'a> {
-    fn xfile_into(&self, mut xfile: impl Read + Seek, _data: ()) -> FxImpactTable {
-        FxImpactTable { name: self.name.xfile_into(&mut xfile, ()), table: self.table.to_vec(&mut xfile).into_iter().map(|e| e.xfile_into(&mut xfile, ())).collect() }
+    fn xfile_into(&self, mut xfile: impl Read + Seek, _data: ()) -> Result<FxImpactTable> {
+        Ok(FxImpactTable {
+            name: self.name.xfile_into(&mut xfile, ())?,
+            table: self.table.xfile_into(xfile, ())?,
+        })
     }
 }
 
+#[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Debug, Deserialize)]
-pub struct FxImpactEntryRaw<'a> {
+pub(crate) struct FxImpactEntryRaw<'a> {
     pub nonflesh: [Ptr32<'a, FxEffectDefRaw<'a>>; 31],
     pub flesh: [Ptr32<'a, FxEffectDefRaw<'a>>; 4],
 }
 
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug)]
 pub struct FxImpactEntry {
     pub nonflesh: [Option<Box<FxEffectDef>>; 31],
@@ -602,21 +634,23 @@ pub struct FxImpactEntry {
 }
 
 impl<'a> XFileInto<FxImpactEntry, ()> for FxImpactEntryRaw<'a> {
-    fn xfile_into(&self, mut xfile: impl Read + Seek, _data: ()) -> FxImpactEntry {
-        let nonflesh = self.nonflesh
+    fn xfile_into(&self, mut xfile: impl Read + Seek, _data: ()) -> Result<FxImpactEntry> {
+        let nonflesh = self
+            .nonflesh
             .iter()
             .map(|p| p.xfile_into(&mut xfile, ()))
-            .collect::<Vec<_>>()
+            .collect::<Result<Vec<_>>>()?
             .try_into()
             .unwrap();
 
-        let flesh = self.flesh
+        let flesh = self
+            .flesh
             .iter()
             .map(|p| p.xfile_into(&mut xfile, ()))
-            .collect::<Vec<_>>()
+            .collect::<Result<Vec<_>>>()?
             .try_into()
             .unwrap();
 
-        FxImpactEntry { nonflesh, flesh }
+        Ok(FxImpactEntry { nonflesh, flesh })
     }
 }

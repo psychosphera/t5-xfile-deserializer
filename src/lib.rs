@@ -1,20 +1,95 @@
-#![feature(seek_stream_len)]
+// FastFiles (internally known as XFiles) are structured as follows (all
+// values native endian - that is, little endian for Windows and macOS, big
+// endian for Xbox 360, PS3, and presumably Wii):
+//
+// ----------------------------------------------------------------------------
+// | Offset    | Size | Field       | Description                             |
+// ----------------------------------------------------------------------------
+// | 0x0000000 | 4    | Magic       | Magic value to identify the file as an  |
+// |           |      |             | XFile. Will always be ASCII "IWff".     |
+// ----------------------------------------------------------------------------
+// | 0x0000004 | 1    | Compression | Magic value to identify the             |
+// |           |      |             | compression method used. Will always be |
+// |           |      |             | ASCII '0' for Xbox 360 and PS3, and     |
+// |           |      |             | *seems* to always be 'u' for Windows    |
+// |           |      |             | (might be different for, e.g., modded   |
+// |           |      |             | maps). Unsure for Wii, macOS is         |
+// |           |      |             | presumably the same as Windows.         |
+// ----------------------------------------------------------------------------
+// | 0x0000005 | 3    | Unknown     | Exact meaning unknown. Maybe it was     |
+// |           |      |             | supposed to represent some version info |
+// |           |      |             | info? Will always be ASCII "100".       |
+// ----------------------------------------------------------------------------
+// | 0x0000008 | 4    | Version     | The real version. For reasons explained |
+// |           |      |             | below, XFiles are neither backward- nor |
+// |           |      |             | forward-compatible for deserialization  |
+// |           |      |             | purposes. It is **imperative** that the |
+// |           |      |             | XFile version match the version the     |
+// |           |      |             | deserializer is expecting. For all      |
+// |           |      |             | release builds of T5, the value is      |
+// |           |      |             | 0x000001D9                              |
+// ----------------------------------------------------------------------------
+// | 0x000000C | *    | Blob        | The rest of the file is a DEFLATE-      |
+// |           |      |             | compressed blob. To get the "real"      |
+// |           |      |             | contents of the file, it must be        |
+// |           |      |             | inflated.                               |
+// ----------------------------------------------------------------------------
+//
+// The inflated blob is structured as follows:
+//
+// ----------------------------------------------------------------------------
+// | Offset    | Size | Field       | Description                             |
+// ----------------------------------------------------------------------------
+// | 0x0000000 | 36   | XFile       | See the [`XFile`] struct below.         |
+// ----------------------------------------------------------------------------
+// | 0x0000024 | 16   | XAssetList  | See the [`XAssetList`] struct below.    |
+// ----------------------------------------------------------------------------
+// | 0x0000034 | *    | XAssets     | The XAssets.                            |
+// ----------------------------------------------------------------------------
+//
+// The XAssetList essentially contains two fat pointers: first, to a string
+// array, then an asset array. And herein comes the first major annoyance
+// with XFiles - the assets are essentially just the structs used by the engine
+// serialzed into a file. Any pointers in said structs become offsets in the
+// file. Occasionally the offsets are NULL or a "real" value, but most of the
+// time they're 0xFFFFFFFF, which indicates that, instead of being at a
+// specific offset, they come immediately after the current struct. This means
+// basically nothing in the file is relocatable.
+//
+// In addition, if the structures' sizes or alignments don't match exactly what
+// the serializer used, or if new structures are added, the file is basically
+// un-parseable (this is why, as mentioned above, the versions must match
+// exactly). Pulling out only assets of a specific type is also impossible,
+// because you can't know where a given asset is at in the file until you pull
+// out everything before it too. For this reason, you're more or less forced
+// into deserializng everything at once and then grabbing the assets you need
+// afterwards.
+
 #![allow(dead_code)]
 #![allow(non_camel_case_types)]
+#![allow(clippy::upper_case_acronyms)]
+#![allow(clippy::missing_transmute_annotations)]
+#![allow(clippy::wrong_self_convention)]
+#![allow(clippy::from_over_into)]
+#![allow(clippy::needless_borrows_for_generic_args)]
 
-mod common;
-mod destructible;
-mod font;
-mod fx;
-mod gameworld;
-mod light;
-mod misc;
-mod techset;
-mod util;
-mod xanim;
-mod xmodel;
+pub mod common;
+pub mod ddl;
+pub mod destructible;
+pub mod font;
+pub mod fx;
+pub mod gameworld;
+pub mod light;
+pub mod menu;
+pub mod misc;
+pub mod sound;
+pub mod techset;
+pub mod util;
+pub mod xanim;
+pub mod xmodel;
 
 use std::{
+    collections::VecDeque,
     ffi::CString,
     fmt::{Debug, Display},
     io::{Cursor, Read, Seek, Write},
@@ -22,33 +97,60 @@ use std::{
     sync::{Arc, Mutex},
 };
 
+use bincode::{
+    config::{BigEndian, FixintEncoding, LittleEndian, WithOtherEndian, WithOtherIntEncoding},
+    DefaultOptions, Options,
+};
 use num_derive::FromPrimitive;
 use serde::{de::DeserializeOwned, Deserialize};
 
-use misc::*;
-use util::*;
+#[cfg(feature = "serde")]
+use serde::Serialize;
 
+pub use misc::*;
+use util::{StreamLen, *};
+
+#[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
-struct XFileHeader {
-    magic: [u8; 8],
-    version: u32,
+pub struct XFileHeader {
+    pub magic: [u8; 8],
+    pub version: u32,
 }
 assert_size!(XFileHeader, 12);
 
+impl XFileHeader {
+    pub fn magic_string(&self) -> String {
+        self.magic.iter().map(|c| *c as char).collect()
+    }
+
+    pub fn magic_is_valid(&self) -> bool {
+        self.magic[0] == b'I'
+            && self.magic[1] == b'W'
+            && self.magic[2] == b'f'
+            && self.magic[3] == b'f'
+            && (self.magic[4] == b'u' || self.magic[4] == b'0')
+            && self.magic[5] == b'1'
+            && self.magic[6] == b'0'
+            && self.magic[7] == b'0'
+    }
+}
+
+#[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
-struct XFile {
-    size: u32,
-    external_size: u32,
-    block_size: [u32; 7],
+pub struct XFile {
+    pub size: u32,
+    pub external_size: u32,
+    pub block_size: [u32; 7],
 }
 assert_size!(XFile, 36);
 
+#[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
 struct ScriptString(u16);
 
 impl Display for ScriptString {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let script_strings = SCRIPT_STRINGS.lock().unwrap();
+        let script_strings = SCRIPT_STRINGS.lock().map_err(|_| std::fmt::Error)?;
 
         let s = script_strings.as_ref().and_then(|v| v.get(self.0 as usize));
 
@@ -62,212 +164,518 @@ impl Display for ScriptString {
 
 static XFILE: Mutex<Option<XFile>> = Mutex::new(None);
 static SCRIPT_STRINGS: Mutex<Option<Arc<Vec<String>>>> = Mutex::new(None);
-
-fn xfile_header_magic_is_valid(header: &XFileHeader) -> bool {
-    header.magic[0] == b'I'
-        && header.magic[1] == b'W'
-        && header.magic[2] == b'f'
-        && header.magic[3] == b'f'
-        && (header.magic[4] == b'u' || header.magic[4] == b'0')
-        && header.magic[5] == b'1'
-        && header.magic[6] == b'0'
-        && header.magic[7] == b'0'
-}
+static BINCODE_OPTIONS: Mutex<Option<BincodeOptions>> = Mutex::new(None);
 
 const XFILE_VERSION: u32 = 0x000001D9u32;
+const XFILE_VERSION_LE: u32 = XFILE_VERSION.to_le();
+const XFILE_VERSION_BE: u32 = XFILE_VERSION.to_be();
 
-fn xfile_is_correct_version(header: &XFileHeader) -> bool {
-    header.version == XFILE_VERSION
+#[repr(u32)]
+enum XFileVersion {
+    LE = XFILE_VERSION_LE,
+    BE = XFILE_VERSION_BE,
 }
 
-pub struct T5XFileDeserializer {
+impl XFileVersion {
+    fn is_valid(version: u32, platform: XFilePlatform) -> bool {
+        Self::from_u32(version)
+            .map(|v| v.as_u32())
+            .unwrap_or(0xFFFFFFFF)
+            == Self::from_platform(platform).as_u32()
+    }
+
+    fn is_other_endian(version: u32, platform: XFilePlatform) -> bool {
+        if platform.is_le() {
+            version == Self::BE.as_u32()
+        } else {
+            version == Self::LE.as_u32()
+        }
+    }
+
+    fn from_u32(value: u32) -> Option<Self> {
+        match value {
+            XFILE_VERSION_LE => Some(Self::LE),
+            XFILE_VERSION_BE => Some(Self::BE),
+            _ => None,
+        }
+    }
+
+    fn from_platform(platform: XFilePlatform) -> Self {
+        match platform {
+            XFilePlatform::Windows | XFilePlatform::macOS => XFileVersion::LE,
+            XFilePlatform::Xbox360 | XFilePlatform::PS3 => XFileVersion::BE,
+            XFilePlatform::Wii => unreachable!(),
+        }
+    }
+
+    fn as_u32(&self) -> u32 {
+        match self {
+            Self::LE => XFILE_VERSION_LE,
+            Self::BE => XFILE_VERSION_BE,
+        }
+    }
+}
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum XFilePlatform {
+    Windows,
+    macOS,
+    Xbox360,
+    PS3,
+    Wii,
+}
+
+impl Display for XFilePlatform {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let s = match self {
+            Self::Windows => "Windows",
+            Self::macOS => "macOS",
+            Self::Xbox360 => "Xbox 360",
+            Self::PS3 => "PS3",
+            Self::Wii => "Wii",
+        };
+        write!(f, "{}", s)
+    }
+}
+
+impl XFilePlatform {
+    pub fn is_le(&self) -> bool {
+        match self {
+            XFilePlatform::Windows | XFilePlatform::macOS => true,
+            XFilePlatform::Xbox360 | XFilePlatform::PS3 => false,
+            XFilePlatform::Wii => unreachable!(),
+        }
+    }
+
+    pub fn is_be(&self) -> bool {
+        !self.is_le()
+    }
+}
+
+pub struct T5XFileDeserializer<'a> {
+    silent: bool,
     xfile: XFile,
     script_strings: Arc<Vec<String>>,
-    file: Option<std::fs::File>,
-    cache_file: Option<std::fs::File>,
+    file: Option<&'a mut std::fs::File>,
+    cache_file: Option<&'a mut std::fs::File>,
     reader: Option<Cursor<Vec<u8>>>,
+    platform: XFilePlatform,
+    xasset_list: Option<XAssetList<'a>>,
+    xassets_raw: VecDeque<XAssetRaw<'a>>,
+    deserialized_assets: usize,
 }
 
-fn make_de_current(de: &T5XFileDeserializer) -> Result<(), ()> {
+#[derive(Debug)]
+pub enum Error {
+    Poison(Box<dyn std::error::Error>),
+    Io(std::io::Error),
+    Bincode(Box<bincode::ErrorKind>),
+    Inflate(String),
+    NotInflated,
+    BadOffset(u32),
+    BadFromPrimitive(i64),
+    BadBitflags(u32),
+    BadChar(u32),
+    BrokenInvariant(String),
+    InvalidSeek { off: u32, max: u32 },
+    BadHeaderMagic(String),
+    WrongVersion(u32),
+    WrongEndiannessForPlatform(XFilePlatform),
+    UnsupportedPlatform(XFilePlatform),
+    Other(Box<dyn std::error::Error>),
+    Todo(String),
+}
+
+impl From<Box<dyn std::error::Error>> for Error {
+    fn from(value: Box<dyn std::error::Error>) -> Self {
+        Self::Poison(value)
+    }
+}
+
+impl From<std::io::Error> for Error {
+    fn from(value: std::io::Error) -> Self {
+        Self::Io(value)
+    }
+}
+
+impl From<Box<bincode::ErrorKind>> for Error {
+    fn from(value: Box<bincode::ErrorKind>) -> Self {
+        Self::Bincode(value)
+    }
+}
+
+impl From<String> for Error {
+    fn from(value: String) -> Self {
+        Self::Inflate(value)
+    }
+}
+
+#[macro_export]
+macro_rules! file_line_col {
+    () => {
+        format!("{}:{}:{}", file!(), line!(), column!())
+    };
+}
+
+pub type Result<T> = core::result::Result<T, Error>;
+
+type BincodeOptionsLE =
+    WithOtherIntEncoding<WithOtherEndian<DefaultOptions, LittleEndian>, FixintEncoding>;
+type BincodeOptionsBE =
+    WithOtherIntEncoding<WithOtherEndian<DefaultOptions, BigEndian>, FixintEncoding>;
+
+enum BincodeOptions {
+    LE(BincodeOptionsLE),
+    BE(BincodeOptionsBE),
+}
+
+impl BincodeOptions {
+    fn new(little_endian: bool) -> Self {
+        if little_endian {
+            BincodeOptions::LE(
+                DefaultOptions::new()
+                    .with_little_endian()
+                    .with_fixint_encoding(),
+            )
+        } else {
+            BincodeOptions::BE(
+                DefaultOptions::new()
+                    .with_big_endian()
+                    .with_fixint_encoding(),
+            )
+        }
+    }
+
+    fn deserialize_from<T: DeserializeOwned>(&self, reader: impl Read) -> bincode::Result<T> {
+        match self {
+            Self::LE(opts) => opts.deserialize_from(reader),
+            Self::BE(opts) => opts.deserialize_from(reader),
+        }
+    }
+}
+
+fn make_de_current(de: &T5XFileDeserializer) -> Result<()> {
     let script_strings = SCRIPT_STRINGS.lock();
     match script_strings {
         Ok(mut s) => {
             *s = Some(de.script_strings.clone());
         }
-        Err(_) => return Err(()),
+        Err(e) => return Err(Error::Poison(Box::new(e))),
     };
 
     let xfile = XFILE.lock();
     match xfile {
         Ok(mut f) => {
-            *f = Some(de.xfile.clone());
+            *f = Some(de.xfile);
             Ok(())
         }
-        Err(_) => Err(()),
+        Err(e) => Err(Error::Poison(Box::new(e))),
     }
 }
 
-fn release_de() -> Result<(), ()> {
+fn release_de() -> Result<()> {
     let script_strings = SCRIPT_STRINGS.lock();
     match script_strings {
         Ok(mut s) => {
             *s = None;
         }
-        Err(_) => return Err(()),
+        Err(e) => return Err(Error::Poison(Box::new(e))),
     };
 
     let xfile = XFILE.lock();
     match xfile {
         Ok(mut f) => {
             *f = None;
+        }
+        Err(e) => return Err(Error::Poison(Box::new(e))),
+    };
+
+    let options = BINCODE_OPTIONS.lock();
+    match options {
+        Ok(mut o) => {
+            *o = None;
             Ok(())
         }
-        Err(_) => Err(()),
+        Err(e) => Err(Error::Poison(Box::new(e))),
     }
 }
 
-impl T5XFileDeserializer {
-    pub fn from_path(path: impl AsRef<Path>) -> std::io::Result<Self> {
-        match std::fs::File::open(path) {
-            Ok(f) => Self::from_file(f),
-            Err(e) => Err(e),
+fn de_do<T, F: FnOnce(&mut T5XFileDeserializer) -> Result<T>>(
+    de: &mut T5XFileDeserializer,
+    pred: F,
+) -> Result<T> {
+    make_de_current(de)?;
+    let t = pred(de);
+    release_de()?;
+    t
+}
+
+impl<'a> T5XFileDeserializer<'a> {
+    pub fn from_file(
+        mut file: &'a mut std::fs::File,
+        silent: bool,
+        inflate: bool,
+        platform: XFilePlatform,
+    ) -> Result<Self> {
+        if platform == XFilePlatform::Wii {
+            if !silent {
+                println!("Wii Fastfiles aren't supported.");
+            }
+            return Err(Error::UnsupportedPlatform(platform));
         }
-    }
 
-    pub fn from_file(mut file: std::fs::File) -> std::io::Result<Self> {
-        let mut header_bytes = [0u8; 12];
-        file.read_exact(&mut header_bytes).unwrap();
+        if !silent && (platform == XFilePlatform::Xbox360 || platform == XFilePlatform::PS3) {
+            println!(
+                "Warning: {} Fastfiles might (and probably do) have differences\
+                 from Windows Fastfiles that aren't accounted for in this\
+                 library. Expect problems.",
+                platform
+            );
+        }
 
-        let header = bincode::deserialize::<XFileHeader>(&header_bytes).unwrap();
-        assert!(
-            xfile_header_magic_is_valid(&header),
-            "Fastfile header magic invalid: valid values are IWffu100 and IWff0100"
-        );
-        assert!(
-            xfile_is_correct_version(&header),
-            "Fastfile is wrong version (version: 0x{:08x}, correct version: {}",
-            header.version,
-            XFILE_VERSION
-        );
+        if !silent && platform == XFilePlatform::macOS {
+            println!(
+                "Warning: macOS Fastfiles are *presumably* identical to\
+                 Windows Fastfiles (being an Aspyr port and all), but the\
+                 author of this library hasn't yet verified that to be true.\
+                 Problems may arise."
+            );
+        }
 
-        Ok(Self {
+        if !silent {
+            println!("Found file, reading header...",);
+        }
+
+        let header =
+            BincodeOptions::new(platform.is_le()).deserialize_from::<XFileHeader>(&mut file)?;
+
+        dbg!(&header);
+
+        if !header.magic_is_valid() {
+            if !silent {
+                println!("Fastfile header magic invalid: valid values are IWffu100 and IWff0100");
+            }
+            return Err(Error::BadHeaderMagic(header.magic_string()));
+        }
+
+        if XFileVersion::is_other_endian(header.version, platform) {
+            if !silent {
+                println!(
+                    "Fastfile header is valid, but it has the wrong endianness\
+                     for {} (probably for a different platform).",
+                    platform
+                );
+
+                return Err(Error::WrongEndiannessForPlatform(platform));
+            }
+        }
+
+        if !XFileVersion::is_valid(header.version, platform) {
+            if !silent {
+                println!(
+                    "Fastfile is wrong version (version={:#010X}, expected {:#010X})",
+                    header.version,
+                    XFileVersion::from_platform(platform).as_u32()
+                );
+            }
+
+            return Err(Error::WrongVersion(header.version));
+        }
+
+        if !silent {
+            println!("Header verified, reading playload...");
+        }
+
+        let mut de = Self {
+            silent,
             xfile: XFile::default(),
             script_strings: Arc::default(),
             file: Some(file),
             cache_file: None,
             reader: None,
-        })
-    }
+            platform,
+            xasset_list: None,
+            xassets_raw: VecDeque::new(),
+            deserialized_assets: 0,
+        };
 
-    pub fn from_cache_path(path: impl AsRef<Path>) -> std::io::Result<Self> {
-        match std::fs::File::open(path) {
-            Ok(f) => Self::from_cache_file(f),
-            Err(e) => Err(e),
+        if inflate {
+            de.inflate()?;
         }
+
+        Ok(de)
     }
 
-    pub fn from_cache_file(file: std::fs::File) -> std::io::Result<Self> {
+    pub fn from_cache_file(
+        file: &'a mut std::fs::File,
+        silent: bool,
+        platform: XFilePlatform,
+    ) -> Result<Self> {
+        if platform == XFilePlatform::Wii {
+            if !silent {
+                println!("Wii Fastfiles aren't supported (does Wii even use Fastfiles?)");
+            }
+            return Err(Error::UnsupportedPlatform(platform));
+        }
+
+        if !silent {
+            println!("Found inflated cache file, reading...");
+        }
+
         Ok(Self {
+            silent,
             xfile: XFile::default(),
             script_strings: Arc::default(),
             file: None,
             cache_file: Some(file),
             reader: None,
+            platform,
+            xasset_list: None,
+            xassets_raw: VecDeque::new(),
+            deserialized_assets: 0,
         })
     }
 
-    pub fn inflate(&mut self) -> Result<(), String> {
-        let reader = if let Some(mut f) = self.cache_file.take() {
+    pub fn inflate(&mut self) -> Result<()> {
+        if self.reader.is_some() {
+            if !self.silent {
+                println!("Cannot inflate: already inflated.");
+            }
+            return Ok(());
+        }
+
+        let reader = if let Some(f) = self.cache_file.take() {
             let mut decompressed_payload = Vec::new();
-            f.read_to_end(&mut decompressed_payload).unwrap();
+            f.read_to_end(&mut decompressed_payload)?;
             Cursor::new(decompressed_payload)
-        } else if let Some(mut f) = self.file.take() {
+        } else if let Some(f) = self.file.take() {
             let mut compressed_payload = Vec::new();
-            f.seek(std::io::SeekFrom::Start(size_of::<XFile>() as _))
-                .unwrap();
-            f.read_to_end(&mut compressed_payload).unwrap();
-            let decompressed_payload = inflate::inflate_bytes(&compressed_payload)?;
+            f.seek(std::io::SeekFrom::Start(size_of::<XFileHeader>() as _))?;
+            dbg!(f.stream_position()?);
+            let bytes_read = f.read_to_end(&mut compressed_payload)?;
+            if !self.silent {
+                println!("Payload read, inflating... (this may take a while)");
+            }
+            let decompressed_payload = inflate::inflate_bytes_zlib(&compressed_payload)?;
+            if !self.silent {
+                println!(
+                    "Payload inflated, compressed size: {} bytes, decompressed size: {} bytes",
+                    bytes_read,
+                    decompressed_payload.len()
+                );
+            }
             Cursor::new(decompressed_payload)
         } else {
             unreachable!()
         };
 
         self.reader = Some(reader);
-        Ok(())
-    }
 
-    pub fn cache(&mut self, path: impl AsRef<Path>) -> std::io::Result<()> {
-        let mut f = std::fs::File::create(path)?;
-        let pos = self.reader.as_ref().unwrap().position();
-        let v = self.reader.take().unwrap().into_inner();
-        let r = f.write_all(&v);
-        self.reader = Some(Cursor::new(v));
-        self.reader.as_mut().unwrap().set_position(pos);
-        r
-    }
-
-    pub fn deserialize(&mut self) -> Vec<XAsset> {
         let xasset_list = {
             let mut file = self.reader.as_mut().unwrap();
-            let xfile = bincode::deserialize_from::<_, XFile>(&mut file).unwrap();
+            let opts = BincodeOptions::new(self.platform.is_le());
+            let xfile = opts.deserialize_from::<XFile>(&mut file)?;
+
             dbg!(xfile);
-            dbg!(file.stream_len()).unwrap();
+            dbg!(StreamLen::stream_len(&mut file))?;
             self.xfile = xfile;
 
-            dbg!(file.stream_position().unwrap());
-
-            let mut xasset_list_buf = [0u8; size_of::<XAssetList>()];
-            file.read_exact(&mut xasset_list_buf).unwrap();
-            let xasset_list = bincode::deserialize::<XAssetList>(&xasset_list_buf).unwrap();
-
-            dbg!(file.stream_position().unwrap());
-            println!("Fastfile contains {} assets.", xasset_list.assets.size);
-
-            let strings = xasset_list
-                .strings
-                .to_vec(&mut file)
-                .into_iter()
-                .map(|s| s.xfile_into(&mut file, ()))
-                .collect::<Vec<_>>();
-            //dbg!(&strings);
-            self.script_strings = Arc::new(strings);
+            dbg!(file.stream_position()?);
+            let xasset_list = opts.deserialize_from::<XAssetList>(&mut file)?;
+            dbg!(&xasset_list);
+            dbg!(file.stream_position()?);
             xasset_list
         };
 
-        make_de_current(self).unwrap();
+        if !self.silent {
+            println!("Fastfile contains {} assets.", xasset_list.assets.size);
+        }
+        let options = BINCODE_OPTIONS.lock();
+        match options {
+            Ok(mut o) => {
+                *o = Some(BincodeOptions::new(self.platform.is_le()));
+            }
+            Err(e) => return Err(Error::Poison(Box::new(e))),
+        };
 
-        let mut file = self.reader.as_mut().unwrap();
-        let assets = xasset_list.assets.to_vec(&mut file);
-        //dbg!(&assets);
-        let mut deserialized_assets = Vec::new();
+        de_do(self, |de| {
+            let mut file = de.reader.as_mut().unwrap();
+            let strings = xasset_list
+                .strings
+                .to_vec(&mut file)?
+                .into_iter()
+                .map(|s| s.xfile_into(&mut file, ()))
+                .collect::<Result<Vec<_>>>()?;
+            //dbg!(&strings);
+            de.script_strings = Arc::new(strings);
 
-        for asset in assets {
-            //dbg!(asset);
-            dbg!(file.stream_position().unwrap());
-            let a = asset.xfile_into(&mut file, ());
-            // if asset.asset_type != XAssetType::TECHNIQUE_SET as _ {
-            //     dbg!(&a);
-            // }
-            assert!(a.is_some());
+            let assets = xasset_list.assets.to_vec(de.reader.as_mut().unwrap())?;
 
-            deserialized_assets.push(a);
-            println!(
-                "Successfully deserialized {} asset{}.",
-                deserialized_assets.len(),
-                if deserialized_assets.len() > 1 {
-                    "s"
-                } else {
-                    ""
-                }
-            );
+            de.xassets_raw = VecDeque::from_iter(assets.into_iter());
+            Ok(())
+        })
+    }
+
+    pub fn cache(&mut self, path: impl AsRef<Path>) -> Result<()> {
+        if !self.silent {
+            println!("Caching decompressed payload to disk...");
         }
 
-        release_de().unwrap();
+        let mut f = std::fs::File::create(path)?;
+        let pos = self.reader.as_ref().unwrap().position();
+        let v = self.reader.take().unwrap().into_inner();
+        f.write_all(&v)?;
+        self.reader = Some(Cursor::new(v));
+        self.reader.as_mut().unwrap().set_position(pos);
 
-        unimplemented!()
+        if !self.silent {
+            println!("Decompressed payload cached.");
+        }
+
+        Ok(())
+    }
+
+    pub fn deserialize_next(&mut self) -> Result<Option<XAsset>> {
+        if self.reader.is_none() {
+            return Err(Error::NotInflated);
+        }
+
+        let Some(asset) = self.xassets_raw.pop_front() else {
+            return Ok(None);
+        };
+
+        let a = de_do(self, |de| asset.xfile_into(de.reader.as_mut().unwrap(), ()));
+        if a.is_ok() {
+            self.deserialized_assets += 1;
+
+            if !self.silent {
+                println!(
+                    "Successfully deserialized {} asset{}.",
+                    self.deserialized_assets,
+                    if self.deserialized_assets > 1 {
+                        "s"
+                    } else {
+                        ""
+                    }
+                );
+            }
+        }
+
+        a.map(Some)
+    }
+
+    pub fn deserialize_remaining(&mut self) -> Result<Vec<XAsset>> {
+        let mut deserialized_assets = Vec::new();
+
+        while let Some(asset) = self.deserialize_next()? {
+            deserialized_assets.push(asset);
+        }
+
+        Ok(deserialized_assets)
     }
 }
 
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug)]
 pub enum XAsset {
     PhysPreset(Option<Box<xmodel::PhysPreset>>),
@@ -278,18 +686,26 @@ pub enum XAsset {
     Material(Option<Box<techset::Material>>),
     TechniqueSet(Option<Box<techset::MaterialTechniqueSet>>),
     Image(Option<Box<techset::GfxImage>>),
+    Sound(Option<Box<sound::SndBank>>),
+    SoundPatch(Option<Box<sound::SndPatch>>),
     GameWorldSp(Option<Box<gameworld::GameWorldSp>>),
     GameWorldMp(Option<Box<gameworld::GameWorldMp>>),
     MapEnts(Option<Box<MapEnts>>),
     LightDef(Option<Box<light::GfxLightDef>>),
     Font(Option<Box<font::Font>>),
+    MenuList(Option<Box<menu::MenuList>>),
+    Menu(Option<Box<menu::MenuDef>>),
     LocalizeEntry(Option<Box<LocalizeEntry>>),
+    SndDriverGlobals(Option<Box<sound::SndDriverGlobals>>),
     Fx(Option<Box<fx::FxEffectDef>>),
     ImpactFx(Option<Box<fx::FxImpactTable>>),
     RawFile(Option<Box<RawFile>>),
     StringTable(Option<Box<StringTable>>),
     PackIndex(Option<Box<PackIndex>>),
     XGlobals(Option<Box<XGlobals>>),
+    Ddl(Option<Box<ddl::DdlRoot>>),
+    Glasses(Option<Box<Glasses>>),
+    EmblemSet(Option<Box<EmblemSet>>),
 }
 
 impl XAsset {
@@ -303,42 +719,91 @@ impl XAsset {
             Self::Material(p) => p.is_some(),
             Self::TechniqueSet(p) => p.is_some(),
             Self::Image(p) => p.is_some(),
+            Self::Sound(p) => p.is_some(),
+            Self::SoundPatch(p) => p.is_some(),
             Self::GameWorldSp(p) => p.is_some(),
             Self::GameWorldMp(p) => p.is_some(),
             Self::MapEnts(p) => p.is_some(),
             Self::LightDef(p) => p.is_some(),
             Self::Font(p) => p.is_some(),
+            Self::MenuList(p) => p.is_some(),
+            Self::Menu(p) => p.is_some(),
             Self::LocalizeEntry(p) => p.is_some(),
+            Self::SndDriverGlobals(p) => p.is_some(),
             Self::Fx(p) => p.is_some(),
             Self::ImpactFx(p) => p.is_some(),
             Self::RawFile(p) => p.is_some(),
             Self::StringTable(p) => p.is_some(),
             Self::PackIndex(p) => p.is_some(),
             Self::XGlobals(p) => p.is_some(),
+            Self::Ddl(p) => p.is_some(),
+            Self::Glasses(p) => p.is_some(),
+            Self::EmblemSet(p) => p.is_some(),
+        }
+    }
+
+    pub fn name(&self) -> Option<&str> {
+        match self {
+            Self::PhysPreset(p) => p.as_ref().map(|p| p.name.as_str()),
+            Self::PhysConstraints(p) => p.as_ref().map(|p| p.name.as_str()),
+            Self::DestructibleDef(p) => p.as_ref().map(|p| p.name.as_str()),
+            Self::XAnimParts(p) => p.as_ref().map(|p| p.name.as_str()),
+            Self::XModel(p) => p.as_ref().map(|p| p.name.as_str()),
+            Self::Material(p) => p.as_ref().map(|p| p.info.name.as_str()),
+            Self::TechniqueSet(p) => p.as_ref().map(|p| p.name.as_str()),
+            Self::Image(p) => p.as_ref().map(|p| p.name.as_str()),
+            Self::Sound(p) => p.as_ref().map(|p| p.name.as_str()),
+            Self::SoundPatch(p) => p.as_ref().map(|p| p.name.as_str()),
+            Self::GameWorldSp(p) => p.as_ref().map(|p| p.name.as_str()),
+            Self::GameWorldMp(p) => p.as_ref().map(|p| p.name.as_str()),
+            Self::MapEnts(p) => p.as_ref().map(|p| p.name.as_str()),
+            Self::LightDef(p) => p.as_ref().map(|p| p.name.as_str()),
+            Self::Font(p) => p.as_ref().map(|p| p.font_name.as_str()),
+            Self::MenuList(p) => p.as_ref().map(|p| p.name.as_str()),
+            Self::Menu(p) => p.as_ref().map(|p| p.window.name.as_str()),
+            Self::LocalizeEntry(p) => p.as_ref().map(|p| p.name.as_str()),
+            Self::SndDriverGlobals(p) => p.as_ref().map(|p| p.name.as_str()),
+            Self::Fx(p) => p.as_ref().map(|p| p.name.as_str()),
+            Self::ImpactFx(p) => p.as_ref().map(|p| p.name.as_str()),
+            Self::RawFile(p) => p.as_ref().map(|p| p.name.as_str()),
+            Self::StringTable(p) => p.as_ref().map(|p| p.name.as_str()),
+            Self::PackIndex(p) => p.as_ref().map(|p| p.name.as_str()),
+            Self::XGlobals(p) => p.as_ref().map(|p| p.name.as_str()),
+            Self::Ddl(p) => p.as_ref().map(|p| p.name.as_str()),
+            Self::Glasses(p) => p.as_ref().map(|p| p.name.as_str()),
+            Self::EmblemSet(_) => Some("emblemset"),
         }
     }
 }
 
 /// Helper function to deserialze [`T`] from [`xfile`].
-fn load_from_xfile<T: DeserializeOwned>(xfile: impl Read + Seek) -> T {
-    bincode::deserialize_from::<_, T>(xfile).unwrap()
+fn load_from_xfile<T: DeserializeOwned>(xfile: impl Read + Seek) -> Result<T> {
+    BINCODE_OPTIONS
+        .lock()
+        .map_err(|e| Error::Poison(Box::new(e)))?
+        .as_mut()
+        .unwrap()
+        .deserialize_from::<T>(xfile)
+        .map_err(|e| Error::Bincode(e))
 }
 
-#[derive(Deserialize)]
+#[cfg_attr(feature = "serde", derive(Serialize))]
+#[derive(Debug, Deserialize)]
 struct XAssetList<'a> {
     strings: FatPointerCountFirstU32<'a, XString<'a>>,
     assets: FatPointerCountFirstU32<'a, XAssetRaw<'a>>,
 }
 assert_size!(XAssetList, 16);
 
+#[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Debug, Deserialize)]
-#[repr(C, packed)]
 struct XAssetRaw<'a> {
     asset_type: u32,
     asset_data: Ptr32<'a, ()>,
 }
 assert_size!(XAssetRaw, 8);
 
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Copy, Clone, Default, Debug, FromPrimitive)]
 #[repr(u32)]
 enum XAssetType {
@@ -391,118 +856,165 @@ enum XAssetType {
 }
 
 impl<'a> XFileInto<XAsset, ()> for XAssetRaw<'a> {
-    fn xfile_into(&self, xfile: impl Read + Seek, _data: ()) -> XAsset {
-        let asset_type = num::FromPrimitive::from_u32(self.asset_type).unwrap();
-        match asset_type {
+    fn xfile_into(&self, xfile: impl Read + Seek, _data: ()) -> Result<XAsset> {
+        let asset_type = num::FromPrimitive::from_u32(self.asset_type)
+            .ok_or(Error::BadFromPrimitive(self.asset_type as _))?;
+        Ok(match asset_type {
             XAssetType::PHYSPRESET => XAsset::PhysPreset(
                 self.asset_data
                     .cast::<xmodel::PhysPresetRaw>()
-                    .xfile_into(xfile, ()),
+                    .xfile_into(xfile, ())?,
             ),
             XAssetType::PHYSCONSTRAINTS => XAsset::PhysConstraints(
                 self.asset_data
                     .cast::<xmodel::PhysConstraintsRaw>()
-                    .xfile_into(xfile, ()),
+                    .xfile_into(xfile, ())?,
             ),
             XAssetType::DESTRUCTIBLEDEF => XAsset::DestructibleDef(
                 self.asset_data
                     .cast::<destructible::DestructibleDefRaw>()
-                    .xfile_into(xfile, ()),
+                    .xfile_into(xfile, ())?,
             ),
             XAssetType::XANIMPARTS => XAsset::XAnimParts(
                 self.asset_data
                     .cast::<xanim::XAnimPartsRaw>()
-                    .xfile_into(xfile, ()),
+                    .xfile_into(xfile, ())?,
             ),
             XAssetType::XMODEL => XAsset::XModel(
                 self.asset_data
                     .cast::<xmodel::XModelRaw>()
-                    .xfile_into(xfile, ()),
+                    .xfile_into(xfile, ())?,
             ),
             XAssetType::MATERIAL => XAsset::Material(
                 self.asset_data
                     .cast::<techset::MaterialRaw>()
-                    .xfile_into(xfile, ()),
+                    .xfile_into(xfile, ())?,
             ),
             XAssetType::TECHNIQUE_SET => XAsset::TechniqueSet(
                 self.asset_data
                     .cast::<techset::MaterialTechniqueSetRaw>()
-                    .xfile_into(xfile, ()),
+                    .xfile_into(xfile, ())?,
             ),
             XAssetType::IMAGE => XAsset::Image(
                 self.asset_data
                     .cast::<techset::GfxImageRaw>()
-                    .xfile_into(xfile, ()),
+                    .xfile_into(xfile, ())?,
+            ),
+            XAssetType::SOUND => XAsset::Sound(
+                self.asset_data
+                    .cast::<sound::SndBankRaw>()
+                    .xfile_into(xfile, ())?,
+            ),
+            XAssetType::SOUND_PATCH => XAsset::SoundPatch(
+                self.asset_data
+                    .cast::<sound::SndPatchRaw>()
+                    .xfile_into(xfile, ())?,
             ),
             XAssetType::GAMEWORLD_SP => XAsset::GameWorldSp(
                 self.asset_data
                     .cast::<gameworld::GameWorldSpRaw>()
-                    .xfile_into(xfile, ()),
+                    .xfile_into(xfile, ())?,
             ),
             XAssetType::GAMEWORLD_MP => XAsset::GameWorldMp(
                 self.asset_data
                     .cast::<gameworld::GameWorldMpRaw>()
-                    .xfile_into(xfile, ()),
+                    .xfile_into(xfile, ())?,
             ),
             XAssetType::MAP_ENTS => {
-                XAsset::MapEnts(self.asset_data.cast::<MapEntsRaw>().xfile_into(xfile, ()))
+                XAsset::MapEnts(self.asset_data.cast::<MapEntsRaw>().xfile_into(xfile, ())?)
             }
             XAssetType::LIGHT_DEF => XAsset::LightDef(
                 self.asset_data
                     .cast::<light::GfxLightDefRaw>()
-                    .xfile_into(xfile, ()),
+                    .xfile_into(xfile, ())?,
             ),
             XAssetType::FONT => XAsset::Font(
                 self.asset_data
                     .cast::<font::FontRaw>()
-                    .xfile_into(xfile, ()),
+                    .xfile_into(xfile, ())?,
+            ),
+            XAssetType::MENULIST => XAsset::MenuList(
+                self.asset_data
+                    .cast::<menu::MenuListRaw>()
+                    .xfile_into(xfile, ())?,
+            ),
+            XAssetType::MENU => XAsset::Menu(
+                self.asset_data
+                    .cast::<menu::MenuDefRaw>()
+                    .xfile_into(xfile, ())?,
             ),
             XAssetType::LOCALIZE_ENTRY => XAsset::LocalizeEntry(
                 self.asset_data
                     .cast::<LocalizeEntryRaw>()
-                    .xfile_into(xfile, ()),
+                    .xfile_into(xfile, ())?,
+            ),
+            XAssetType::SNDDRIVER_GLOBALS => XAsset::SndDriverGlobals(
+                self.asset_data
+                    .cast::<sound::SndDriverGlobalsRaw>()
+                    .xfile_into(xfile, ())?,
             ),
             XAssetType::FX => XAsset::Fx(
                 self.asset_data
                     .cast::<fx::FxEffectDefRaw>()
-                    .xfile_into(xfile, ()),
+                    .xfile_into(xfile, ())?,
             ),
             XAssetType::IMPACT_FX => XAsset::ImpactFx(
                 self.asset_data
                     .cast::<fx::FxImpactTableRaw>()
-                    .xfile_into(xfile, ()),
+                    .xfile_into(xfile, ())?,
             ),
             XAssetType::RAWFILE => {
-                XAsset::RawFile(self.asset_data.cast::<RawFileRaw>().xfile_into(xfile, ()))
+                XAsset::RawFile(self.asset_data.cast::<RawFileRaw>().xfile_into(xfile, ())?)
             }
             XAssetType::STRINGTABLE => XAsset::StringTable(
                 self.asset_data
                     .cast::<StringTableRaw>()
-                    .xfile_into(xfile, ()),
+                    .xfile_into(xfile, ())?,
             ),
-            XAssetType::PACKINDEX => {
-                XAsset::PackIndex(self.asset_data.cast::<PackIndexRaw>().xfile_into(xfile, ()))
+            XAssetType::PACKINDEX => XAsset::PackIndex(
+                self.asset_data
+                    .cast::<PackIndexRaw>()
+                    .xfile_into(xfile, ())?,
+            ),
+            XAssetType::XGLOBALS => XAsset::XGlobals(
+                self.asset_data
+                    .cast::<XGlobalsRaw>()
+                    .xfile_into(xfile, ())?,
+            ),
+            XAssetType::DDL => XAsset::Ddl(
+                self.asset_data
+                    .cast::<ddl::DdlRootRaw>()
+                    .xfile_into(xfile, ())?,
+            ),
+            XAssetType::GLASSES => {
+                XAsset::Glasses(self.asset_data.cast::<GlassesRaw>().xfile_into(xfile, ())?)
             }
-            XAssetType::XGLOBALS => {
-                XAsset::XGlobals(self.asset_data.cast::<XGlobalsRaw>().xfile_into(xfile, ()))
-            }
+            XAssetType::EMBLEMSET => XAsset::EmblemSet(
+                self.asset_data
+                    .cast::<EmblemSetRaw>()
+                    .xfile_into(xfile, ())?,
+            ),
             _ => {
                 dbg!(asset_type);
                 unimplemented!()
             }
-        }
+        })
     }
 }
 
-pub(crate) fn convert_offset_to_ptr(offset: u32) -> (u8, u32) {
+pub(crate) fn convert_offset_to_ptr(offset: u32) -> Result<(u8, u32)> {
     let block = ((offset - 1) >> 29) as u8;
     let off = (offset - 1) & 0x1FFFFFFF;
 
-    let block_sizes = XFILE.lock().unwrap().unwrap().block_size;
+    let block_sizes = XFILE
+        .lock()
+        .map_err(|e| Error::Poison(Box::new(e)))?
+        .unwrap()
+        .block_size;
     let start = block_sizes[0..block as usize].iter().sum::<u32>();
     let p = start + off;
 
     //dbg!(block_sizes, block, off, start, p);
 
-    (block, p)
+    Ok((block, p))
 }

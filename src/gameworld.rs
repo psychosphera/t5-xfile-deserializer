@@ -4,49 +4,57 @@ use crate::{
 };
 
 use bitflags::bitflags;
+use num_derive::FromPrimitive;
 
+#[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Debug, Deserialize)]
-pub struct GameWorldSpRaw<'a> {
+pub(crate) struct GameWorldSpRaw<'a> {
     pub name: XString<'a>,
     pub path: PathDataRaw<'a>,
 }
 
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Clone, Debug)]
 pub struct GameWorldSp {
     pub name: String,
     pub path: PathData,
 }
 
 impl<'a> XFileInto<GameWorldSp, ()> for GameWorldSpRaw<'a> {
-    fn xfile_into(&self, mut xfile: impl Read + Seek, _data: ()) -> GameWorldSp {
-        GameWorldSp {
-            name: self.name.xfile_into(&mut xfile, ()),
-            path: self.path.xfile_into(xfile, ()),
-        }
+    fn xfile_into(&self, mut xfile: impl Read + Seek, _data: ()) -> Result<GameWorldSp> {
+        Ok(GameWorldSp {
+            name: self.name.xfile_into(&mut xfile, ())?,
+            path: self.path.xfile_into(xfile, ())?,
+        })
     }
 }
 
+#[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Debug, Deserialize)]
-pub struct GameWorldMpRaw<'a> {
+pub(crate) struct GameWorldMpRaw<'a> {
     pub name: XString<'a>,
     pub path: PathDataRaw<'a>,
 }
 
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Clone, Debug)]
 pub struct GameWorldMp {
     pub name: String,
     pub path: PathData,
 }
 
 impl<'a> XFileInto<GameWorldMp, ()> for GameWorldMpRaw<'a> {
-    fn xfile_into(&self, mut xfile: impl Read + Seek, _data: ()) -> GameWorldMp {
-        GameWorldMp {
-            name: self.name.xfile_into(&mut xfile, ()),
-            path: self.path.xfile_into(xfile, ()),
-        }
+    fn xfile_into(&self, mut xfile: impl Read + Seek, _data: ()) -> Result<GameWorldMp> {
+        Ok(GameWorldMp {
+            name: self.name.xfile_into(&mut xfile, ())?,
+            path: self.path.xfile_into(xfile, ())?,
+        })
     }
 }
 
+#[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Debug, Deserialize)]
-pub struct PathDataRaw<'a> {
+pub(crate) struct PathDataRaw<'a> {
     pub node_count: u32,
     pub nodes: Ptr32<'a, PathNodeRaw<'a>>,
     pub basenodes: Ptr32<'a, PathBaseNodeRaw>,
@@ -57,6 +65,8 @@ pub struct PathDataRaw<'a> {
     pub node_tree: FatPointerCountFirstU32<'a, PathNodeTreeRaw>,
 }
 
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Clone, Debug)]
 pub struct PathData {
     pub node_count: usize,
     pub nodes: Vec<PathNode>,
@@ -69,38 +79,27 @@ pub struct PathData {
 }
 
 impl<'a> XFileInto<PathData, ()> for PathDataRaw<'a> {
-    fn xfile_into(&self, mut xfile: impl Read + Seek, _data: ()) -> PathData {
+    fn xfile_into(&self, mut xfile: impl Read + Seek, _data: ()) -> Result<PathData> {
         let nodes = self
             .nodes
             .to_array(self.node_count as usize + 128)
-            .to_vec(&mut xfile)
-            .into_iter()
-            .map(|n| n.xfile_into(&mut xfile, ()))
-            .collect();
+            .xfile_into(&mut xfile, ())?;
         let basenodes = self
             .basenodes
             .to_array(self.node_count as usize + 128)
-            .to_vec(&mut xfile)
-            .into_iter()
-            .map(Into::into)
-            .collect();
+            .to_vec_into(&mut xfile)?;
         let chain_node_for_node = self
             .chain_node_for_node
             .to_array(self.node_count as _)
-            .to_vec(&mut xfile);
+            .to_vec(&mut xfile)?;
         let node_for_chain_node = self
             .node_for_chain_node
             .to_array(self.node_count as _)
-            .to_vec(&mut xfile);
-        let path_vis = self.path_vis.to_vec(&mut xfile);
-        let node_tree = self
-            .node_tree
-            .to_vec(&mut xfile)
-            .into_iter()
-            .map(|t| t.xfile_into(&mut xfile, ()))
-            .collect();
+            .to_vec(&mut xfile)?;
+        let path_vis = self.path_vis.to_vec(&mut xfile)?;
+        let node_tree = self.node_tree.xfile_into(xfile, ())?;
 
-        PathData {
+        Ok(PathData {
             node_count: self.node_count as _,
             nodes,
             basenodes,
@@ -109,17 +108,20 @@ impl<'a> XFileInto<PathData, ()> for PathDataRaw<'a> {
             node_for_chain_node,
             path_vis,
             node_tree,
-        }
+        })
     }
 }
 
+#[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Debug, Deserialize)]
-pub struct PathNodeRaw<'a> {
+pub(crate) struct PathNodeRaw<'a> {
     pub constant: PathNodeConstantRaw<'a>,
     pub dynamic: PathNodeDynamicRaw,
     pub transient: PathNodeTransientRaw<'a>,
 }
 
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Clone, Debug)]
 pub struct PathNode {
     pub constant: PathNodeConstant,
     pub dynamic: PathNodeDynamic,
@@ -127,17 +129,18 @@ pub struct PathNode {
 }
 
 impl<'a> XFileInto<PathNode, ()> for PathNodeRaw<'a> {
-    fn xfile_into(&self, mut xfile: impl Read + Seek, _data: ()) -> PathNode {
-        PathNode {
-            constant: self.constant.xfile_into(&mut xfile, ()),
+    fn xfile_into(&self, mut xfile: impl Read + Seek, _data: ()) -> Result<PathNode> {
+        Ok(PathNode {
+            constant: self.constant.xfile_into(&mut xfile, ())?,
             dynamic: self.dynamic.into(),
             transient: self.transient.into(),
-        }
+        })
     }
 }
 
+#[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Debug, Deserialize)]
-pub struct PathNodeConstantRaw<'a> {
+pub(crate) struct PathNodeConstantRaw<'a> {
     pub type_: u16,
     pub spawnflags: u16,
     pub targetname: ScriptString,
@@ -159,6 +162,7 @@ pub struct PathNodeConstantRaw<'a> {
 }
 assert_size!(PathNodeConstantRaw, 68);
 
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Copy, Clone, Default, Debug, FromPrimitive)]
 pub enum NodeType {
     #[default]
@@ -187,6 +191,8 @@ pub enum NodeType {
 }
 
 bitflags! {
+    #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+    #[derive(Clone, Debug)]
     pub struct SpawnFlags: u16 {
         const DONTLINK = 0x0001;
         const NOTCHAIN = 0x0002;
@@ -207,6 +213,7 @@ bitflags! {
     }
 }
 
+#[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Debug, Deserialize)]
 pub struct PathLink {
     pub dist: f32,
@@ -217,6 +224,8 @@ pub struct PathLink {
 }
 assert_size!(PathLink, 12);
 
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Clone, Debug)]
 pub struct PathNodeConstant {
     pub type_: NodeType,
     pub spawnflags: SpawnFlags,
@@ -239,10 +248,12 @@ pub struct PathNodeConstant {
 }
 
 impl<'a> XFileInto<PathNodeConstant, ()> for PathNodeConstantRaw<'a> {
-    fn xfile_into(&self, xfile: impl Read + Seek, _data: ()) -> PathNodeConstant {
-        PathNodeConstant {
-            type_: num::FromPrimitive::from_u16(self.type_).unwrap(),
-            spawnflags: SpawnFlags::from_bits(self.spawnflags).unwrap(),
+    fn xfile_into(&self, xfile: impl Read + Seek, _data: ()) -> Result<PathNodeConstant> {
+        Ok(PathNodeConstant {
+            type_: num::FromPrimitive::from_u16(self.type_)
+                .ok_or(Error::BadFromPrimitive(self.type_ as _))?,
+            spawnflags: SpawnFlags::from_bits(self.spawnflags)
+                .ok_or(Error::BadBitflags(self.spawnflags as _))?,
             targetname: self.targetname.to_string(),
             script_linkname: self.script_linkname.to_string(),
             script_noteworthy: self.script_noteworthy.to_string(),
@@ -258,24 +269,27 @@ impl<'a> XFileInto<PathNodeConstant, ()> for PathNodeConstantRaw<'a> {
             chain_id: self.chain_id,
             chain_depth: self.chain_depth,
             chain_parent: self.chain_parent,
-            links: self.links.to_vec(xfile),
-        }
+            links: self.links.to_vec(xfile)?,
+        })
     }
 }
 
+#[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Debug, Deserialize)]
-pub struct PathNodeDynamicRaw {
+pub(crate) struct PathNodeDynamicRaw {
     pub owner: SentientHandleRaw,
     pub free_time: i32,
     pub valid_time: [i32; 3],
     pub in_player_los_time: i32,
     pub link_count: i16,
     pub overlap_count: i16,
-    pub turrent_ent_number: i16,
+    pub turret_ent_number: i16,
     pub user_count: i16,
 }
 assert_size!(PathNodeDynamicRaw, 32);
 
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Clone, Debug)]
 pub struct PathNodeDynamic {
     pub owner: SentientHandle,
     pub free_time: i32,
@@ -283,7 +297,7 @@ pub struct PathNodeDynamic {
     pub in_player_los_time: i32,
     pub link_count: i16,
     pub overlap_count: i16,
-    pub turrent_ent_number: i16,
+    pub turret_ent_number: i16,
     pub user_count: i16,
 }
 
@@ -296,19 +310,22 @@ impl Into<PathNodeDynamic> for PathNodeDynamicRaw {
             in_player_los_time: self.in_player_los_time,
             link_count: self.link_count,
             overlap_count: self.overlap_count,
-            turrent_ent_number: self.turrent_ent_number,
+            turret_ent_number: self.turret_ent_number,
             user_count: self.user_count,
         }
     }
 }
 
+#[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Debug, Deserialize)]
-pub struct SentientHandleRaw {
+pub(crate) struct SentientHandleRaw {
     pub number: i16,
     pub info_index: i16,
 }
 assert_size!(SentientHandleRaw, 4);
 
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Clone, Debug)]
 pub struct SentientHandle {
     pub number: i16,
     pub info_index: usize,
@@ -323,8 +340,9 @@ impl Into<SentientHandle> for SentientHandleRaw {
     }
 }
 
+#[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Debug, Deserialize)]
-pub struct PathNodeTransientRaw<'a> {
+pub(crate) struct PathNodeTransientRaw<'a> {
     pub search_frame: i32,
     pub next_open: Ptr32<'a, PathNodeRaw<'a>>,
     pub prev_open: Ptr32<'a, PathNodeRaw<'a>>,
@@ -335,6 +353,8 @@ pub struct PathNodeTransientRaw<'a> {
 }
 assert_size!(PathNodeTransientRaw, 28);
 
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Clone, Debug)]
 pub struct PathNodeTransient {
     pub search_frame: i32,
     pub cost: f32,
@@ -353,78 +373,90 @@ impl<'a> Into<PathNodeTransient> for PathNodeTransientRaw<'a> {
     }
 }
 
+#[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Debug, Deserialize)]
-pub struct PathBaseNodeRaw {
+pub(crate) struct PathBaseNodeRaw {
     pub origin: [f32; 3],
     pub type_: u32,
 }
 assert_size!(PathBaseNodeRaw, 16);
 
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Clone, Debug)]
 pub struct PathBaseNode {
     pub origin: Vec3,
     pub type_: u32,
 }
 
-impl Into<PathBaseNode> for PathBaseNodeRaw {
-    fn into(self) -> PathBaseNode {
-        PathBaseNode {
-            origin: self.origin.into(),
-            type_: self.type_,
+impl From<PathBaseNodeRaw> for PathBaseNode {
+    fn from(value: PathBaseNodeRaw) -> Self {
+        Self {
+            origin: value.origin.into(),
+            type_: value.type_,
         }
     }
 }
 
+#[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Debug, Deserialize)]
-pub struct PathNodeTreeRaw {
+pub(crate) struct PathNodeTreeRaw {
     pub axis: i32,
     pub dist: f32,
     pub u: [u8; 8],
 }
 assert_size!(PathNodeTreeRaw, 16);
 
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Clone, Debug)]
 pub enum PathNodeTreeInfo {
     S(PathNodeTreeNodes),
     Child((Option<Box<PathNodeTree>>, Option<Box<PathNodeTree>>)),
 }
 
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Clone, Debug)]
 pub struct PathNodeTree {
     pub axis: i32,
     pub dist: f32,
     pub u: PathNodeTreeInfo,
 }
 
-impl<'a> XFileInto<PathNodeTree, ()> for PathNodeTreeRaw {
-    fn xfile_into(&self, mut xfile: impl Read + Seek, _data: ()) -> PathNodeTree {
+impl XFileInto<PathNodeTree, ()> for PathNodeTreeRaw {
+    fn xfile_into(&self, xfile: impl Read + Seek, _data: ()) -> Result<PathNodeTree> {
         let u = if self.axis < 0 {
             PathNodeTreeInfo::S(
-                unsafe { std::mem::transmute::<_, PathNodeTreeNodesRaw>(self.u) }.xfile_into(xfile, ()),
+                unsafe { std::mem::transmute::<_, PathNodeTreeNodesRaw>(self.u) }
+                    .xfile_into(xfile, ())?,
             )
         } else {
             unimplemented!()
         };
 
-        PathNodeTree {
+        Ok(PathNodeTree {
             axis: self.axis,
             dist: self.dist,
             u,
-        }
+        })
     }
 }
 
+#[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Debug, Deserialize)]
-pub struct PathNodeTreeNodesRaw<'a> {
+pub(crate) struct PathNodeTreeNodesRaw<'a> {
     pub nodes: FatPointerCountFirstU32<'a, u16>,
 }
 assert_size!(PathNodeTreeNodesRaw, 8);
 
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Clone, Debug)]
 pub struct PathNodeTreeNodes {
     pub nodes: Vec<u16>,
 }
 
 impl<'a> XFileInto<PathNodeTreeNodes, ()> for PathNodeTreeNodesRaw<'a> {
-    fn xfile_into(&self, xfile: impl Read + Seek, _data: ()) -> PathNodeTreeNodes {
-        PathNodeTreeNodes {
-            nodes: self.nodes.to_vec(xfile),
-        }
+    fn xfile_into(&self, xfile: impl Read + Seek, _data: ()) -> Result<PathNodeTreeNodes> {
+        Ok(PathNodeTreeNodes {
+            nodes: self.nodes.to_vec(xfile)?,
+        })
     }
 }
