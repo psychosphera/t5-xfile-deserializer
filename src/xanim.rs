@@ -278,7 +278,7 @@ impl<'a> XFileInto<Option<XAnimPartTransData>, (u16, u8, u16)> for XAnimPartTran
                 self.0
                     .cast::<[f32; 3]>()
                     .xfile_get(xfile)?
-                    .map(|v| (*v).into())
+                    .map(Into::into)
                     .unwrap(),
             )))
         } else {
@@ -457,8 +457,7 @@ impl<'a> XFileInto<Option<XAnimDeltaPartQuatData>, (u16, u16)> for XAnimDeltaPar
                 self.0
                     .cast::<[i16; 2]>()
                     .xfile_get(xfile)?
-                    .map(|d| *d)
-                    .unwrap(),
+                    .unwrap_or_default(),
             )))
         } else {
             Ok(Some(XAnimDeltaPartQuatData::Frames(

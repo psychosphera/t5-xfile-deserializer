@@ -1,3 +1,5 @@
+use core::mem::transmute;
+
 use crate::{
     common::{Vec2, Vec3},
     *,
@@ -425,7 +427,7 @@ impl XFileInto<PathNodeTree, ()> for PathNodeTreeRaw {
     fn xfile_into(&self, xfile: impl Read + Seek, _data: ()) -> Result<PathNodeTree> {
         let u = if self.axis < 0 {
             PathNodeTreeInfo::S(
-                unsafe { std::mem::transmute::<_, PathNodeTreeNodesRaw>(self.u) }
+                unsafe { transmute::<_, PathNodeTreeNodesRaw>(self.u) }
                     .xfile_into(xfile, ())?,
             )
         } else {

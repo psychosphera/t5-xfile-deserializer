@@ -34,7 +34,7 @@ impl<'a> XFileInto<SndBank, ()> for SndBankRaw<'a> {
         let aliases = self.aliases.xfile_into(&mut xfile, ())?;
         let alias_index = self
             .alias_index
-            .to_array(self.aliases.size as _)
+            .to_array(self.aliases.size() as _)
             .to_vec(&mut xfile)?;
         let radverbs = self.radverbs.to_vec_into(&mut xfile)?;
         let snapshots = self.snapshots.to_vec_into(xfile)?;
@@ -431,14 +431,8 @@ pub struct SndIndexEntry {
 assert_size!(SndIndexEntry, 4);
 
 #[cfg_attr(feature = "serde", derive(Serialize))]
-#[derive(Copy, Clone, Debug, Deserialize)]
+#[derive(Copy, Clone, Debug, Default, Deserialize)]
 pub(crate) struct SndName([u8; 32]);
-
-impl Default for SndName {
-    fn default() -> Self {
-        Self([0u8; 32])
-    }
-}
 
 impl Display for SndName {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -690,7 +684,7 @@ pub struct SndGroup {
 
 impl TryInto<SndGroup> for SndGroupRaw {
     type Error = Error;
-    fn try_into(self) -> std::result::Result<SndGroup, Self::Error> {
+    fn try_into(self) -> core::result::Result<SndGroup, Self::Error> {
         let name = self.name.to_string();
         let parent_name = self.parent_name.to_string();
         let category = FromPrimitive::from_u32(self.category)

@@ -38,7 +38,7 @@ pub(crate) struct MenuDefRaw<'a> {
     pub ui_3d_window_id: i32,
     pub item_count: i32,
     pub font_index: i32,
-    pub cursor_item: [i32; 1],
+    pub cursor_item: [i32; MAX_LOCAL_CLIENTS],
     pub fade_cycle: i32,
     pub priority: i32,
     pub fade_clamp: f32,
@@ -80,7 +80,7 @@ pub struct MenuDef {
     pub full_screen: bool,
     pub ui_3d_window_id: i32,
     pub font_index: i32,
-    pub cursor_item: [i32; 1],
+    pub cursor_item: [i32; MAX_LOCAL_CLIENTS],
     pub fade_cycle: i32,
     pub priority: i32,
     pub fade_clamp: f32,
@@ -192,7 +192,7 @@ pub(crate) struct WindowDefRaw<'a> {
     pub owner_draw_flags: i32,
     pub border_size: f32,
     pub static_flags: i32,
-    pub dynamic_flags: [i32; 1],
+    pub dynamic_flags: [i32; MAX_LOCAL_CLIENTS],
     pub next_time: i32,
     pub fore_color: [f32; 4],
     pub back_color: [f32; 4],
@@ -220,7 +220,7 @@ pub struct WindowDef {
     pub owner_draw_flags: i32,
     pub border_size: f32,
     pub static_flags: i32,
-    pub dynamic_flags: [i32; 1],
+    pub dynamic_flags: [i32; MAX_LOCAL_CLIENTS],
     pub next_time: i32,
     pub fore_color: Vec4,
     pub back_color: Vec4,
@@ -471,7 +471,7 @@ pub struct ExpressionRpn {
     pub data: ExpressionRpnDataUnion,
 }
 
-impl<'a> XFileInto<ExpressionRpn, ()> for ExpressionRpnRaw {
+impl XFileInto<ExpressionRpn, ()> for ExpressionRpnRaw {
     fn xfile_into(&self, xfile: impl Read + Seek, _data: ()) -> Result<ExpressionRpn> {
         let data = self.data.xfile_into(xfile, self.type_)?;
         Ok(ExpressionRpn { data })
@@ -497,7 +497,10 @@ impl XFileInto<ExpressionRpnDataUnion, i32> for ExpressionRpnDataUnionRaw {
                 unsafe { transmute::<_, OperandRaw>(self.0) }.xfile_into(xfile, ())?,
             ))
         } else {
-            unreachable!()
+            Err(Error::BrokenInvariant(format!(
+                "{}: ExpressionRpnDataUnion: type ({type_}) != 0",
+                file_line_col!()
+            )))
         }
     }
 }
@@ -554,8 +557,8 @@ impl XFileInto<OperandInternalDataUnion, ExpDataType> for OperandInternalDataUni
         data_type: ExpDataType,
     ) -> Result<OperandInternalDataUnion> {
         Ok(match data_type {
-            ExpDataType::INT => OperandInternalDataUnion::Int(unsafe { transmute(self.0) }),
-            ExpDataType::FLOAT => OperandInternalDataUnion::Float(unsafe { transmute(self.0) }),
+            ExpDataType::INT => OperandInternalDataUnion::Int(self.0 as _),
+            ExpDataType::FLOAT => OperandInternalDataUnion::Float(f32::from_bits(self.0)),
             ExpDataType::STRING => {
                 OperandInternalDataUnion::String(XString::from_u32(self.0).xfile_into(xfile, ())?)
             }
@@ -732,7 +735,7 @@ impl<'a> XFileInto<ItemDefData, i32> for ItemDefDataRaw<'a> {
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
 pub(crate) struct TextDefRaw<'a> {
-    pub text_rect: [RectDefRaw; 1],
+    pub text_rect: [RectDefRaw; MAX_LOCAL_CLIENTS],
     pub alignment: i32,
     pub font_enum: i32,
     pub item_flags: i32,
@@ -750,7 +753,7 @@ assert_size!(TextDefRaw, 68);
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug)]
 pub struct TextDef {
-    pub text_rect: [RectDef; 1],
+    pub text_rect: [RectDef; MAX_LOCAL_CLIENTS],
     pub alignment: i32,
     pub font_enum: i32,
     pub item_flags: i32,
@@ -825,7 +828,7 @@ impl<'a> XFileInto<TextDefData, i32> for TextDefDataRaw<'a> {
     fn xfile_into(&self, xfile: impl Read + Seek, type_: i32) -> Result<TextDefData> {
         if type_ == 15 {
             Ok(TextDefData::GameMsgDef(
-                self.0.cast::<GameMsgDef>().xfile_get(xfile)?,
+                self.0.cast::<GameMsgDef>().xfile_get(xfile)?.map(Box::new),
             ))
         } else if type_ < 3
             || type_ == 6
@@ -930,7 +933,10 @@ impl<'a> XFileInto<FocusDefData, i32> for FocusDefDataRaw<'a> {
             || type_ == 30
         {
             Ok(FocusDefData::EditField(
-                self.0.cast::<EditFieldDef>().xfile_get(xfile)?,
+                self.0
+                    .cast::<EditFieldDef>()
+                    .xfile_get(xfile)?
+                    .map(Box::new),
             ))
         } else {
             Err(Error::BrokenInvariant(format!(
@@ -945,9 +951,9 @@ impl<'a> XFileInto<FocusDefData, i32> for FocusDefDataRaw<'a> {
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
 pub(crate) struct ListBoxDefRaw<'a> {
     pub mouse_pos: i32,
-    pub cursor_pos: [i32; 1],
-    pub start_pos: [i32; 1],
-    pub end_pos: [i32; 1],
+    pub cursor_pos: [i32; MAX_LOCAL_CLIENTS],
+    pub start_pos: [i32; MAX_LOCAL_CLIENTS],
+    pub end_pos: [i32; MAX_LOCAL_CLIENTS],
     pub draw_padding: i32,
     pub element_width: f32,
     pub element_height: f32,
@@ -975,9 +981,9 @@ assert_size!(ListBoxDefRaw, 668);
 #[derive(Clone, Debug)]
 pub struct ListBoxDef {
     pub mouse_pos: i32,
-    pub cursor_pos: [i32; 1],
-    pub start_pos: [i32; 1],
-    pub end_pos: [i32; 1],
+    pub cursor_pos: [i32; MAX_LOCAL_CLIENTS],
+    pub start_pos: [i32; MAX_LOCAL_CLIENTS],
+    pub end_pos: [i32; MAX_LOCAL_CLIENTS],
     pub draw_padding: bool,
     pub element_width: f32,
     pub element_height: f32,
@@ -1201,7 +1207,7 @@ impl<'a> XFileInto<MultiDef, ()> for MultiDefRaw<'a> {
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
 pub struct EditFieldDef {
-    pub cursor_pos: [i32; 1],
+    pub cursor_pos: [i32; MAX_LOCAL_CLIENTS],
     pub min_val: f32,
     pub max_val: f32,
     pub def_val: f32,

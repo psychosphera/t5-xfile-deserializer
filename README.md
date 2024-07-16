@@ -6,8 +6,8 @@
 Data stored by `XFiles` includes shaders, the clipmap/PVS, scripts, animations, models, fonts, BSP data, menus, weapons, and more.
 
 ### What can currently be deserialized
-1. Materials
-2. Material Technique Sets
+1. Material Technique Sets
+2. Materials
 3. Images (textures)
 
 ### What can probably be deserialzed (untested)
@@ -20,17 +20,17 @@ Data stored by `XFiles` includes shaders, the clipmap/PVS, scripts, animations, 
 ### What will soon be able to be deserialized (implemented but bugged)
 1. Destructibles
 2. Fonts
-3. Effects
-4. Impact Effects
-5. Gameworlds
+3. Impact Effects
+4. Effects
+5. Gameworlds (SP & MP)
 6. Lights
 7. XAnims (animations)
 8. XModels (models)
 9. Phys Constraints
 10. Sounds
 11. Sound Patches
-12. DDLs
-13. Sound Driver Globals
+12. Sound Driver Globals
+13. DDLs
 14. Glasses
 15. Emblem Sets
 16. Menu Lists
@@ -59,14 +59,17 @@ I primarily created this to integrate into OpenT5 once it's done, but I figured 
 2. Get offsets working.
 3. Eliminate global state (probably going to require adding the deserializer as a parameter of `XFileInto`, which will involve changing every single `impl` and call. Not fun.)
 4. Account for shared pointers. (All pointers get boxed currently, but that's definitely not correct semantically for a lot of them.)
-5. Tidy up the deserializer's API.
-6. Implement the remaining uinimplemented `XAssets`.
-7. Verify whether macOS `XFiles` are identical to Windows.
-8. Verify whether Wii even uses `XFiles`.
+5. Relatedly, account for linked lists.
+6. Tidy up the deserializer's API.
+7. Better CLI for the binary.
+8. Implement the remaining unimplemented `XAssets` (Only four left!).
+9. Then debug them (yay...).
+10. Verify whether macOS `XFiles` are identical to Windows.
+11. Verify whether Wii even uses `XFiles`.
 
 ## Future Todo
-1. Account for arrays whose size depends on `MAX_LOCAL_CLIENTS`. Currently they're just hard-coded to `1`, which is correct for Windows and presumably macOS, but certainly isn't for consoles. This will probably involve using a const generic to size the array, which will end up propogating all the way up every `XAsset` `struct`. Again, not fun.
+1. Account for arrays whose size depends on `MAX_LOCAL_CLIENTS`. Currently `MAX_LOCAL_CLIENTS` is just hard-coded to `1`, which is correct for Windows and presumably macOS, but certainly isn't for consoles. This will probably involve using a const generic to size the arrays, which will end up propogating all the way up every `XAsset` `struct` that contains one or points to a `struct` that contains one. Again, not fun.
 2. Account for differences in macOS `XFiles`, if they're different from Windows.
 
 ## Far Future Todo
-1. Account for differences in console `XFiles`, if there are any (it could be that they're identical and `PAKs` are used for platform-specific data. That would explain, e.g., why PS3 utilizes `PAKs` so much more heavily than Xbox 360. However, I wouldn't bet on that being the case.)
+1. Account for differences in console `XFiles`.

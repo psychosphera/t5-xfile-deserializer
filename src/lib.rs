@@ -59,13 +59,14 @@
 // In addition, if the structures' sizes or alignments don't match exactly what
 // the serializer used, or if new structures are added, the file is basically
 // un-parseable (this is why, as mentioned above, the versions must match
-// exactly). Pulling out only assets of a specific type is also impossible,
+// exactly). Pulling out only assets of a specific type or by name is also impossible,
 // because you can't know where a given asset is at in the file until you pull
 // out everything before it too. For this reason, you're more or less forced
 // into deserializng everything at once and then grabbing the assets you need
-// afterwards.
+// afterwards. Which, in fairness, makes sense in the context of a game engine (you're
+// never going to need to load *half*, or some other fraction, of a level), but it
+// *really* doesn't make writing a deserializer fun.
 
-#![allow(dead_code)]
 #![allow(non_camel_case_types)]
 #![allow(clippy::upper_case_acronyms)]
 #![allow(clippy::missing_transmute_annotations)]
@@ -85,6 +86,7 @@ pub mod misc;
 pub mod sound;
 pub mod techset;
 pub mod util;
+pub mod weapon;
 pub mod xanim;
 pub mod xmodel;
 
@@ -94,7 +96,7 @@ use std::{
     fmt::{Debug, Display},
     io::{Cursor, Read, Seek, Write},
     path::Path,
-    sync::{Arc, Mutex},
+    sync::{Arc, Mutex, MutexGuard},
 };
 
 use bincode::{
@@ -109,6 +111,8 @@ use serde::Serialize;
 
 pub use misc::*;
 use util::{StreamLen, *};
+
+const MAX_LOCAL_CLIENTS: usize = 1;
 
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
@@ -204,7 +208,8 @@ impl XFileVersion {
         match platform {
             XFilePlatform::Windows | XFilePlatform::macOS => XFileVersion::LE,
             XFilePlatform::Xbox360 | XFilePlatform::PS3 => XFileVersion::BE,
-            XFilePlatform::Wii => unreachable!(),
+            XFilePlatform::Wii => unreachable!(), // safe since the deserializer rejects Wii
+                                                  // before this function ever gets called
         }
     }
 
@@ -241,14 +246,26 @@ impl Display for XFilePlatform {
 impl XFilePlatform {
     pub fn is_le(&self) -> bool {
         match self {
-            XFilePlatform::Windows | XFilePlatform::macOS => true,
-            XFilePlatform::Xbox360 | XFilePlatform::PS3 => false,
-            XFilePlatform::Wii => unreachable!(),
+            Self::Windows | Self::macOS => true,
+            Self::Xbox360 | Self::PS3 => false,
+            Self::Wii => unreachable!(), // safe since the deserializer rejects Wii
+                                         // before this function ever gets called
         }
     }
 
     pub fn is_be(&self) -> bool {
         !self.is_le()
+    }
+
+    pub fn is_console(&self) -> bool {
+        match self {
+            Self::Xbox360 | Self::PS3 | Self::Wii => true,
+            Self::Windows | Self::macOS => false,
+        }
+    }
+
+    pub fn is_pc(&self) -> bool {
+        !self.is_console()
     }
 }
 
@@ -259,10 +276,12 @@ pub struct T5XFileDeserializer<'a> {
     file: Option<&'a mut std::fs::File>,
     cache_file: Option<&'a mut std::fs::File>,
     reader: Option<Cursor<Vec<u8>>>,
-    platform: XFilePlatform,
-    xasset_list: Option<XAssetList<'a>>,
     xassets_raw: VecDeque<XAssetRaw<'a>>,
     deserialized_assets: usize,
+    opts: BincodeOptions,
+    last_xfile: Option<XFile>,
+    last_script_strings: Option<Arc<Vec<String>>>,
+    last_opts: Option<BincodeOptions>,
 }
 
 #[derive(Debug)]
@@ -324,6 +343,7 @@ type BincodeOptionsLE =
 type BincodeOptionsBE =
     WithOtherIntEncoding<WithOtherEndian<DefaultOptions, BigEndian>, FixintEncoding>;
 
+#[derive(Clone)]
 enum BincodeOptions {
     LE(BincodeOptionsLE),
     BE(BincodeOptionsBE),
@@ -346,6 +366,10 @@ impl BincodeOptions {
         }
     }
 
+    fn from_platform(platform: XFilePlatform) -> Self {
+        Self::new(platform.is_le())
+    }
+
     fn deserialize_from<T: DeserializeOwned>(&self, reader: impl Read) -> bincode::Result<T> {
         match self {
             Self::LE(opts) => opts.deserialize_from(reader),
@@ -354,59 +378,61 @@ impl BincodeOptions {
     }
 }
 
-fn make_de_current(de: &T5XFileDeserializer) -> Result<()> {
+type Locks = (
+    MutexGuard<'static, Option<Arc<Vec<String>>>>,
+    MutexGuard<'static, Option<XFile>>,
+    MutexGuard<'static, Option<BincodeOptions>>,
+);
+
+fn make_de_current(de: &mut T5XFileDeserializer) -> Result<Locks> {
     let script_strings = SCRIPT_STRINGS.lock();
-    match script_strings {
+    let s = match script_strings {
         Ok(mut s) => {
+            de.last_script_strings = s.clone();
             *s = Some(de.script_strings.clone());
+            s
         }
         Err(e) => return Err(Error::Poison(Box::new(e))),
     };
 
     let xfile = XFILE.lock();
-    match xfile {
+    let f = match xfile {
         Ok(mut f) => {
+            de.last_xfile = *f;
             *f = Some(de.xfile);
-            Ok(())
+            f
         }
-        Err(e) => Err(Error::Poison(Box::new(e))),
-    }
+        Err(e) => return Err(Error::Poison(Box::new(e))),
+    };
+
+    let opts = BINCODE_OPTIONS.lock();
+    let o = match opts {
+        Ok(mut o) => {
+            de.last_opts = o.clone();
+            *o = Some(de.opts.clone());
+            o
+        }
+        Err(e) => return Err(Error::Poison(Box::new(e))),
+    };
+
+    Ok((s, f, o))
 }
 
-fn release_de() -> Result<()> {
-    let script_strings = SCRIPT_STRINGS.lock();
-    match script_strings {
-        Ok(mut s) => {
-            *s = None;
-        }
-        Err(e) => return Err(Error::Poison(Box::new(e))),
-    };
-
-    let xfile = XFILE.lock();
-    match xfile {
-        Ok(mut f) => {
-            *f = None;
-        }
-        Err(e) => return Err(Error::Poison(Box::new(e))),
-    };
-
-    let options = BINCODE_OPTIONS.lock();
-    match options {
-        Ok(mut o) => {
-            *o = None;
-            Ok(())
-        }
-        Err(e) => Err(Error::Poison(Box::new(e))),
-    }
+fn release_de(de: &mut T5XFileDeserializer, locks: Locks) {
+    let (mut s, mut f, mut o) = locks;
+    *s = de.last_script_strings.take();
+    *f = de.last_xfile.take();
+    *o = de.last_opts.take();
+    // locks get dropped at the end of scope
 }
 
 fn de_do<T, F: FnOnce(&mut T5XFileDeserializer) -> Result<T>>(
     de: &mut T5XFileDeserializer,
     pred: F,
 ) -> Result<T> {
-    make_de_current(de)?;
+    let locks = make_de_current(de)?;
     let t = pred(de);
-    release_de()?;
+    release_de(de, locks);
     t
 }
 
@@ -446,8 +472,9 @@ impl<'a> T5XFileDeserializer<'a> {
             println!("Found file, reading header...",);
         }
 
-        let header =
-            BincodeOptions::new(platform.is_le()).deserialize_from::<XFileHeader>(&mut file)?;
+        let opts = BincodeOptions::from_platform(platform);
+
+        let header = opts.deserialize_from::<XFileHeader>(&mut file)?;
 
         dbg!(&header);
 
@@ -465,9 +492,8 @@ impl<'a> T5XFileDeserializer<'a> {
                      for {} (probably for a different platform).",
                     platform
                 );
-
-                return Err(Error::WrongEndiannessForPlatform(platform));
             }
+            return Err(Error::WrongEndiannessForPlatform(platform));
         }
 
         if !XFileVersion::is_valid(header.version, platform) {
@@ -493,10 +519,12 @@ impl<'a> T5XFileDeserializer<'a> {
             file: Some(file),
             cache_file: None,
             reader: None,
-            platform,
-            xasset_list: None,
             xassets_raw: VecDeque::new(),
             deserialized_assets: 0,
+            opts,
+            last_xfile: None,
+            last_script_strings: None,
+            last_opts: None,
         };
 
         if inflate {
@@ -529,10 +557,12 @@ impl<'a> T5XFileDeserializer<'a> {
             file: None,
             cache_file: Some(file),
             reader: None,
-            platform,
-            xasset_list: None,
             xassets_raw: VecDeque::new(),
             deserialized_assets: 0,
+            opts: BincodeOptions::from_platform(platform),
+            last_xfile: None,
+            last_script_strings: None,
+            last_opts: None,
         })
     }
 
@@ -550,7 +580,7 @@ impl<'a> T5XFileDeserializer<'a> {
             Cursor::new(decompressed_payload)
         } else if let Some(f) = self.file.take() {
             let mut compressed_payload = Vec::new();
-            f.seek(std::io::SeekFrom::Start(size_of::<XFileHeader>() as _))?;
+            f.seek(std::io::SeekFrom::Start(sizeof!(XFileHeader) as _))?;
             dbg!(f.stream_position()?);
             let bytes_read = f.read_to_end(&mut compressed_payload)?;
             if !self.silent {
@@ -566,37 +596,29 @@ impl<'a> T5XFileDeserializer<'a> {
             }
             Cursor::new(decompressed_payload)
         } else {
-            unreachable!()
+            unreachable!() // safe since the constructors had to populate at least self.cache_file
         };
 
         self.reader = Some(reader);
 
         let xasset_list = {
             let mut file = self.reader.as_mut().unwrap();
-            let opts = BincodeOptions::new(self.platform.is_le());
-            let xfile = opts.deserialize_from::<XFile>(&mut file)?;
+            let xfile = self.opts.deserialize_from::<XFile>(&mut file)?;
 
             dbg!(xfile);
             dbg!(StreamLen::stream_len(&mut file))?;
             self.xfile = xfile;
 
             dbg!(file.stream_position()?);
-            let xasset_list = opts.deserialize_from::<XAssetList>(&mut file)?;
+            let xasset_list = self.opts.deserialize_from::<XAssetList>(&mut file)?;
             dbg!(&xasset_list);
             dbg!(file.stream_position()?);
             xasset_list
         };
 
         if !self.silent {
-            println!("Fastfile contains {} assets.", xasset_list.assets.size);
+            println!("Fastfile contains {} assets.", xasset_list.assets.size());
         }
-        let options = BINCODE_OPTIONS.lock();
-        match options {
-            Ok(mut o) => {
-                *o = Some(BincodeOptions::new(self.platform.is_le()));
-            }
-            Err(e) => return Err(Error::Poison(Box::new(e))),
-        };
 
         de_do(self, |de| {
             let mut file = de.reader.as_mut().unwrap();
@@ -611,7 +633,7 @@ impl<'a> T5XFileDeserializer<'a> {
 
             let assets = xasset_list.assets.to_vec(de.reader.as_mut().unwrap())?;
 
-            de.xassets_raw = VecDeque::from_iter(assets.into_iter());
+            de.xassets_raw = VecDeque::from_iter(assets);
             Ok(())
         })
     }
@@ -664,7 +686,7 @@ impl<'a> T5XFileDeserializer<'a> {
         a.map(Some)
     }
 
-    pub fn deserialize_remaining(&mut self) -> Result<Vec<XAsset>> {
+    pub fn deserialize_remaining(mut self) -> Result<Vec<XAsset>> {
         let mut deserialized_assets = Vec::new();
 
         while let Some(asset) = self.deserialize_next()? {
@@ -696,6 +718,7 @@ pub enum XAsset {
     MenuList(Option<Box<menu::MenuList>>),
     Menu(Option<Box<menu::MenuDef>>),
     LocalizeEntry(Option<Box<LocalizeEntry>>),
+    Weapon(Option<Box<weapon::WeaponVariantDef>>),
     SndDriverGlobals(Option<Box<sound::SndDriverGlobals>>),
     Fx(Option<Box<fx::FxEffectDef>>),
     ImpactFx(Option<Box<fx::FxImpactTable>>),
@@ -729,6 +752,7 @@ impl XAsset {
             Self::MenuList(p) => p.is_some(),
             Self::Menu(p) => p.is_some(),
             Self::LocalizeEntry(p) => p.is_some(),
+            Self::Weapon(p) => p.is_some(),
             Self::SndDriverGlobals(p) => p.is_some(),
             Self::Fx(p) => p.is_some(),
             Self::ImpactFx(p) => p.is_some(),
@@ -740,6 +764,10 @@ impl XAsset {
             Self::Glasses(p) => p.is_some(),
             Self::EmblemSet(p) => p.is_some(),
         }
+    }
+
+    pub fn is_none(&self) -> bool {
+        !self.is_some()
     }
 
     pub fn name(&self) -> Option<&str> {
@@ -762,6 +790,7 @@ impl XAsset {
             Self::MenuList(p) => p.as_ref().map(|p| p.name.as_str()),
             Self::Menu(p) => p.as_ref().map(|p| p.window.name.as_str()),
             Self::LocalizeEntry(p) => p.as_ref().map(|p| p.name.as_str()),
+            Self::Weapon(p) => p.as_ref().map(|p| p.internal_name.as_str()),
             Self::SndDriverGlobals(p) => p.as_ref().map(|p| p.name.as_str()),
             Self::Fx(p) => p.as_ref().map(|p| p.name.as_str()),
             Self::ImpactFx(p) => p.as_ref().map(|p| p.name.as_str()),
@@ -784,7 +813,7 @@ fn load_from_xfile<T: DeserializeOwned>(xfile: impl Read + Seek) -> Result<T> {
         .as_mut()
         .unwrap()
         .deserialize_from::<T>(xfile)
-        .map_err(|e| Error::Bincode(e))
+        .map_err(Error::Bincode)
 }
 
 #[cfg_attr(feature = "serde", derive(Serialize))]
@@ -803,6 +832,7 @@ struct XAssetRaw<'a> {
 }
 assert_size!(XAssetRaw, 8);
 
+/// T5 doesn't actually use all of these.
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Copy, Clone, Default, Debug, FromPrimitive)]
 #[repr(u32)]
@@ -946,6 +976,11 @@ impl<'a> XFileInto<XAsset, ()> for XAssetRaw<'a> {
             XAssetType::LOCALIZE_ENTRY => XAsset::LocalizeEntry(
                 self.asset_data
                     .cast::<LocalizeEntryRaw>()
+                    .xfile_into(xfile, ())?,
+            ),
+            XAssetType::WEAPON => XAsset::Weapon(
+                self.asset_data
+                    .cast::<weapon::WeaponVariantDefRaw>()
                     .xfile_into(xfile, ())?,
             ),
             XAssetType::SNDDRIVER_GLOBALS => XAsset::SndDriverGlobals(

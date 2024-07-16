@@ -316,38 +316,69 @@ impl<'a> XFileInto<FxElemDef, ()> for FxElemDefRaw<'a> {
                         .cast::<xmodel::XModelRaw>()
                         .xfile_into(&mut xfile, ())?,
                 ),
-                FxElemType::RUNNER => unimplemented!(), // FxElemVisuals::EffectDef(FxEffectDefRef::Handle(self.visuals.cast::<FxEffectDefRaw>().xfile_into(&mut xfile, ()))),
+                FxElemType::RUNNER => {
+                    FxElemVisuals::EffectDef(FxEffectDefRef::Handle(
+                        if self.visuals.is_null() || self.visuals.as_u32() != 0xFFFFFFFF {
+                            None
+                        } else {
+                            return Err(Error::Todo(format!(
+                                "{}: FxElemDef: FxElemType::RUNNER unimplemented.",
+                                file_line_col!()
+                            )));
+                            //self.visuals.cast::<FxEffectDefRaw>().xfile_into(&mut xfile, ())?
+                        },
+                    ))
+                }
+
                 FxElemType::SOUND => FxElemVisuals::SoundName(
-                    XString::from_u32(self.visuals.0).xfile_into(&mut xfile, ())?,
+                    XString::from_u32(self.visuals.as_u32()).xfile_into(&mut xfile, ())?,
                 ),
                 FxElemType::TRAIL => FxElemVisuals::Material(
                     self.visuals
                         .cast::<techset::MaterialRaw>()
                         .xfile_into(&mut xfile, ())?,
                 ),
-                _ => unreachable!(),
+                _ => {
+                    return Err(Error::BrokenInvariant(format!(
+                        "{}: FxElemDef: bad elem_type ({})",
+                        file_line_col!(),
+                        elem_type as u32
+                    )))
+                }
             })
-        } else if self.visuals.0 != 0 {
+        } else if !self.visuals.is_null() {
             FxElemDefVisuals::Array(
                 self.visuals
                     .cast::<Ptr32<'a, ()>>()
                     .to_array(self.visual_count as _)
                     .to_vec(&mut xfile)?
                     .into_iter()
-                    .map(|v| match elem_type {
-                        FxElemType::MODEL => v
-                            .cast::<xmodel::XModelRaw>()
-                            .xfile_into(&mut xfile, ())
-                            .map(|m| FxElemVisuals::Model(m)),
-                        FxElemType::RUNNER => unimplemented!(), // FxElemVisuals::EffectDef(FxEffectDefRef::Handle(v.cast::<FxEffectDefRaw>().xfile_into(&mut xfile, ()))),
-                        FxElemType::SOUND => XString::from_u32(self.visuals.0)
-                            .xfile_into(&mut xfile, ())
-                            .map(|s| FxElemVisuals::SoundName(s)),
-                        FxElemType::TRAIL => v
-                            .cast::<techset::MaterialRaw>()
-                            .xfile_into(&mut xfile, ())
-                            .map(|m| FxElemVisuals::Material(m)),
-                        _ => unreachable!(),
+                    .map(|v| {
+                        Ok(match elem_type {
+                            FxElemType::MODEL => FxElemVisuals::Model(
+                                v.cast::<xmodel::XModelRaw>().xfile_into(&mut xfile, ())?,
+                            ),
+                            FxElemType::RUNNER => FxElemVisuals::EffectDef(
+                                if self.visuals.is_null() || self.visuals.as_u32() != 0xFFFFFFFF {
+                                    FxEffectDefRef::Handle(None)
+                                } else {
+                                    return Err(Error::Todo(format!(
+                                        "{}: FxElemDef: FxElemType::RUNNER unimplemented.",
+                                        file_line_col!()
+                                    )));
+                                    //self.visuals.cast::<FxEffectDefRaw>().xfile_into(&mut xfile, ())?
+                                },
+                            ),
+                            FxElemType::SOUND => FxElemVisuals::SoundName(
+                                XString::from_u32(self.visuals.as_u32())
+                                    .xfile_into(&mut xfile, ())?,
+                            ),
+                            FxElemType::TRAIL => FxElemVisuals::Material(
+                                v.cast::<techset::MaterialRaw>()
+                                    .xfile_into(&mut xfile, ())?,
+                            ),
+                            _ => unreachable!(),
+                        })
                     })
                     .collect::<Result<Vec<_>>>()?,
             )

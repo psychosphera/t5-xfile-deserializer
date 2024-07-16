@@ -989,7 +989,7 @@ impl<'a> XFileInto<BrushWrapper, ()> for BrushWrapperRaw<'a> {
             verts: self.verts.to_vec_into(&mut xfile)?,
             planes: self
                 .planes
-                .to_array(self.sides.size as _)
+                .to_array(self.sides.size() as _)
                 .to_vec_into(xfile)?,
         })
     }
@@ -1015,7 +1015,7 @@ pub struct CBrushSide {
 impl<'a> XFileInto<CBrushSide, ()> for CBrushSideRaw<'a> {
     fn xfile_into(&self, xfile: impl Read + Seek, _data: ()) -> Result<CBrushSide> {
         Ok(CBrushSide {
-            plane: self.plane.xfile_get(xfile)?.map(|p| Box::new((*p).into())),
+            plane: self.plane.xfile_get(xfile)?.map(Into::into).map(Box::new),
             cflags: self.cflags,
             sflags: self.sflags,
         })
@@ -1038,15 +1038,15 @@ assert_size!(CPlaneRaw, 20);
 pub struct CPlaneType(u8);
 
 impl CPlaneType {
-    fn new(value: u8) -> Self {
+    pub fn new(value: u8) -> Self {
         Self(value)
     }
 
-    fn get(self) -> u8 {
+    pub fn get(self) -> u8 {
         self.0
     }
 
-    fn is_axial(self) -> bool {
+    pub fn is_axial(self) -> bool {
         self.0 < 3
     }
 }
@@ -1093,6 +1093,18 @@ impl CPlaneSignbits {
 
     pub fn from_signs(x: Sign, y: Sign, z: Sign) -> Self {
         Self((x as u8 + (y as u8)) << ((1 + (z as u8)) << 2))
+    }
+
+    pub fn x(self) -> Sign {
+        Sign::from_bool(self.bits() & 0x01 != 0)
+    }
+
+    pub fn y(self) -> Sign {
+        Sign::from_bool(self.bits() & 0x02 != 0)
+    }
+
+    pub fn z(self) -> Sign {
+        Sign::from_bool(self.bits() & 0x04 != 0)
     }
 }
 

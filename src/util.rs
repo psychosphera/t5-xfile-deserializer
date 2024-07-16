@@ -30,21 +30,26 @@ macro_rules! assert_size {
     };
 }
 
-// ============================================================================
-//
-// [`MaterialTechniqueSetRaw`] (see `techset.rs``) contains an array with 130 elements.
-// However, [`Deserialize`] isn't implemented for arrays of that size (wanna
-// say 24 is the max?), so we have to do it ourselves here.
-
-#[cfg(feature = "serde")]
-pub(crate) trait BigArray<'de>: Sized {
-    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> core::result::Result<Self, D::Error>;
-    fn serialize<S: Serializer>(&self, serializer: S) -> core::result::Result<S::Ok, S::Error>;
+/// C-like `sizeof`. Accepts types and values.
+#[macro_export]
+macro_rules! sizeof {
+    ($t:ty) => {
+        core::mem::size_of::<$t>()
+    };
+    ($e:expr) => {
+        core::mem::size_of_val($e)
+    };
 }
 
-#[cfg(not(feature = "serde"))]
+// ============================================================================
+// A couple of the structs we have to deserialize have arrays bigger than
+// serialize and deserialize are implemented for by default, so we have to
+// implement that ourselves.
+
 pub(crate) trait BigArray<'de>: Sized {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> core::result::Result<Self, D::Error>;
+    #[cfg(feature = "serde")]
+    fn serialize<S: Serializer>(&self, serializer: S) -> core::result::Result<S::Ok, S::Error>;
 }
 
 pub(crate) struct ArrayVisitor<T, const N: usize> {
@@ -68,6 +73,7 @@ impl<'de, T: Default + Copy + Deserialize<'de>, const N: usize> Visitor<'de>
         formatter.write_str(&format!("an array of length {}", N))
     }
 
+    #[allow(clippy::needless_range_loop)]
     fn visit_seq<A>(self, mut seq: A) -> core::result::Result<[T; N], A::Error>
     where
         A: SeqAccess<'de>,
@@ -82,7 +88,6 @@ impl<'de, T: Default + Copy + Deserialize<'de>, const N: usize> Visitor<'de>
     }
 }
 
-#[cfg(feature = "serde")]
 #[macro_export]
 macro_rules! big_array {
     ($($len:expr,)+) => {
@@ -97,6 +102,7 @@ macro_rules! big_array {
                     deserializer.deserialize_tuple($len, visitor)
                 }
 
+                #[cfg(feature = "serde")]
                 fn serialize<S: Serializer>(&self, serializer: S) -> core::result::Result<S::Ok, S::Error> {
                     let mut st = serializer.serialize_tuple($len)?;
                     for t in self {
@@ -109,31 +115,14 @@ macro_rules! big_array {
     }
 }
 
-#[cfg(not(feature = "serde"))]
-#[macro_export]
-macro_rules! big_array {
-    ($($len:expr,)+) => {
-        $(
-            impl<'de, T: Default + Copy + Deserialize<'de> + Serialize> BigArray<'de> for [T; $len] {
-                fn deserialize<D>(
-                    deserializer: D
-                ) -> core::result::Result<[T; $len], D::Error>
-                    where D: Deserializer<'de>
-                {
-                    let visitor = ArrayVisitor::<T, $len>::new();
-                    deserializer.deserialize_tuple($len, visitor)
-                }
-            }
-        )+
-    }
-}
-
 big_array! {
     64,
     130,
 }
 // ============================================================================
 
+// ============================================================================
+/// [`Seek::stream_len`]` isn't stable yet, so we implement it manually here
 pub(crate) trait StreamLen: Seek {
     fn stream_len(&mut self) -> std::io::Result<u64> {
         let pos = self.stream_position()?;
@@ -144,6 +133,7 @@ pub(crate) trait StreamLen: Seek {
 }
 
 impl<T: Seek> StreamLen for T {}
+// ============================================================================
 
 #[repr(transparent)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
@@ -167,24 +157,24 @@ impl<'a> XFileInto<String, ()> for XString<'a> {
 
         if self.0.is_null() {
             return Ok(String::new());
-        } else if self.as_u32() != 0xFFFFFFFF {
-            println!("ignoring offset");
+        }
+
+        if self.as_u32() != 0xFFFFFFFF {
+            eprintln!("ignoring offset");
             return Ok(String::new());
         }
 
         xfile.seek_and(std::io::SeekFrom::Start(self.as_u32() as _), |f| {
-            file_read_string(f)
+            xfile_read_string(f)
         })?
     }
 }
 
-pub(crate) fn file_read_string(mut xfile: impl Read + Seek) -> Result<String> {
+pub(crate) fn xfile_read_string(mut xfile: impl Read + Seek) -> Result<String> {
     let mut string_buf = Vec::new();
-    let mut c_buf = [0u8; 1];
 
     loop {
-        xfile.read_exact(&mut c_buf)?;
-        let c = c_buf[0];
+        let c = load_from_xfile::<u8>(&mut xfile)?;
 
         if !c.is_ascii() {
             return Err(Error::BrokenInvariant(format!(
@@ -209,9 +199,8 @@ pub(crate) fn file_read_string(mut xfile: impl Read + Seek) -> Result<String> {
 /// Trait to deserialize [`Self`] from [`xfile`], then convert [`Self`] to
 /// [`T`].
 ///
-/// [`Self`] may have [`repr`] attributes ([`C`], [`packed`]) or members
-/// ([`Ptr32`], [`FlexibleArrayU16`]/[`FlexibleArrayU32`], etc.) that make
-/// them very unergonomic to use. Since, if we were to deserialze them without
+/// [`Self`] may have members ([`Ptr32`], [`FlexibleArrayU16`]/[`FlexibleArrayU32`], etc.)
+/// that make them very unergonomic to use. Since, if we were to deserialze them without
 /// any such conversion, we'd probably end up converting them separately later
 /// anyways, it's a nice touch to have both done in one go.
 pub(crate) trait XFileInto<T, U: Copy> {
@@ -249,7 +238,7 @@ where
 /// between actual [`u32`]s and offsets. And two, so that we can implement
 /// [`XFileInto`] to retrieve the pointed-to data.
 ///
-/// We can't use [`*const T`] or [`*mut T`] for three reasons.
+/// We can't use [`*const T`] or [`*mut T`] for two reasons.
 /// * Pointer members of the serialzed structs are converted to offsets
 ///   within the XFile during serialization (as noted above), so they wouldn't
 ///   be valid pointers. Also, they're often [`0xFFFFFFFF`] anyways, so again,
@@ -257,15 +246,12 @@ where
 /// * T5 and its associated tools are all 32-bit programs using 4-byte
 ///   pointers, and [`*const T`]/[`*mut T`] are probably going to be 8 bytes
 ///   on any machine this is compiled for.
-/// * We couldn't point them to the data in the file since 1) that data
-///   is read buffered and will eventually get overwritten, and 2) even if it
-///   weren't, we don't want their lifetime tied to the lifetime of the XFile.
 ///
 /// Also, pointers are unsafe and just annoying to use compared to a [`u32`].
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Debug, Deserialize)]
 #[repr(transparent)]
-pub(crate) struct Ptr32<'a, T>(pub(crate) u32, PhantomData<&'a mut T>);
+pub(crate) struct Ptr32<'a, T>(u32, PhantomData<&'a mut T>);
 
 impl<'a, T> Default for Ptr32<'a, T> {
     fn default() -> Self {
@@ -352,15 +338,16 @@ impl<'a, T: DeserializeOwned + Clone + Debug + XFileInto<U, V>, U, V: Copy>
             return Ok(None);
         }
 
-        if self.0 != 0xFFFFFFFF {
-            println!("ignoring offset");
+        if self.as_u32() != 0xFFFFFFFF {
+            eprintln!("ignoring offset");
             return Ok(None);
         }
 
         xfile
-            .seek_and(std::io::SeekFrom::Start(self.0 as _), |f| -> Result<T> {
-                load_from_xfile(f)
-            })??
+            .seek_and(
+                std::io::SeekFrom::Start(self.as_u32() as _),
+                |f| -> Result<T> { load_from_xfile(f) },
+            )??
             .xfile_into(xfile, data)
             .map(Box::new)
             .map(Some)
@@ -371,22 +358,19 @@ impl<'a, T: DeserializeOwned + Debug> Ptr32<'a, T> {
     /// Same principle as [`XFileInto::xfile_into`], except it doesn't do any
     /// type conversion. Useful for the rare structs that don't need any such
     /// conversion.
-    pub(crate) fn xfile_get(self, mut xfile: impl Read + Seek) -> Result<Option<Box<T>>> {
+    pub(crate) fn xfile_get(self, mut xfile: impl Read + Seek) -> Result<Option<T>> {
         if self.is_null() {
             return Ok(None);
         }
 
-        if self.0 != 0xFFFFFFFF {
-            println!("ignoring offset");
+        if self.as_u32() != 0xFFFFFFFF {
+            eprintln!("ignoring offset");
             return Ok(None);
         }
 
-        xfile
-            .seek_and(std::io::SeekFrom::Start(self.0 as _), |f| {
-                load_from_xfile(f)
-            })?
-            .map(Box::new)
-            .map(Some)
+        xfile.seek_and(std::io::SeekFrom::Start(self.as_u32() as _), |f| {
+            load_from_xfile(f)
+        })?
     }
 }
 
@@ -415,24 +399,6 @@ pub(crate) struct FlexibleArrayU16<T: DeserializeOwned> {
     _p: PhantomData<T>,
 }
 
-impl<T: DeserializeOwned> FlexibleArrayU16<T> {
-    /// Deserializes [`self.count`] [`T`]s into a [`Vec<T>`].
-    pub(crate) fn to_vec(self, mut xfile: impl Read + Seek) -> Result<Vec<T>> {
-        let mut v = vec![0u8; self.count as usize * size_of::<T>()];
-
-        xfile.read_exact(&mut v)?;
-
-        let mut vt = Vec::new();
-
-        for i in 0..self.count as usize {
-            let s = &v[i * size_of::<T>()..(i + 1) * size_of::<T>()];
-            vt.push(bincode::deserialize(s)?);
-        }
-
-        Ok(vt)
-    }
-}
-
 /// Newtype for flexible array members of serialzed structs.
 ///
 /// In C, we might have a struct like:
@@ -458,16 +424,83 @@ pub(crate) struct FlexibleArrayU32<T: DeserializeOwned> {
     _p: PhantomData<T>,
 }
 
-impl<T: DeserializeOwned> FlexibleArrayU32<T> {
-    /// Deserializes [`self.count`] [`T`]s into a [`Vec<T>`].
-    pub(crate) fn to_vec(self, mut xfile: impl Read + Seek) -> Result<Vec<T>> {
+pub(crate) trait FlexibleArray<T: DeserializeOwned> {
+    fn count(&self) -> usize;
+
+    fn to_vec(&self, mut xfile: impl Read + Seek) -> Result<Vec<T>> {
         let mut vt = Vec::new();
 
-        for _ in 0..self.count {
+        for _ in 0..self.count() {
             vt.push(load_from_xfile(&mut xfile)?);
         }
 
         Ok(vt)
+    }
+}
+
+macro_rules! impl_flexible_array {
+    ($($s:ident,)+) => {
+        $(
+            impl<T: DeserializeOwned> FlexibleArray<T> for $s<T> {
+                fn count(&self) -> usize {
+                    self.count as _
+                }
+            }
+        )+
+    }
+}
+
+impl_flexible_array!(FlexibleArrayU16, FlexibleArrayU32,);
+
+pub(crate) trait FatPointer<'a, T: DeserializeOwned + 'a> {
+    fn size(&self) -> usize;
+    fn p(&self) -> Ptr32<'a, T>;
+
+    fn to_vec(&self, mut xfile: impl Read + Seek) -> Result<Vec<T>> {
+        if self.p().is_null() {
+            return Ok(Vec::new());
+        }
+
+        if self.p().as_u32() != 0xFFFFFFFF {
+            eprintln!("ignoring offset");
+            return Ok(Vec::new());
+        }
+
+        xfile
+            .seek_and(std::io::SeekFrom::Start(self.p().as_u32() as _), |mut f| {
+                let mut vt = Vec::new();
+
+                for _ in 0..self.size() {
+                    vt.push(load_from_xfile(&mut f));
+                }
+
+                vt
+            })?
+            .into_iter()
+            .collect::<Result<Vec<_>>>()
+    }
+
+    fn to_vec_into<U: From<T>>(&self, xfile: impl Read + Seek) -> Result<Vec<U>> {
+        self.to_vec(xfile)
+            .map(|v| v.into_iter().map(Into::<U>::into).collect())
+    }
+}
+
+macro_rules! impl_fat_pointer {
+    ($($s:ident,)+) => {
+        $(
+            impl<'a, T: Debug + Clone + DeserializeOwned + 'a> FatPointer<'a, T>
+                for $s<'a, T>
+            {
+                fn size(&self) -> usize {
+                    self.size as _
+                }
+
+                fn p(&self) -> Ptr32<'a, T> {
+                    self.p.clone()
+                }
+            }
+        )+
     }
 }
 
@@ -487,18 +520,6 @@ pub(crate) struct FatPointerCountFirstU16<'a, T: Debug + Clone> {
     p: Ptr32<'a, T>,
 }
 
-impl<'a, T: Debug + Clone + DeserializeOwned + 'a> FatPointer<'a, T>
-    for FatPointerCountFirstU16<'a, T>
-{
-    fn size(&self) -> u32 {
-        self.size as _
-    }
-
-    fn p(&self) -> Ptr32<'a, T> {
-        self.p.clone()
-    }
-}
-
 /// Newtype for a fat pointer to a `[T]`.
 ///
 /// Represents an offset containing [`Self::size`] [`T`]s.
@@ -511,20 +532,8 @@ impl<'a, T: Debug + Clone + DeserializeOwned + 'a> FatPointer<'a, T>
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Debug, Default, Deserialize)]
 pub(crate) struct FatPointerCountFirstU32<'a, T> {
-    pub size: u32,
-    pub p: Ptr32<'a, T>,
-}
-
-impl<'a, T: Debug + Clone + DeserializeOwned + 'a> FatPointer<'a, T>
-    for FatPointerCountFirstU32<'a, T>
-{
-    fn size(&self) -> u32 {
-        self.size
-    }
-
-    fn p(&self) -> Ptr32<'a, T> {
-        self.p.clone()
-    }
+    size: u32,
+    p: Ptr32<'a, T>,
 }
 
 /// Newtype for a fat pointer to a `[T]`.
@@ -543,18 +552,6 @@ pub(crate) struct FatPointerCountLastU16<'a, T> {
     size: u16,
 }
 
-impl<'a, T: Debug + Clone + DeserializeOwned + 'a> FatPointer<'a, T>
-    for FatPointerCountLastU16<'a, T>
-{
-    fn size(&self) -> u32 {
-        self.size as _
-    }
-
-    fn p(&self) -> Ptr32<'a, T> {
-        self.p.clone()
-    }
-}
-
 /// Newtype for a fat pointer to a `[T]`.
 ///
 /// Represents an offset containing [`Self::size`] [`T`]s.
@@ -571,18 +568,6 @@ pub(crate) struct FatPointerCountLastU32<'a, T> {
     size: u32,
 }
 
-impl<'a, T: Debug + Clone + DeserializeOwned + 'a> FatPointer<'a, T>
-    for FatPointerCountLastU32<'a, T>
-{
-    fn size(&self) -> u32 {
-        self.size
-    }
-
-    fn p(&self) -> Ptr32<'a, T> {
-        self.p.clone()
-    }
-}
-
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
 pub(crate) struct Ptr32Array<'a, T> {
@@ -590,25 +575,24 @@ pub(crate) struct Ptr32Array<'a, T> {
     size: usize,
 }
 
-impl<'a, T: Debug + Clone + DeserializeOwned + 'a> FatPointer<'a, T> for Ptr32Array<'a, T> {
-    fn size(&self) -> u32 {
-        self.size as _
-    }
-
-    fn p(&self) -> Ptr32<'a, T> {
-        self.p.clone()
-    }
-}
+impl_fat_pointer!(
+    FatPointerCountFirstU16,
+    FatPointerCountFirstU32,
+    FatPointerCountLastU16,
+    FatPointerCountLastU32,
+    Ptr32Array,
+);
 
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
 pub(crate) struct Ptr32ArrayConst<'a, T, const N: usize>(Ptr32<'a, T>);
 
+// Can't use the macro for this since it has the const generic parameter
 impl<'a, T: Debug + Clone + DeserializeOwned + 'a, const N: usize> FatPointer<'a, T>
     for Ptr32ArrayConst<'a, T, N>
 {
-    fn size(&self) -> u32 {
-        N as _
+    fn size(&self) -> usize {
+        N
     }
 
     fn p(&self) -> Ptr32<'a, T> {
@@ -616,114 +600,39 @@ impl<'a, T: Debug + Clone + DeserializeOwned + 'a, const N: usize> FatPointer<'a
     }
 }
 
-pub(crate) trait FatPointer<'a, T: DeserializeOwned + 'a> {
-    fn size(&self) -> u32;
-    fn p(&self) -> Ptr32<'a, T>;
-
-    fn to_vec(&self, mut xfile: impl Read + Seek) -> Result<Vec<T>> {
-        if self.p().is_null() {
-            return Ok(Vec::new());
-        }
-
-        if self.p().0 != 0xFFFFFFFF {
-            println!("ignoring offset");
-            return Ok(Vec::new());
-        }
-
-        xfile
-            .seek_and(std::io::SeekFrom::Start(self.p().0 as _), |mut f| {
-                let mut vt = Vec::new();
-
-                for _ in 0..self.size() {
-                    vt.push(load_from_xfile(&mut f));
-                }
-
-                vt
-            })?
-            .into_iter()
-            .collect::<Result<Vec<_>>>()
-    }
-
-    fn to_vec_into<U: From<T>>(&self, xfile: impl Read + Seek) -> Result<Vec<U>> {
-        self.to_vec(xfile)
-            .map(|v| v.into_iter().map(Into::<U>::into).collect())
-    }
-}
-
 // ===============================================================================
 // Trying to implement `XFileInto` generically for all `FatPointer<'_, T>` leads to an
 // unconstrained type error, so for now we just implement it individually. FIXME
 
-impl<'a, T, U, V> XFileInto<Vec<U>, V> for FatPointerCountFirstU16<'a, T>
-where
-    T: DeserializeOwned + Debug + Clone + XFileInto<U, V>,
-    V: Copy,
-{
-    fn xfile_into(&self, mut xfile: impl Read + Seek, data: V) -> Result<Vec<U>> {
-        self.clone()
-            .to_vec(&mut xfile)?
-            .into_iter()
-            .map(|a| a.xfile_into(&mut xfile, data))
-            .collect()
+macro_rules! impl_xfile_into_for_fat_pointer {
+    ($($s:ident,)+) => {
+        $(
+            impl<'a, T, U, V> XFileInto<Vec<U>, V> for $s<'a, T>
+            where
+                T: DeserializeOwned + Debug + Clone + XFileInto<U, V>,
+                V: Copy,
+            {
+                fn xfile_into(&self, mut xfile: impl Read + Seek, data: V) -> Result<Vec<U>> {
+                    self.clone()
+                        .to_vec(&mut xfile)?
+                        .into_iter()
+                        .map(|a| a.xfile_into(&mut xfile, data))
+                        .collect()
+                }
+            }
+        )+
     }
 }
 
-impl<'a, T, U, V> XFileInto<Vec<U>, V> for FatPointerCountFirstU32<'a, T>
-where
-    T: DeserializeOwned + Debug + Clone + XFileInto<U, V>,
-    V: Copy,
-{
-    fn xfile_into(&self, mut xfile: impl Read + Seek, data: V) -> Result<Vec<U>> {
-        self.clone()
-            .to_vec(&mut xfile)?
-            .into_iter()
-            .map(|a| a.xfile_into(&mut xfile, data))
-            .collect()
-    }
-}
+impl_xfile_into_for_fat_pointer!(
+    FatPointerCountFirstU16,
+    FatPointerCountFirstU32,
+    FatPointerCountLastU16,
+    FatPointerCountLastU32,
+    Ptr32Array,
+);
 
-impl<'a, T, U, V> XFileInto<Vec<U>, V> for FatPointerCountLastU16<'a, T>
-where
-    T: DeserializeOwned + Debug + Clone + XFileInto<U, V>,
-    V: Copy,
-{
-    fn xfile_into(&self, mut xfile: impl Read + Seek, data: V) -> Result<Vec<U>> {
-        self.clone()
-            .to_vec(&mut xfile)?
-            .into_iter()
-            .map(|a| a.xfile_into(&mut xfile, data))
-            .collect()
-    }
-}
-
-impl<'a, T, U, V> XFileInto<Vec<U>, V> for FatPointerCountLastU32<'a, T>
-where
-    T: DeserializeOwned + Debug + Clone + XFileInto<U, V>,
-    V: Copy,
-{
-    fn xfile_into(&self, mut xfile: impl Read + Seek, data: V) -> Result<Vec<U>> {
-        self.clone()
-            .to_vec(&mut xfile)?
-            .into_iter()
-            .map(|a| a.xfile_into(&mut xfile, data))
-            .collect()
-    }
-}
-
-impl<'a, T, U, V> XFileInto<Vec<U>, V> for Ptr32Array<'a, T>
-where
-    T: DeserializeOwned + Debug + Clone + XFileInto<U, V>,
-    V: Copy,
-{
-    fn xfile_into(&self, mut xfile: impl Read + Seek, data: V) -> Result<Vec<U>> {
-        self.clone()
-            .to_vec(&mut xfile)?
-            .into_iter()
-            .map(|a| a.xfile_into(&mut xfile, data))
-            .collect()
-    }
-}
-
+// Can't use the macro for this since it has the const generic parameter
 impl<'a, T, U, V, const N: usize> XFileInto<Vec<U>, V> for Ptr32ArrayConst<'a, T, N>
 where
     T: DeserializeOwned + Debug + Clone + XFileInto<U, V>,

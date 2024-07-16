@@ -1,4 +1,4 @@
-use std::mem::transmute;
+use core::mem::transmute;
 
 use crate::{common::*, *};
 use num_derive::FromPrimitive;
@@ -52,7 +52,6 @@ impl<'a> XFileInto<MaterialTechniqueSet, ()> for MaterialTechniqueSetRaw<'a> {
             .flatten()
             .collect::<Vec<_>>();
 
-        assert!(techniques.len() <= MAX_TECHNIQUES);
         //dbg!(techniques);
 
         Ok(MaterialTechniqueSet {
@@ -138,7 +137,7 @@ impl<'a> XFileInto<MaterialPass, ()> for MaterialPassRaw<'a> {
         //let pos = xfile.stream_position()?;
         //dbg!(pos);
 
-        let vertex_decl = self.vertex_decl.xfile_get(&mut xfile)?;
+        let vertex_decl = self.vertex_decl.xfile_get(&mut xfile)?.map(Box::new);
         //dbg!(&vertex_decl);
         let vertex_shader = self.vertex_shader;
         let vertex_shader = vertex_shader.xfile_into(&mut xfile, ())?;
@@ -456,7 +455,7 @@ impl XFileInto<MaterialShaderArgument, ()> for MaterialShaderArgumentRaw {
             MTL_ARG_MATERIAL_VERTEX_CONST
             | MTL_ARG_MATERIAL_PIXEL_SAMPLER
             | MTL_ARG_MATERIAL_PRIM_END => MaterialArgumentDefRaw::NameHash(self.u),
-            _ => unreachable!(),
+            _ => unreachable!(), // safe because of the check above
         };
 
         Ok(MaterialShaderArgument {
@@ -791,7 +790,7 @@ pub struct Water {
 
 impl<'a> XFileInto<Water, ()> for WaterRaw<'a> {
     fn xfile_into(&self, mut xfile: impl Read + Seek, _data: ()) -> Result<Water> {
-        let h0 = if self.h0.0 != 0 {
+        let h0 = if !self.h0.is_null() {
             let mut h0 = Vec::new();
             for _ in 0..self.m * self.n {
                 h0.push(load_from_xfile(&mut xfile)?);
@@ -801,7 +800,7 @@ impl<'a> XFileInto<Water, ()> for WaterRaw<'a> {
             Vec::new()
         };
 
-        let w_term = if self.w_term.0 != 0 {
+        let w_term = if !self.w_term.is_null() {
             let mut w_term = Vec::new();
             for _ in 0..self.m * self.n {
                 w_term.push(load_from_xfile(&mut xfile)?);

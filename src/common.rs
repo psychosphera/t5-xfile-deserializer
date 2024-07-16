@@ -1,3 +1,6 @@
+#![allow(clippy::clone_on_copy)]
+#![allow(clippy::unit_arg)]
+
 use crate::*;
 
 use core::mem::transmute;
@@ -386,11 +389,13 @@ pub struct Mat4(pub [Vec4; 4]);
 struct D3D9Visitor {}
 
 #[cfg(all(feature = "serde", feature = "d3d9"))]
+#[allow(dead_code)]
 impl D3D9Visitor {
     const LEN: usize = 8;
 }
 
 #[cfg(all(feature = "serde", not(feature = "d3d9")))]
+#[allow(dead_code)]
 impl D3D9Visitor {
     const LEN: usize = 0;
 }
@@ -411,7 +416,7 @@ impl<'de> Visitor<'de> for D3D9Visitor {
         formatter.write_str(&format!("an array of length {}", Self::LEN))
     }
 
-    fn visit_bytes<E: serde::de::Error>(self, v: &[u8]) -> std::result::Result<Self::Value, E> {
+    fn visit_bytes<E: serde::de::Error>(self, v: &[u8]) -> core::result::Result<Self::Value, E> {
         Ok(v[..Self::LEN].try_into().unwrap())
     }
 }
@@ -440,8 +445,7 @@ pub struct IDirect3DVertexShader9(D3D9VS);
 #[cfg(feature = "serde")]
 impl Serialize for IDirect3DVertexShader9 {
     fn serialize<S: Serializer>(&self, serializer: S) -> core::result::Result<S::Ok, S::Error> {
-        unsafe { transmute::<_, [u8; core::mem::size_of::<D3D9VS>()]>(self.0.clone()) }
-            .serialize(serializer)
+        unsafe { transmute::<_, [u8; sizeof!(D3D9VS)]>(self.0.clone()) }.serialize(serializer)
     }
 }
 #[cfg(all(feature = "serde", feature = "d3d9"))]
@@ -468,8 +472,7 @@ pub struct IDirect3DPixelShader9(D3D9PS);
 #[cfg(feature = "serde")]
 impl Serialize for IDirect3DPixelShader9 {
     fn serialize<S: Serializer>(&self, serializer: S) -> core::result::Result<S::Ok, S::Error> {
-        unsafe { transmute::<_, [u8; core::mem::size_of::<D3D9PS>()]>(self.0.clone()) }
-            .serialize(serializer)
+        unsafe { transmute::<_, [u8; sizeof!(D3D9PS)]>(self.0.clone()) }.serialize(serializer)
     }
 }
 #[cfg(all(feature = "serde", feature = "d3d9"))]
@@ -501,8 +504,7 @@ pub struct IDirect3DTexture9(D3D9Tex);
 #[cfg(feature = "serde")]
 impl Serialize for IDirect3DTexture9 {
     fn serialize<S: Serializer>(&self, serializer: S) -> core::result::Result<S::Ok, S::Error> {
-        unsafe { transmute::<_, [u8; core::mem::size_of::<D3D9Tex>()]>(self.0.clone()) }
-            .serialize(serializer)
+        unsafe { transmute::<_, [u8; sizeof!(D3D9Tex)]>(self.0.clone()) }.serialize(serializer)
     }
 }
 #[cfg(all(feature = "serde", feature = "d3d9"))]
@@ -529,8 +531,7 @@ pub struct IDirect3DVolumeTexture9(D3D9VolTex);
 #[cfg(feature = "serde")]
 impl Serialize for IDirect3DVolumeTexture9 {
     fn serialize<S: Serializer>(&self, serializer: S) -> core::result::Result<S::Ok, S::Error> {
-        unsafe { transmute::<_, [u8; core::mem::size_of::<D3D9VolTex>()]>(self.0.clone()) }
-            .serialize(serializer)
+        unsafe { transmute::<_, [u8; sizeof!(D3D9VolTex)]>(self.0.clone()) }.serialize(serializer)
     }
 }
 #[cfg(all(feature = "serde", feature = "d3d9"))]
@@ -557,8 +558,7 @@ pub struct IDirect3DCubeTexture9(D3D9Tex);
 #[cfg(feature = "serde")]
 impl Serialize for IDirect3DCubeTexture9 {
     fn serialize<S: Serializer>(&self, serializer: S) -> core::result::Result<S::Ok, S::Error> {
-        unsafe { transmute::<_, [u8; core::mem::size_of::<D3D9CubeTex>()]>(self.0.clone()) }
-            .serialize(serializer)
+        unsafe { transmute::<_, [u8; sizeof!(D3D9CubeTex)]>(self.0.clone()) }.serialize(serializer)
     }
 }
 #[cfg(all(feature = "serde", feature = "d3d9"))]
@@ -585,8 +585,7 @@ pub struct IDirect3DVertexBuffer9(D3D9VB);
 #[cfg(feature = "serde")]
 impl Serialize for IDirect3DVertexBuffer9 {
     fn serialize<S: Serializer>(&self, serializer: S) -> core::result::Result<S::Ok, S::Error> {
-        unsafe { transmute::<_, [u8; core::mem::size_of::<D3D9VB>()]>(self.0.clone()) }
-            .serialize(serializer)
+        unsafe { transmute::<_, [u8; sizeof!(D3D9VB)]>(self.0.clone()) }.serialize(serializer)
     }
 }
 #[cfg(all(feature = "serde", feature = "d3d9"))]
@@ -613,8 +612,7 @@ pub struct IDirect3DIndexBuffer9(D3D9IB);
 #[cfg(feature = "serde")]
 impl Serialize for IDirect3DIndexBuffer9 {
     fn serialize<S: Serializer>(&self, serializer: S) -> core::result::Result<S::Ok, S::Error> {
-        unsafe { transmute::<_, [u8; core::mem::size_of::<D3D9IB>()]>(self.0.clone()) }
-            .serialize(serializer)
+        unsafe { transmute::<_, [u8; sizeof!(D3D9IB)]>(self.0.clone()) }.serialize(serializer)
     }
 }
 #[cfg(all(feature = "serde", feature = "d3d9"))]
