@@ -58,7 +58,6 @@ assert_size!(WeaponVariantDefRaw, 228);
 
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Copy, Clone, Debug, Default, Eq, PartialEq, FromPrimitive)]
-#[repr(u32)]
 pub enum WeaponIconRatioType {
     #[default]
     ONE_TO_ONE = 0,
@@ -721,6 +720,245 @@ pub(crate) struct WeaponDefRaw<'a> {
 assert_size!(WeaponDefRaw, 2056);
 
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Copy, Clone, Debug, Default, Eq, PartialEq, FromPrimitive)]
+pub enum WeapType {
+    #[default]
+    BULLET = 0,
+    GRENADE = 1,
+    PROJECTILE = 2,
+    BINOCULARS = 3,
+    GAS = 4,
+    BOMB = 5,
+    MINE = 6,
+    MELEE = 7,
+    NUM = 8,
+}
+
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Copy, Clone, Debug, Default, Eq, PartialEq, FromPrimitive)]
+pub enum WeapClass {
+    #[default]
+    RIFLE = 0,
+    MG = 1,
+    SMG = 2,
+    SPREAD = 3,
+    PISTOL = 4,
+    GRENADE = 5,
+    ROCKETLAUNCHER = 6,
+    TURRET = 7,
+    NON_PLAYER = 8,
+    GAS = 9,
+    ITEM = 10,
+    MELEE = 11,
+    KILLSTREAK_ALT_STORED_WEAPON = 12,
+    NUM = 13,
+}
+
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Copy, Clone, Debug, Default, Eq, PartialEq, FromPrimitive)]
+pub enum PenetrateType {
+    #[default]
+    NONE = 0,
+    SMALL = 1,
+    MEDIUM = 2,
+    LARGE = 3,
+    COUNT = 4,
+}
+
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Copy, Clone, Debug, Default, Eq, PartialEq, FromPrimitive)]
+pub enum ImpactType {
+    #[default]
+    NONE = 0,
+    BULLET_SMALL = 1,
+    BULLET_LARGE = 2,
+    BULLET_AP = 3,
+    BULLET_XTREME = 4,
+    SHOTGUN = 5,
+    GRENADE_BOUNCE = 6,
+    GRENADE_EXPLODE = 7,
+    RIFLE_GRENADE = 8,
+    ROCKET_EXPLODE = 9,
+    ROCKET_EXPLODE_XTREME = 10,
+    PROJECTILE_DUD = 11,
+    MORTAR_SHELL = 12,
+    TANK_SHELL = 13,
+    BOLT = 14,
+    BLADE = 15,
+    COUNT = 16,
+}
+
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Copy, Clone, Debug, Default, Eq, PartialEq, FromPrimitive)]
+pub enum WeapInventoryType {
+    #[default]
+    PRIMARY = 0,
+    OFFHAND = 1,
+    ITEM = 2,
+    ALTMODE = 3,
+    MELEE = 4,
+    COUNT = 5,
+}
+
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Copy, Clone, Debug, Default, Eq, PartialEq, FromPrimitive)]
+pub enum WeapFireType {
+    #[default]
+    FULLAUTO = 0,
+    SINGLESHOT = 1,
+    BURSTFIRE2 = 2,
+    BURSTFIRE3 = 3,
+    BURSTFIRE4 = 4,
+    STACKED = 5,
+    MINIGUN = 6,
+    COUNT = 7,
+}
+
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Copy, Clone, Debug, Default, Eq, PartialEq, FromPrimitive)]
+pub enum WeapClipType {
+    #[default]
+    BOTTOM = 0,
+    TOP = 1,
+    LEFT = 2,
+    DP28 = 3,
+    PTRS = 4,
+    LMG = 5,
+    COUNT = 6,
+}
+
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Copy, Clone, Debug, Default, Eq, PartialEq, FromPrimitive)]
+pub enum OffhandClass {
+    #[default]
+    NONE = 0,
+    FRAG_GRENADE = 1,
+    SMOKE_GRENADE = 2,
+    FLASH_GRENADE = 3,
+    GEAR = 4,
+    COUNT = 5,
+}
+
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Copy, Clone, Debug, Default, Eq, PartialEq, FromPrimitive)]
+pub enum OffhandSlot {
+    #[default]
+    NONE = 0,
+    LETHAL_GRENADE = 1,
+    TACTICAL_GRENADE = 2,
+    EQUIPMENT = 3,
+    SPECIFIC_USE = 4,
+    COUNT = 5,
+}
+
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Copy, Clone, Debug, Default, Eq, PartialEq, FromPrimitive)]
+pub enum WeapStance {
+    #[default]
+    STAND = 0,
+    DUCK = 1,
+    PRONE = 2,
+    NUM = 3,
+}
+
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Copy, Clone, Debug, Default, Eq, PartialEq, FromPrimitive)]
+pub enum ActiveReticleType {
+    #[default]
+    NONE = 0,
+    PIP_ON_A_STICK = 1,
+    BOUNCING_DIAMOND = 2,
+    COUNT = 3,
+}
+
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Copy, Clone, Debug, Default, Eq, PartialEq, FromPrimitive)]
+pub enum AmmoCounterClipType {
+    #[default]
+    NONE = 0,
+    MAGAZINE = 1,
+    SHORTMAGAZINE = 2,
+    SHOTGUN = 3,
+    ROCKET = 4,
+    BELTFED = 5,
+    ALTWEAPON = 6,
+    COUNT = 7,
+}
+
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Copy, Clone, Debug, Default, Eq, PartialEq, FromPrimitive)]
+pub enum WeapOverlayReticle {
+    #[default]
+    NONE = 0,
+    CROSSHAIR = 1,
+    NUM = 2,
+}
+
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Copy, Clone, Debug, Default, Eq, PartialEq, FromPrimitive)]
+pub enum WeapOverlayInterface {
+    #[default]
+    NONE = 0,
+    JAVELIN = 1,
+    TURRETSCOPE = 2,
+    COUNT = 3,
+}
+
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Copy, Clone, Debug, Default, Eq, PartialEq, FromPrimitive)]
+pub enum WeapProjExplosion {
+    #[default]
+    GRENADE = 0,
+    ROCKET = 1,
+    FLASHBANG = 2,
+    NONE = 3,
+    DUD = 4,
+    SMOKE = 5,
+    HEAVY = 6,
+    FIRE = 7,
+    NAPALMBLOB = 8,
+    BOLT = 9,
+    NUM = 10,
+}
+
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Copy, Clone, Debug, Default, Eq, PartialEq, FromPrimitive)]
+pub enum WeapStickinessType {
+    #[default]
+    NONE = 0,
+    ALL = 1,
+    ALL_NO_SENTIENTS = 2,
+    GROUND = 3,
+    GROUND_WITH_YAW = 4,
+    FLESH = 5,
+    COUNT = 6,
+}
+
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Copy, Clone, Debug, Default, Eq, PartialEq, FromPrimitive)]
+pub enum WeapRotateType {
+    #[default]
+    GRENADE_ROTATE = 0,
+    BLADE_ROTATE = 1,
+    CYLINDER_ROTATE = 2,
+    COUNT = 3,
+}
+
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Copy, Clone, Debug, Default, Eq, PartialEq, FromPrimitive)]
+pub enum GuidedMissileType {
+    #[default]
+    NONE = 0,
+    SIDEWINDER = 1,
+    HELLFIRE = 2,
+    JAVELIN = 3,
+    BALLISTIC = 4,
+    WIREGUIDED = 5,
+    TVGUIDED = 6,
+    COUNT = 7,
+}
+
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Default, Debug)]
 pub struct WeaponDef {
     pub overlay_name: String,
@@ -730,13 +968,13 @@ pub struct WeaponDef {
     pub notetrack_sound_map_keys: Option<Box<[String; 20]>>,
     pub notetrack_sound_map_values: Option<Box<[String; 20]>>,
     pub player_anim_type: i32,
-    pub weap_type: u32,
-    pub weap_class: u32,
-    pub penetrate_type: u32,
-    pub impact_type: u32,
-    pub inventory_type: u32,
-    pub fire_type: u32,
-    pub clip_type: u32,
+    pub weap_type: WeapType,
+    pub weap_class: WeapClass,
+    pub penetrate_type: PenetrateType,
+    pub impact_type: ImpactType,
+    pub inventory_type: WeapInventoryType,
+    pub fire_type: WeapFireType,
+    pub clip_type: WeapClipType,
     pub item_index: i32,
     pub parent_weapon_name: String,
     pub jam_fire_time: i32,
@@ -750,9 +988,9 @@ pub struct WeaponDef {
     pub cool_while_firing: bool,
     pub fuel_tank_weapon: bool,
     pub tank_life_time: i32,
-    pub offhand_class: u32,
-    pub offhand_slot: u32,
-    pub stance: u32,
+    pub offhand_class: OffhandClass,
+    pub offhand_slot: OffhandSlot,
+    pub stance: WeapStance,
     pub view_flash_effect: Option<Box<fx::FxEffectDef>>,
     pub world_flash_effect: Option<Box<fx::FxEffectDef>>,
     pub pickup_sound: String,
@@ -833,7 +1071,7 @@ pub struct WeaponDef {
     pub reticle_center_size: i32,
     pub reticle_side_size: i32,
     pub reticle_min_ofs: i32,
-    pub active_reticle_type: u32,
+    pub active_reticle_type: ActiveReticleType,
     pub stand_move: Vec3,
     pub stand_rot: Vec3,
     pub ducked_ofs: Vec3,
@@ -878,12 +1116,12 @@ pub struct WeaponDef {
     pub mounted_model: Option<Box<xmodel::XModel>>,
     pub additional_melee_model: Option<Box<xmodel::XModel>>,
     pub hud_icon: Option<Box<techset::Material>>,
-    pub hud_icon_ratio: u32,
+    pub hud_icon_ratio: WeaponIconRatioType,
     pub indicator_icon: Option<Box<techset::Material>>,
-    pub indicator_icon_ratio: u32,
+    pub indicator_icon_ratio: WeaponIconRatioType,
     pub ammo_counter_icon: Option<Box<techset::Material>>,
-    pub ammo_counter_icon_ratio: u32,
-    pub ammo_counter_clip: u32,
+    pub ammo_counter_icon_ratio: WeaponIconRatioType,
+    pub ammo_counter_clip: AmmoCounterClipType,
     pub start_ammo: i32,
     pub head_index: i32,
     pub max_ammo: i32,
@@ -981,8 +1219,8 @@ pub struct WeaponDef {
     pub move_speed_scale: f32,
     pub ads_move_speed_scale: f32,
     pub sprint_duration_scale: f32,
-    pub overlay_reticle: u32,
-    pub overlay_interface: u32,
+    pub overlay_reticle: WeapOverlayReticle,
+    pub overlay_interface: WeapOverlayInterface,
     pub overlay_width: f32,
     pub overlay_height: f32,
     pub ads_bob_factor: f32,
@@ -1055,7 +1293,7 @@ pub struct WeaponDef {
     pub keep_crosshair_when_ads: bool,
     pub use_only_alt_weaopon_hide_tags_in_alt_mode: bool,
     pub kill_icon: Option<Box<techset::Material>>,
-    pub kill_icon_ratio: u32,
+    pub kill_icon_ratio: WeaponIconRatioType,
     pub flip_kill_icon: bool,
     pub no_partial_reload: bool,
     pub segmented_reload: bool,
@@ -1064,7 +1302,7 @@ pub struct WeaponDef {
     pub reload_start_add: i32,
     pub spawned_grenade_weapon_name: String,
     pub dual_wield_weapon_name: String,
-    pub dual_wield_weapon_index: u32,
+    pub dual_wield_weapon_index: usize,
     pub drop_ammo_min: i32,
     pub drop_ammo_max: i32,
     pub drop_clip_ammo_min: i32,
@@ -1087,7 +1325,7 @@ pub struct WeaponDef {
     pub time_to_accelerate: f32,
     pub projectile_curvature: f32,
     pub projectile_model: Option<Box<xmodel::XModel>>,
-    pub proj_explosion: u32,
+    pub proj_explosion: WeapProjExplosion,
     pub proj_explosion_effect: Option<Box<fx::FxEffectDef>>,
     pub proj_explosion_effect_force_normal_up: bool,
     pub proj_explosion_effect_2: Option<Box<fx::FxEffectDef>>,
@@ -1105,8 +1343,8 @@ pub struct WeaponDef {
     pub tank_shell_sound: String,
     pub proj_impact_explode: bool,
     pub bullet_impact_explode: bool,
-    pub stickiness: u32,
-    pub rotate_type: u32,
+    pub stickiness: WeapStickinessType,
+    pub rotate_type: WeapRotateType,
     pub plantable: bool,
     pub has_detonator: bool,
     pub time_detonation: bool,
@@ -1125,7 +1363,7 @@ pub struct WeaponDef {
     pub perpendicular_bounce: Option<Box<[f32; 31]>>,
     pub proj_tail_effect: Option<Box<fx::FxEffectDef>>,
     pub projectile_color: Vec3,
-    pub guided_missile_type: u32,
+    pub guided_missile_type: GuidedMissileType,
     pub max_steering_accel: f32,
     pub proj_ignition_delay: i32,
     pub proj_ignition_effect: Option<Box<fx::FxEffectDef>>,
