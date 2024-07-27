@@ -427,8 +427,7 @@ impl XFileInto<PathNodeTree, ()> for PathNodeTreeRaw {
     fn xfile_into(&self, xfile: impl Read + Seek, _data: ()) -> Result<PathNodeTree> {
         let u = if self.axis < 0 {
             PathNodeTreeInfo::S(
-                unsafe { transmute::<_, PathNodeTreeNodesRaw>(self.u) }
-                    .xfile_into(xfile, ())?,
+                unsafe { transmute::<_, PathNodeTreeNodesRaw>(self.u) }.xfile_into(xfile, ())?,
             )
         } else {
             unimplemented!()

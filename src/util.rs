@@ -456,6 +456,10 @@ pub(crate) trait FatPointer<'a, T: DeserializeOwned + 'a> {
     fn size(&self) -> usize;
     fn p(&self) -> Ptr32<'a, T>;
 
+    fn is_null(&self) -> bool {
+        self.p().is_null()
+    }
+
     fn to_vec(&self, mut xfile: impl Read + Seek) -> Result<Vec<T>> {
         if self.p().is_null() {
             return Ok(Vec::new());

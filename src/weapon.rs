@@ -202,7 +202,7 @@ impl<'a> XFileInto<WeaponVariantDef, ()> for WeaponVariantDefRaw<'a> {
 #[derive(Clone, Default, Debug, Deserialize)]
 pub(crate) struct WeaponDefRaw<'a> {
     pub overlay_name: XString<'a>,
-    pub gun_xmodel: Ptr32<'a, Ptr32<'a, xmodel::XModelRaw<'a>>>,
+    pub gun_xmodel: Ptr32ArrayConst<'a, Ptr32<'a, xmodel::XModelRaw<'a>>, 16>,
     pub hand_xmodel: Ptr32<'a, xmodel::XModelRaw<'a>>,
     pub mode_name: XString<'a>,
     pub notetrack_sound_map_keys: Ptr32ArrayConst<'a, ScriptString, 20>,
@@ -962,7 +962,7 @@ pub enum GuidedMissileType {
 #[derive(Clone, Default, Debug)]
 pub struct WeaponDef {
     pub overlay_name: String,
-    pub gun_xmodel: Option<Box<Option<Box<xmodel::XModel>>>>,
+    pub gun_xmodel: Option<[Option<Box<xmodel::XModel>>; 16]>,
     pub hand_xmodel: Option<Box<xmodel::XModel>>,
     pub mode_name: String,
     pub notetrack_sound_map_keys: Option<Box<[String; 20]>>,
@@ -975,7 +975,7 @@ pub struct WeaponDef {
     pub inventory_type: WeapInventoryType,
     pub fire_type: WeapFireType,
     pub clip_type: WeapClipType,
-    pub item_index: i32,
+    pub item_index: usize,
     pub parent_weapon_name: String,
     pub jam_fire_time: i32,
     pub tracer_frequency: i32,
@@ -1059,9 +1059,9 @@ pub struct WeaponDef {
     pub stand_mounted_weapdef: String,
     pub crouch_mounted_weapdef: String,
     pub prone_mounted_weapdef: String,
-    pub stand_mounted_index: i32,
-    pub crouch_mounted_index: i32,
-    pub prone_mounted_index: i32,
+    pub stand_mounted_index: usize,
+    pub crouch_mounted_index: usize,
+    pub prone_mounted_index: usize,
     pub view_shell_eject_effect: Option<Box<fx::FxEffectDef>>,
     pub world_shell_eject_effect: Option<Box<fx::FxEffectDef>>,
     pub view_last_shot_eject_effect: Option<Box<fx::FxEffectDef>>,
@@ -1110,7 +1110,7 @@ pub struct WeaponDef {
     pub stand_rot_min_speed: f32,
     pub ducked_rot_min_speed: f32,
     pub prone_rot_min_speed: f32,
-    pub world_model: Option<Box<[xmodel::XModel; 16]>>,
+    pub world_model: Option<Box<[Option<Box<xmodel::XModel>>; 16]>>,
     pub world_clip_model: Option<Box<xmodel::XModel>>,
     pub rocket_model: Option<Box<xmodel::XModel>>,
     pub mounted_model: Option<Box<xmodel::XModel>>,
@@ -1123,11 +1123,11 @@ pub struct WeaponDef {
     pub ammo_counter_icon_ratio: WeaponIconRatioType,
     pub ammo_counter_clip: AmmoCounterClipType,
     pub start_ammo: i32,
-    pub head_index: i32,
+    pub head_index: usize,
     pub max_ammo: i32,
     pub shot_count: i32,
     pub shared_ammo_cap_name: String,
-    pub shared_ammo_cap_index: i32,
+    pub shared_ammo_cap_index: usize,
     pub shared_ammo_cap: i32,
     pub unlimited_ammo: bool,
     pub ammo_count_clip_relative: bool,
@@ -1429,8 +1429,8 @@ pub struct WeaponDef {
     pub player_position_dist: f32,
     pub use_hint_string: String,
     pub drop_hint_string: String,
-    pub use_hint_string_index: i32,
-    pub drop_hint_string_index: i32,
+    pub use_hint_string_index: usize,
+    pub drop_hint_string_index: usize,
     pub horiz_view_jitter: f32,
     pub vert_view_jitter: f32,
     pub script: String,
@@ -1463,8 +1463,797 @@ pub struct WeaponDef {
 }
 
 impl<'a> XFileInto<WeaponDef, ()> for WeaponDefRaw<'a> {
-    fn xfile_into(&self, _xfile: impl Read + Seek, _data: ()) -> Result<WeaponDef> {
-        todo!()
+    fn xfile_into(&self, mut xfile: impl Read + Seek, _data: ()) -> Result<WeaponDef> {
+        let overlay_name = self.overlay_name.xfile_into(&mut xfile, ())?;
+        let gun_xmodel = if self.gun_xmodel.is_null() {
+            None
+        } else {
+            Some(
+                self.gun_xmodel
+                    .xfile_into(&mut xfile, ())?
+                    .try_into()
+                    .unwrap(),
+            )
+        };
+        let hand_xmodel = self.hand_xmodel.xfile_into(&mut xfile, ())?;
+        let mode_name = self.mode_name.xfile_into(&mut xfile, ())?;
+        let notetrack_sound_map_keys = if self.notetrack_sound_map_keys.is_null() {
+            None
+        } else {
+            Some(Box::new(
+                self.notetrack_sound_map_keys
+                    .to_vec(&mut xfile)?
+                    .into_iter()
+                    .map(|k| k.to_string())
+                    .collect::<Vec<_>>()
+                    .try_into()
+                    .unwrap(),
+            ))
+        };
+        let notetrack_sound_map_values = if self.notetrack_sound_map_values.is_null() {
+            None
+        } else {
+            Some(Box::new(
+                self.notetrack_sound_map_values
+                    .to_vec(&mut xfile)?
+                    .into_iter()
+                    .map(|v| v.to_string())
+                    .collect::<Vec<_>>()
+                    .try_into()
+                    .unwrap(),
+            ))
+        };
+        let weap_type = FromPrimitive::from_u32(self.weap_type)
+            .ok_or(Error::BadFromPrimitive(self.weap_type as _))?;
+        let weap_class = FromPrimitive::from_u32(self.weap_class)
+            .ok_or(Error::BadFromPrimitive(self.weap_class as _))?;
+        let penetrate_type = FromPrimitive::from_u32(self.penetrate_type)
+            .ok_or(Error::BadFromPrimitive(self.penetrate_type as _))?;
+        let impact_type = FromPrimitive::from_u32(self.impact_type)
+            .ok_or(Error::BadFromPrimitive(self.impact_type as _))?;
+        let inventory_type = FromPrimitive::from_u32(self.inventory_type)
+            .ok_or(Error::BadFromPrimitive(self.inventory_type as _))?;
+        let fire_type = FromPrimitive::from_u32(self.fire_type)
+            .ok_or(Error::BadFromPrimitive(self.fire_type as _))?;
+        let clip_type = FromPrimitive::from_u32(self.clip_type)
+            .ok_or(Error::BadFromPrimitive(self.clip_type as _))?;
+        let parent_weapon_name = self.parent_weapon_name.xfile_into(&mut xfile, ())?;
+        let offhand_class = FromPrimitive::from_u32(self.offhand_class)
+            .ok_or(Error::BadFromPrimitive(self.offhand_class as _))?;
+        let offhand_slot = FromPrimitive::from_u32(self.offhand_slot)
+            .ok_or(Error::BadFromPrimitive(self.offhand_slot as _))?;
+        let stance = FromPrimitive::from_u32(self.stance)
+            .ok_or(Error::BadFromPrimitive(self.stance as _))?;
+        let view_flash_effect = self.view_flash_effect.xfile_into(&mut xfile, ())?;
+        let world_flash_effect = self.world_flash_effect.xfile_into(&mut xfile, ())?;
+        let pickup_sound = self.pickup_sound.xfile_into(&mut xfile, ())?;
+        let pickup_sound_player = self.pickup_sound_player.xfile_into(&mut xfile, ())?;
+        let ammo_pickup_sound = self.ammo_pickup_sound.xfile_into(&mut xfile, ())?;
+        let ammo_pickup_sound_player = self.ammo_pickup_sound_player.xfile_into(&mut xfile, ())?;
+        let projectile_sound = self.projectile_sound.xfile_into(&mut xfile, ())?;
+        let pullback_sound = self.pullback_sound.xfile_into(&mut xfile, ())?;
+        let pullback_sound_player = self.pullback_sound_player.xfile_into(&mut xfile, ())?;
+        let fire_sound = self.fire_sound.xfile_into(&mut xfile, ())?;
+        let fire_sound_player = self.fire_sound_player.xfile_into(&mut xfile, ())?;
+        let fire_loop_sound = self.fire_loop_sound.xfile_into(&mut xfile, ())?;
+        let fire_loop_sound_player = self.fire_loop_sound_player.xfile_into(&mut xfile, ())?;
+        let fire_loop_end_sound = self.fire_loop_end_sound.xfile_into(&mut xfile, ())?;
+        let fire_loop_end_sound_player =
+            self.fire_loop_end_sound_player.xfile_into(&mut xfile, ())?;
+        let fire_stop_sound = self.fire_stop_sound.xfile_into(&mut xfile, ())?;
+        let fire_stop_sound_player = self.fire_stop_sound_player.xfile_into(&mut xfile, ())?;
+        let fire_last_sound = self.fire_last_sound.xfile_into(&mut xfile, ())?;
+        let fire_last_sound_player = self.fire_last_sound_player.xfile_into(&mut xfile, ())?;
+        let empty_fire_sound = self.empty_fire_sound.xfile_into(&mut xfile, ())?;
+        let empty_fire_sound_player = self.empty_fire_sound_player.xfile_into(&mut xfile, ())?;
+        let crack_sound = self.crack_sound.xfile_into(&mut xfile, ())?;
+        let whiz_by_sound = self.whiz_by_sound.xfile_into(&mut xfile, ())?;
+        let melee_swipe_sound = self.melee_swipe_sound.xfile_into(&mut xfile, ())?;
+        let melee_swipe_sound_player = self.melee_swipe_sound_player.xfile_into(&mut xfile, ())?;
+        let melee_hit_sound = self.melee_hit_sound.xfile_into(&mut xfile, ())?;
+        let melee_miss_sound = self.melee_miss_sound.xfile_into(&mut xfile, ())?;
+        let rechamber_sound = self.rechamber_sound.xfile_into(&mut xfile, ())?;
+        let rechamber_sound_player = self.rechamber_sound_player.xfile_into(&mut xfile, ())?;
+        let reload_sound = self.reload_sound.xfile_into(&mut xfile, ())?;
+        let reload_sound_player = self.reload_sound_player.xfile_into(&mut xfile, ())?;
+        let reload_empty_sound = self.reload_empty_sound.xfile_into(&mut xfile, ())?;
+        let reload_empty_sound_player =
+            self.reload_empty_sound_player.xfile_into(&mut xfile, ())?;
+        let reload_start_sound = self.reload_start_sound.xfile_into(&mut xfile, ())?;
+        let reload_start_sound_player =
+            self.reload_start_sound_player.xfile_into(&mut xfile, ())?;
+        let reload_end_sound = self.reload_end_sound.xfile_into(&mut xfile, ())?;
+        let reload_end_sound_player = self.reload_end_sound_player.xfile_into(&mut xfile, ())?;
+        let rotate_loop_sound = self.rotate_loop_sound.xfile_into(&mut xfile, ())?;
+        let rotate_loop_sound_player = self.rotate_loop_sound_player.xfile_into(&mut xfile, ())?;
+        let deploy_sound = self.deploy_sound.xfile_into(&mut xfile, ())?;
+        let deploy_sound_player = self.deploy_sound_player.xfile_into(&mut xfile, ())?;
+        let finish_deploy_sound = self.finish_deploy_sound.xfile_into(&mut xfile, ())?;
+        let finish_deploy_sound_player =
+            self.finish_deploy_sound_player.xfile_into(&mut xfile, ())?;
+        let breakdown_sound = self.breakdown_sound.xfile_into(&mut xfile, ())?;
+        let breakdown_sound_player = self.breakdown_sound_player.xfile_into(&mut xfile, ())?;
+        let finish_breakdown_sound = self.finish_breakdown_sound.xfile_into(&mut xfile, ())?;
+        let finish_breakdown_sound_player = self
+            .finish_breakdown_sound_player
+            .xfile_into(&mut xfile, ())?;
+        let detonate_sound = self.detonate_sound.xfile_into(&mut xfile, ())?;
+        let detonate_sound_player = self.detonate_sound_player.xfile_into(&mut xfile, ())?;
+        let night_vision_wear_sound = self.night_vision_wear_sound.xfile_into(&mut xfile, ())?;
+        let night_vision_wear_sound_player = self
+            .night_vision_wear_sound_player
+            .xfile_into(&mut xfile, ())?;
+        let night_vision_remove_sound =
+            self.night_vision_remove_sound.xfile_into(&mut xfile, ())?;
+        let night_vision_remove_sound_player = self
+            .night_vision_remove_sound_player
+            .xfile_into(&mut xfile, ())?;
+        let alt_switch_sound = self.alt_switch_sound.xfile_into(&mut xfile, ())?;
+        let alt_switch_sound_player = self.alt_switch_sound_player.xfile_into(&mut xfile, ())?;
+        let raise_sound = self.raise_sound.xfile_into(&mut xfile, ())?;
+        let raise_sound_player = self.raise_sound_player.xfile_into(&mut xfile, ())?;
+        let first_raise_sound = self.first_raise_sound.xfile_into(&mut xfile, ())?;
+        let first_raise_sound_player = self.first_raise_sound_player.xfile_into(&mut xfile, ())?;
+        let put_away_sound = self.put_away_sound.xfile_into(&mut xfile, ())?;
+        let put_away_sound_player = self.put_away_sound_player.xfile_into(&mut xfile, ())?;
+        let overheat_sound = self.overheat_sound.xfile_into(&mut xfile, ())?;
+        let overheat_sound_player = self.overheat_sound_player.xfile_into(&mut xfile, ())?;
+        let ads_zoom_sound = self.ads_zoom_sound.xfile_into(&mut xfile, ())?;
+        let bounce_sound = if self.bounce_sound.is_null() {
+            None
+        } else {
+            Some(Box::new(
+                self.bounce_sound
+                    .xfile_into(&mut xfile, ())?
+                    .try_into()
+                    .unwrap(),
+            ))
+        };
+        let stand_mounted_weapdef = self.stand_mounted_weapdef.xfile_into(&mut xfile, ())?;
+        let crouch_mounted_weapdef = self.crouch_mounted_weapdef.xfile_into(&mut xfile, ())?;
+        let prone_mounted_weapdef = self.prone_mounted_weapdef.xfile_into(&mut xfile, ())?;
+        let view_shell_eject_effect = self.view_shell_eject_effect.xfile_into(&mut xfile, ())?;
+        let world_shell_eject_effect = self.world_shell_eject_effect.xfile_into(&mut xfile, ())?;
+        let view_last_shot_eject_effect = self
+            .view_last_shot_eject_effect
+            .xfile_into(&mut xfile, ())?;
+        let world_last_shot_eject_effect = self
+            .world_last_shot_eject_effect
+            .xfile_into(&mut xfile, ())?;
+        let reticle_center = self.reticle_center.xfile_into(&mut xfile, ())?;
+        let reticle_side = self.reticle_side.xfile_into(&mut xfile, ())?;
+        let active_reticle_type = FromPrimitive::from_u32(self.active_reticle_type)
+            .ok_or(Error::BadFromPrimitive(self.active_reticle_type as _))?;
+        let world_model = if self.world_model.is_null() {
+            None
+        } else {
+            Some(Box::new(
+                self.world_model
+                    .xfile_into(&mut xfile, ())?
+                    .try_into()
+                    .unwrap(),
+            ))
+        };
+        let world_clip_model = self.world_clip_model.xfile_into(&mut xfile, ())?;
+        let rocket_model = self.rocket_model.xfile_into(&mut xfile, ())?;
+        let mounted_model = self.mounted_model.xfile_into(&mut xfile, ())?;
+        let additional_melee_model = self.additional_melee_model.xfile_into(&mut xfile, ())?;
+        let hud_icon = self.hud_icon.xfile_into(&mut xfile, ())?;
+        let hud_icon_ratio = FromPrimitive::from_u32(self.hud_icon_ratio)
+            .ok_or(Error::BadFromPrimitive(self.hud_icon_ratio as _))?;
+        let indicator_icon = self.indicator_icon.xfile_into(&mut xfile, ())?;
+        let indicator_icon_ratio = FromPrimitive::from_u32(self.indicator_icon_ratio)
+            .ok_or(Error::BadFromPrimitive(self.indicator_icon_ratio as _))?;
+        let ammo_counter_icon = self.ammo_counter_icon.xfile_into(&mut xfile, ())?;
+        let ammo_counter_icon_ratio = FromPrimitive::from_u32(self.ammo_counter_icon_ratio)
+            .ok_or(Error::BadFromPrimitive(self.ammo_counter_icon_ratio as _))?;
+        let ammo_counter_clip = FromPrimitive::from_u32(self.ammo_counter_clip)
+            .ok_or(Error::BadFromPrimitive(self.ammo_counter_clip as _))?;
+        let shared_ammo_cap_name = self.shared_ammo_cap_name.xfile_into(&mut xfile, ())?;
+        let explosion_tag = self.explosion_tag.to_string();
+        let spin_loop_sound = self.spin_loop_sound.xfile_into(&mut xfile, ())?;
+        let spin_loop_sound_player = self.spin_loop_sound_player.xfile_into(&mut xfile, ())?;
+        let start_spin_sound = self.start_spin_sound.xfile_into(&mut xfile, ())?;
+        let start_spin_sound_player = self.start_spin_sound_player.xfile_into(&mut xfile, ())?;
+        let stop_spin_sound = self.stop_spin_sound.xfile_into(&mut xfile, ())?;
+        let stop_spin_sound_player = self.stop_spin_sound_player.xfile_into(&mut xfile, ())?;
+        let stack_sound = self.stack_sound.xfile_into(&mut xfile, ())?;
+        let overlay_reticle = FromPrimitive::from_u32(self.overlay_reticle)
+            .ok_or(Error::BadFromPrimitive(self.overlay_reticle as _))?;
+        let overlay_interface = FromPrimitive::from_u32(self.overlay_interface)
+            .ok_or(Error::BadFromPrimitive(self.overlay_interface as _))?;
+        let kill_icon = self.kill_icon.xfile_into(&mut xfile, ())?;
+        let kill_icon_ratio = FromPrimitive::from_u32(self.kill_icon_ratio)
+            .ok_or(Error::BadFromPrimitive(self.kill_icon_ratio as _))?;
+        let spawned_grenade_weapon_name = self
+            .spawned_grenade_weapon_name
+            .xfile_into(&mut xfile, ())?;
+        let dual_wield_weapon_name = self.dual_wield_weapon_name.xfile_into(&mut xfile, ())?;
+        let projectile_model = self.projectile_model.xfile_into(&mut xfile, ())?;
+        let proj_explosion = FromPrimitive::from_u32(self.proj_explosion)
+            .ok_or(Error::BadFromPrimitive(self.proj_explosion as _))?;
+        let proj_explosion_effect = self.proj_explosion_effect.xfile_into(&mut xfile, ())?;
+        let proj_explosion_effect_2 = self.proj_explosion_effect.xfile_into(&mut xfile, ())?;
+        let proj_explosion_effect_3 = self.proj_explosion_effect.xfile_into(&mut xfile, ())?;
+        let proj_explosion_effect_4 = self.proj_explosion_effect.xfile_into(&mut xfile, ())?;
+        let proj_explosion_effect_5 = self.proj_explosion_effect.xfile_into(&mut xfile, ())?;
+        let proj_dud_effect = self.proj_dud_effect.xfile_into(&mut xfile, ())?;
+        let proj_explosion_sound = self.proj_explosion_sound.xfile_into(&mut xfile, ())?;
+        let proj_dud_sound = self.proj_dud_sound.xfile_into(&mut xfile, ())?;
+        let mortar_shell_sound = self.mortar_shell_sound.xfile_into(&mut xfile, ())?;
+        let tank_shell_sound = self.tank_shell_sound.xfile_into(&mut xfile, ())?;
+        let stickiness = FromPrimitive::from_u32(self.stickiness)
+            .ok_or(Error::BadFromPrimitive(self.stickiness as _))?;
+        let rotate_type = FromPrimitive::from_u32(self.rotate_type)
+            .ok_or(Error::BadFromPrimitive(self.rotate_type as _))?;
+        let parallel_bounce = if self.parallel_bounce.is_null() {
+            None
+        } else {
+            Some(Box::new(
+                self.parallel_bounce.to_vec(&mut xfile)?.try_into().unwrap(),
+            ))
+        };
+        let perpendicular_bounce = if self.perpendicular_bounce.is_null() {
+            None
+        } else {
+            Some(Box::new(
+                self.perpendicular_bounce
+                    .to_vec(&mut xfile)?
+                    .try_into()
+                    .unwrap(),
+            ))
+        };
+        let proj_tail_effect = self.proj_tail_effect.xfile_into(&mut xfile, ())?;
+        let guided_missile_type = FromPrimitive::from_u32(self.guided_missile_type)
+            .ok_or(Error::BadFromPrimitive(self.guided_missile_type as _))?;
+        let proj_ignition_effect = self.proj_ignition_effect.xfile_into(&mut xfile, ())?;
+        let proj_ignition_sound = self.proj_ignition_sound.xfile_into(&mut xfile, ())?;
+
+        let mut accuracy_graph_name = [const { String::new() }; 2];
+        let mut accuracy_graph_knots = [const { Vec::new() }; 2];
+        let mut original_accuracy_graph_knots = [const { Vec::new() }; 2];
+        for i in 0..=1 {
+            accuracy_graph_name[i] = self.accuracy_graph_name[i].xfile_into(&mut xfile, ())?;
+            accuracy_graph_knots[i] = self.accuracy_graph_knots[i]
+                .to_array(self.accuracy_graph_knot_count[i] as _)
+                .to_vec_into(&mut xfile)?;
+            original_accuracy_graph_knots[i] = self.original_accuracy_graph_knots[i]
+                .to_array(self.original_accuracy_graph_knot_count[i] as _)
+                .to_vec_into(&mut xfile)?;
+        }
+
+        let use_hint_string = self.use_hint_string.xfile_into(&mut xfile, ())?;
+        let drop_hint_string = self.drop_hint_string.xfile_into(&mut xfile, ())?;
+        let script = self.script.xfile_into(&mut xfile, ())?;
+        let location_damage_multipliers = if self.location_damage_multipliers.is_null() {
+            None
+        } else {
+            Some(Box::new(
+                self.location_damage_multipliers
+                    .to_vec(&mut xfile)?
+                    .try_into()
+                    .unwrap(),
+            ))
+        };
+        let fire_rumble = self.fire_rumble.xfile_into(&mut xfile, ())?;
+        let melee_impact_rumble = self.melee_impact_rumble.xfile_into(&mut xfile, ())?;
+        let reload_rumble = self.reload_rumble.xfile_into(&mut xfile, ())?;
+        let flame_table_first_person = self.flame_table_first_person.xfile_into(&mut xfile, ())?;
+        let flame_table_third_person = self.flame_table_third_person.xfile_into(&mut xfile, ())?;
+        let flame_table_first_person_ptr = self
+            .flame_table_first_person_ptr
+            .xfile_into(&mut xfile, ())?;
+        let flame_table_third_person_ptr = self
+            .flame_table_third_person_ptr
+            .xfile_into(&mut xfile, ())?;
+        let tag_fx_preparation_effect = self
+            .tag_flash_preparation_effect
+            .xfile_into(&mut xfile, ())?;
+        let tag_flash_preparation_effect =
+            self.tag_flash_preparation_effect.xfile_into(xfile, ())?;
+
+        Ok(WeaponDef {
+            overlay_name,
+            gun_xmodel,
+            hand_xmodel,
+            mode_name,
+            notetrack_sound_map_keys,
+            notetrack_sound_map_values,
+            player_anim_type: self.player_anim_type,
+            weap_type,
+            weap_class,
+            penetrate_type,
+            impact_type,
+            inventory_type,
+            fire_type,
+            clip_type,
+            item_index: self.item_index as _,
+            parent_weapon_name,
+            jam_fire_time: self.jam_fire_time,
+            tracer_frequency: self.tracer_frequency,
+            tracer_width: self.tracer_width,
+            tracer_length: self.tracer_length,
+            overheat_weapon: self.overheat_weapon,
+            overheat_rate: self.overheat_rate,
+            cooldown_rate: self.cooldown_rate,
+            overheat_end_val: self.overheat_end_val,
+            cool_while_firing: self.cool_while_firing,
+            fuel_tank_weapon: self.fuel_tank_weapon,
+            tank_life_time: self.tank_life_time,
+            offhand_class,
+            offhand_slot,
+            stance,
+            view_flash_effect,
+            world_flash_effect,
+            pickup_sound,
+            pickup_sound_player,
+            ammo_pickup_sound,
+            ammo_pickup_sound_player,
+            projectile_sound,
+            pullback_sound,
+            pullback_sound_player,
+            fire_sound,
+            fire_sound_player,
+            fire_loop_sound,
+            fire_loop_sound_player,
+            fire_loop_end_sound,
+            fire_loop_end_sound_player,
+            fire_stop_sound,
+            fire_stop_sound_player,
+            fire_last_sound,
+            fire_last_sound_player,
+            empty_fire_sound,
+            empty_fire_sound_player,
+            crack_sound,
+            whiz_by_sound,
+            melee_swipe_sound,
+            melee_swipe_sound_player,
+            melee_hit_sound,
+            melee_miss_sound,
+            rechamber_sound,
+            rechamber_sound_player,
+            reload_sound,
+            reload_sound_player,
+            reload_empty_sound,
+            reload_empty_sound_player,
+            reload_start_sound,
+            reload_start_sound_player,
+            reload_end_sound,
+            reload_end_sound_player,
+            rotate_loop_sound,
+            rotate_loop_sound_player,
+            deploy_sound,
+            deploy_sound_player,
+            finish_deploy_sound,
+            finish_deploy_sound_player,
+            breakdown_sound,
+            breakdown_sound_player,
+            finish_breakdown_sound,
+            finish_breakdown_sound_player,
+            detonate_sound,
+            detonate_sound_player,
+            night_vision_wear_sound,
+            night_vision_wear_sound_player,
+            night_vision_remove_sound,
+            night_vision_remove_sound_player,
+            alt_switch_sound,
+            alt_switch_sound_player,
+            raise_sound,
+            raise_sound_player,
+            first_raise_sound,
+            first_raise_sound_player,
+            put_away_sound,
+            put_away_sound_player,
+            overheat_sound,
+            overheat_sound_player,
+            ads_zoom_sound,
+            bounce_sound,
+            stand_mounted_weapdef,
+            crouch_mounted_weapdef,
+            prone_mounted_weapdef,
+            stand_mounted_index: self.stand_mounted_index as _,
+            crouch_mounted_index: self.crouch_mounted_index as _,
+            prone_mounted_index: self.prone_mounted_index as _,
+            view_shell_eject_effect,
+            world_shell_eject_effect,
+            view_last_shot_eject_effect,
+            world_last_shot_eject_effect,
+            reticle_center,
+            reticle_side,
+            reticle_center_size: self.reticle_center_size,
+            reticle_side_size: self.reticle_side_size,
+            reticle_min_ofs: self.reticle_min_ofs,
+            active_reticle_type,
+            stand_move: self.stand_move.into(),
+            stand_rot: self.stand_rot.into(),
+            ducked_ofs: self.ducked_ofs.into(),
+            ducked_move: self.ducked_move.into(),
+            ducked_sprint_ofs: self.ducked_sprint_ofs.into(),
+            ducked_sprint_rot: self.ducked_sprint_rot.into(),
+            ducked_sprint_bob: self.ducked_sprint_bob.into(),
+            ducked_sprint_cycle_scale: self.ducked_sprint_cycle_scale,
+            sprint_ofs: self.sprint_ofs.into(),
+            sprint_rot: self.sprint_rot.into(),
+            sprint_bob: self.sprint_bob.into(),
+            sprint_cycle_scale: self.sprint_cycle_scale,
+            low_ready_ofs: self.low_ready_ofs.into(),
+            low_ready_rot: self.low_ready_rot.into(),
+            dtp_ofs: self.dtp_ofs.into(),
+            dtp_rot: self.dtp_rot.into(),
+            dtp_bob: self.dtp_bob.into(),
+            dtp_cycle_scale: self.dtp_cycle_scale,
+            mantle_ofs: self.mantle_ofs.into(),
+            mantle_rot: self.mantle_rot.into(),
+            slide_ofs: self.slide_ofs.into(),
+            slide_rot: self.slide_rot.into(),
+            ducked_rot: self.ducked_rot.into(),
+            prone_ofs: self.prone_ofs.into(),
+            prone_move: self.prone_move.into(),
+            prone_rot: self.prone_rot.into(),
+            strafe_move: self.strafe_move.into(),
+            strafe_rot: self.strafe_rot.into(),
+            pos_move_rate: self.pos_move_rate,
+            pos_prone_move_rate: self.pos_prone_move_rate,
+            stand_move_min_speed: self.stand_move_min_speed,
+            ducked_move_min_speed: self.ducked_move_min_speed,
+            prone_move_min_speed: self.prone_move_min_speed,
+            pos_rot_rate: self.pos_rot_rate,
+            pos_prone_rot_rate: self.pos_prone_rot_rate,
+            stand_rot_min_speed: self.stand_rot_min_speed,
+            ducked_rot_min_speed: self.ducked_rot_min_speed,
+            prone_rot_min_speed: self.prone_rot_min_speed,
+            world_model,
+            world_clip_model,
+            rocket_model,
+            mounted_model,
+            additional_melee_model,
+            hud_icon,
+            hud_icon_ratio,
+            indicator_icon,
+            indicator_icon_ratio,
+            ammo_counter_icon,
+            ammo_counter_icon_ratio,
+            ammo_counter_clip,
+            start_ammo: self.start_ammo,
+            head_index: self.head_index as _,
+            max_ammo: self.max_ammo,
+            shot_count: self.shot_count,
+            shared_ammo_cap_name,
+            shared_ammo_cap_index: self.shared_ammo_cap_index as _,
+            shared_ammo_cap: self.shared_ammo_cap,
+            unlimited_ammo: self.unlimited_ammo,
+            ammo_count_clip_relative: self.ammo_count_clip_relative,
+            damage: self.damage,
+            damage_duration: self.damage_duration,
+            damage_interval: self.damage_interval,
+            player_damage: self.player_damage,
+            melee_damage: self.melee_damage,
+            damage_type: self.damage_type,
+            explosion_tag,
+            fire_delay: self.fire_delay,
+            melee_delay: self.melee_delay,
+            melee_charge_delay: self.melee_charge_delay,
+            detonate_delay: self.detonate_delay,
+            spin_up_time: self.spin_up_time,
+            spin_down_time: self.spin_down_time,
+            spin_rate: self.spin_rate,
+            spin_loop_sound,
+            spin_loop_sound_player,
+            start_spin_sound,
+            start_spin_sound_player,
+            stop_spin_sound,
+            stop_spin_sound_player,
+            fire_time: self.fire_time,
+            last_fire_time: self.last_fire_time,
+            rechamber_time: self.rechamber_time,
+            rechamber_bolt_time: self.rechamber_bolt_time,
+            hold_fire_time: self.hold_fire_time,
+            detonate_fire_time: self.detonate_fire_time,
+            melee_time: self.melee_time,
+            melee_charge_time: self.melee_charge_time,
+            reload_time_right: self.reload_time_right,
+            reload_time_left: self.reload_time_left,
+            reload_show_rocket_time: self.reload_show_rocket_time,
+            reload_empty_time_left: self.reload_empty_time_left,
+            reload_empty_add_time: self.reload_empty_add_time,
+            reload_add_time: self.reload_add_time,
+            reload_quick_add_time: self.reload_quick_add_time,
+            reload_quick_empty_add_time: self.reload_quick_empty_add_time,
+            reload_start_time: self.reload_start_time,
+            reload_start_add_time: self.reload_start_add_time,
+            reload_end_time: self.reload_end_time,
+            drop_time: self.drop_time,
+            raise_time: self.raise_time,
+            alt_drop_time: self.alt_drop_time,
+            quick_drop_time: self.quick_drop_time,
+            quick_raise_time: self.quick_raise_time,
+            first_raise_time: self.first_raise_time,
+            empty_raise_time: self.empty_raise_time,
+            empty_drop_time: self.empty_drop_time,
+            sprint_in_time: self.sprint_in_time,
+            sprint_loop_time: self.sprint_loop_time,
+            sprint_out_time: self.sprint_out_time,
+            low_ready_in_time: self.low_ready_in_time,
+            low_ready_loop_time: self.low_ready_loop_time,
+            low_ready_out_time: self.low_ready_out_time,
+            cont_fire_in_time: self.cont_fire_in_time,
+            cont_fire_loop_time: self.cont_fire_loop_time,
+            cont_fire_out_time: self.cont_fire_out_time,
+            dtp_in_time: self.dtp_in_time,
+            dtp_loop_time: self.dtp_loop_time,
+            dtp_out_time: self.dtp_out_time,
+            slide_in_time: self.slide_in_time,
+            deploy_time: self.deploy_time,
+            breakdown_time: self.breakdown_time,
+            night_vision_wear_time: self.night_vision_wear_time,
+            night_vision_wear_time_fade_out_end: self.night_vision_wear_time_fade_out_end,
+            night_vision_wear_time_power_up: self.night_vision_wear_time_power_up,
+            night_vision_remove_time: self.night_vision_remove_time,
+            night_vision_remove_time_power_down: self.night_vision_remove_time_power_down,
+            night_vision_remove_time_fade_in_start: self.night_vision_remove_time_fade_in_start,
+            fuse_time: self.fuse_time,
+            ai_fuse_time: self.ai_fuse_time,
+            lock_on_radius: self.lock_on_radius,
+            lock_on_speed: self.lock_on_speed,
+            require_lockon_to_fire: self.require_lockon_to_fire,
+            no_ads_when_mag_empty: self.no_ads_when_mag_empty,
+            avoid_drop_cleanup: self.avoid_drop_cleanup,
+            stack_fire: self.stack_fire,
+            stack_fire_spread: self.stack_fire_spread,
+            stack_fire_accuracy_decay: self.stack_fire_accuracy_decay,
+            stack_sound,
+            auto_aim_range: self.auto_aim_range,
+            aim_assist_range: self.aim_assist_range,
+            mountable_weapon: self.mountable_weapon,
+            aim_padding: self.aim_padding,
+            enemy_crosshair_range: self.enemy_crosshair_range,
+            crosshair_color_change: self.crosshair_color_change,
+            move_speed_scale: self.move_speed_scale,
+            ads_move_speed_scale: self.ads_move_speed_scale,
+            sprint_duration_scale: self.sprint_duration_scale,
+            overlay_reticle,
+            overlay_interface,
+            overlay_width: self.overlay_width,
+            overlay_height: self.overlay_height,
+            ads_bob_factor: self.ads_bob_factor,
+            ads_view_bob_mult: self.ads_view_bob_mult,
+            hip_spread_stand_min: self.hip_spread_stand_min,
+            hip_spread_ducked_min: self.hip_spread_ducked_min,
+            hip_spread_prone_min: self.hip_spread_prone_min,
+            hip_spread_stand_max: self.hip_spread_stand_max,
+            hip_spread_ducked_max: self.hip_spread_ducked_max,
+            hip_spread_prone_max: self.hip_spread_prone_max,
+            hip_spread_decay_rate: self.hip_spread_decay_rate,
+            hip_spread_fire_add: self.hip_spread_fire_add,
+            hip_spread_turn_add: self.hip_spread_turn_add,
+            hip_spread_move_add: self.hip_spread_move_add,
+            hip_spread_ducked_decay: self.hip_spread_ducked_decay,
+            hip_spread_prone_decay: self.hip_spread_prone_decay,
+            hip_reticle_side_pos: self.hip_reticle_side_pos,
+            ads_idle_amount: self.ads_idle_amount,
+            hip_idle_amount: self.hip_idle_amount,
+            ads_idle_speed: self.ads_idle_speed,
+            hip_idle_speed: self.hip_idle_speed,
+            idle_crouch_factor: self.idle_crouch_factor,
+            idle_prone_factor: self.idle_prone_factor,
+            gun_max_pitch: self.gun_max_pitch,
+            gun_max_yaw: self.gun_max_yaw,
+            sway_max_angle: self.sway_max_angle,
+            sway_lerp_speed: self.sway_lerp_speed,
+            sway_pitch_scale: self.sway_pitch_scale,
+            sway_yaw_scale: self.sway_yaw_scale,
+            sway_horiz_scale: self.sway_horiz_scale,
+            sway_vert_scale: self.sway_vert_scale,
+            sway_shell_shock_scale: self.sway_shell_shock_scale,
+            ads_sway_max_angle: self.ads_sway_max_angle,
+            ads_sway_lerp_speed: self.ads_sway_lerp_speed,
+            ads_sway_pitch_scale: self.ads_sway_pitch_scale,
+            ads_sway_yaw_scale: self.ads_sway_yaw_scale,
+            shared_ammo: self.shared_ammo,
+            rifle_bullet: self.rifle_bullet,
+            armor_piercing: self.armor_piercing,
+            bolt_action: self.bolt_action,
+            use_alt_tag_flesh: self.use_alt_tag_flesh,
+            use_anti_lag_rewind: self.use_anti_lag_rewind,
+            is_carried_killstreak_weapon: self.is_carried_killstreak_weapon,
+            aim_down_sight: self.aim_down_sight,
+            rechamber_while_ads: self.rechamber_while_ads,
+            reload_while_ads: self.reload_while_ads,
+            ads_view_error_min: self.ads_view_error_min,
+            ads_view_error_max: self.ads_view_error_max,
+            cook_off_hold: self.cook_off_hold,
+            clip_only: self.clip_only,
+            can_use_in_vehicle: self.can_use_in_vehicle,
+            no_drops_or_raises: self.no_drops_or_raises,
+            ads_fire_only: self.ads_fire_only,
+            cancel_auto_holster_when_empty: self.cancel_auto_holster_when_empty,
+            suppress_ammo_reserve_display: self.suppress_ammo_reserve_display,
+            laser_sight_during_nightvision: self.laser_sight_during_nightvision,
+            hide_third_person: self.hide_third_person,
+            has_bayonet: self.has_bayonet,
+            dual_wield: self.dual_wield,
+            explode_on_ground: self.explode_on_ground,
+            throw_back: self.throw_back,
+            retrievable: self.retrievable,
+            die_on_respawn: self.die_on_respawn,
+            no_third_person_drops_or_raises: self.no_third_person_drops_or_raises,
+            continuous_fire: self.continuous_fire,
+            no_ping: self.no_ping,
+            force_bounce: self.force_bounce,
+            use_dropped_model_as_stowed: self.use_dropped_model_as_stowed,
+            no_quick_drop_when_empty: self.no_quick_drop_when_empty,
+            keep_crosshair_when_ads: self.keep_crosshair_when_ads,
+            use_only_alt_weaopon_hide_tags_in_alt_mode: self
+                .use_only_alt_weaopon_hide_tags_in_alt_mode,
+            kill_icon,
+            kill_icon_ratio,
+            flip_kill_icon: self.flip_kill_icon,
+            no_partial_reload: self.no_partial_reload,
+            segmented_reload: self.segmented_reload,
+            no_ads_auto_reload: self.no_ads_auto_reload,
+            reload_ammo_add: self.reload_ammo_add,
+            reload_start_add: self.reload_start_add,
+            spawned_grenade_weapon_name,
+            dual_wield_weapon_name,
+            dual_wield_weapon_index: self.dual_wield_weapon_index as _,
+            drop_ammo_min: self.drop_ammo_min,
+            drop_ammo_max: self.drop_ammo_max,
+            drop_clip_ammo_min: self.drop_clip_ammo_min,
+            drop_clip_ammo_max: self.drop_clip_ammo_max,
+            blocks_prone: self.blocks_prone,
+            show_indicator: self.show_indicator,
+            is_rolling_grenade: self.is_rolling_grenade,
+            explosion_radius: self.explosion_radius,
+            explosion_radius_min: self.explosion_radius_min,
+            indicator_radius: self.indicator_radius,
+            explosion_inner_damage: self.explosion_inner_damage,
+            explosion_outer_damage: self.explosion_outer_damage,
+            damage_cone_angle: self.damage_cone_angle,
+            projectile_speed: self.projectile_speed,
+            projectile_speed_up: self.projectile_speed_up,
+            projectile_speed_relative_up: self.projectile_speed_relative_up,
+            projectile_speed_forward: self.projectile_speed_forward,
+            projectile_active_dist: self.projectile_active_dist,
+            proj_lifetime: self.proj_lifetime,
+            time_to_accelerate: self.time_to_accelerate,
+            projectile_curvature: self.projectile_curvature,
+            projectile_model,
+            proj_explosion,
+            proj_explosion_effect,
+            proj_explosion_effect_force_normal_up: self.proj_explosion_effect_force_normal_up,
+            proj_explosion_effect_2,
+            proj_explosion_effect_2_force_normal_up: self.proj_explosion_effect_2_force_normal_up,
+            proj_explosion_effect_3,
+            proj_explosion_effect_3_force_normal_up: self.proj_explosion_effect_3_force_normal_up,
+            proj_explosion_effect_4,
+            proj_explosion_effect_4_force_normal_up: self.proj_explosion_effect_4_force_normal_up,
+            proj_explosion_effect_5,
+            proj_explosion_effect_5_force_normal_up: self.proj_explosion_effect_5_force_normal_up,
+            proj_dud_effect,
+            proj_explosion_sound,
+            proj_dud_sound,
+            mortar_shell_sound,
+            tank_shell_sound,
+            proj_impact_explode: self.proj_impact_explode,
+            bullet_impact_explode: self.bullet_impact_explode,
+            stickiness,
+            rotate_type,
+            plantable: self.plantable,
+            has_detonator: self.has_detonator,
+            time_detonation: self.time_detonation,
+            no_crumple_missile: self.no_crumple_missile,
+            rotate: self.rotate,
+            keep_rolling: self.keep_rolling,
+            hold_button_to_throw: self.hold_button_to_throw,
+            offhand_hold_is_cancelable: self.offhand_hold_is_cancelable,
+            freeze_movement_when_firing: self.freeze_movement_when_firing,
+            low_ammo_warning_threshold: self.low_ammo_warning_threshold,
+            melee_charge_range: self.melee_charge_range,
+            use_as_melee: self.use_as_melee,
+            is_camera_sensor: self.is_camera_sensor,
+            is_acoustic_sensor: self.is_acoustic_sensor,
+            parallel_bounce,
+            perpendicular_bounce,
+            proj_tail_effect,
+            projectile_color: self.projectile_color.into(),
+            guided_missile_type,
+            max_steering_accel: self.max_steering_accel,
+            proj_ignition_delay: self.proj_ignition_delay,
+            proj_ignition_effect,
+            proj_ignition_sound,
+            ads_aim_pitch: self.ads_aim_pitch,
+            ads_crosshair_in_frac: self.ads_crosshair_in_frac,
+            ads_crosshair_out_frac: self.ads_crosshair_out_frac,
+            ads_gun_kick_reduced_kick_bullets: self.ads_gun_kick_reduced_kick_bullets,
+            ads_gun_kick_reduced_kick_percent: self.ads_gun_kick_reduced_kick_percent,
+            ads_gun_kick_pitch_min: self.ads_gun_kick_pitch_min,
+            ads_gun_kick_pitch_max: self.ads_gun_kick_pitch_max,
+            ads_gun_kick_yaw_min: self.ads_gun_kick_yaw_min,
+            ads_gun_kick_yaw_max: self.ads_gun_kick_yaw_max,
+            ads_gun_kick_accel: self.ads_gun_kick_accel,
+            ads_gun_kick_speed_max: self.ads_gun_kick_speed_max,
+            ads_gun_kick_speed_decay: self.ads_gun_kick_speed_decay,
+            ads_gun_kick_static_decay: self.ads_gun_kick_static_decay,
+            ads_view_kick_pitch_min: self.ads_view_kick_pitch_min,
+            ads_view_kick_pitch_max: self.ads_view_kick_pitch_max,
+            ads_view_kick_yaw_min: self.ads_view_kick_yaw_min,
+            ads_view_kick_yaw_max: self.ads_view_kick_yaw_max,
+            ads_view_scatter_min: self.ads_view_scatter_min,
+            ads_view_scatter_max: self.ads_view_scatter_max,
+            ads_spread: self.ads_spread,
+            hip_gun_kick_reduced_kick_bullets: self.hip_gun_kick_reduced_kick_bullets,
+            hip_gun_kick_reduced_kick_percent: self.hip_gun_kick_reduced_kick_percent,
+            hip_gun_kick_pitch_min: self.hip_gun_kick_pitch_min,
+            hip_gun_kick_pitch_max: self.hip_gun_kick_pitch_max,
+            hip_gun_kick_yaw_min: self.hip_gun_kick_yaw_min,
+            hip_gun_kick_yaw_max: self.hip_gun_kick_yaw_max,
+            hip_gun_kick_accel: self.hip_gun_kick_accel,
+            hip_gun_kick_speed_max: self.hip_gun_kick_speed_max,
+            hip_gun_kick_speed_decay: self.hip_gun_kick_speed_decay,
+            hip_gun_kick_static_decay: self.hip_gun_kick_static_decay,
+            hip_view_kick_pitch_min: self.hip_view_kick_pitch_min,
+            hip_view_kick_pitch_max: self.hip_view_kick_pitch_max,
+            hip_view_kick_yaw_min: self.hip_view_kick_yaw_min,
+            hip_view_kick_yaw_max: self.hip_view_kick_yaw_max,
+            hip_view_scatter_min: self.hip_view_scatter_min,
+            hip_view_scatter_max: self.hip_view_scatter_max,
+            fight_dist: self.fight_dist,
+            max_dist: self.max_dist,
+            accuracy_graph_name,
+            accuracy_graph_knots,
+            original_accuracy_graph_knots,
+            accuracy_graph_knot_count: self.accuracy_graph_knot_count,
+            original_accuracy_graph_knot_count: self.original_accuracy_graph_knot_count,
+            position_reload_trans_time: self.position_reload_trans_time,
+            left_arc: self.left_arc,
+            right_arc: self.right_arc,
+            top_arc: self.top_arc,
+            bottom_arc: self.bottom_arc,
+            accuracy: self.accuracy,
+            ai_spread: self.ai_spread,
+            player_spread: self.player_spread,
+            min_turn_speed: self.min_turn_speed.into(),
+            max_turn_speed: self.max_turn_speed.into(),
+            pitch_convergence_time: self.pitch_convergence_time,
+            yaw_convergence_time: self.yaw_convergence_time,
+            suppress_time: self.suppress_time,
+            max_range: self.max_range,
+            anim_hor_rotate_inc: self.anim_hor_rotate_inc,
+            player_position_dist: self.player_position_dist,
+            use_hint_string,
+            drop_hint_string,
+            use_hint_string_index: self.use_hint_string_index as _,
+            drop_hint_string_index: self.drop_hint_string_index as _,
+            horiz_view_jitter: self.horiz_view_jitter,
+            vert_view_jitter: self.vert_view_jitter,
+            script,
+            min_damage: self.min_damage,
+            min_player_damage: self.min_player_damage,
+            max_damage_range: self.max_damage_range,
+            min_damage_range: self.min_damage_range,
+            destabilization_rate_time: self.destabilization_rate_time,
+            destabilization_curvature_max: self.destabilization_curvature_max,
+            destabilize_distance: self.destabilize_distance,
+            location_damage_multipliers,
+            fire_rumble,
+            melee_impact_rumble,
+            reload_rumble,
+            ads_dof_start: self.ads_dof_start,
+            ads_dof_end: self.ads_dof_end,
+            hip_dof_start: self.hip_dof_start,
+            hip_dof_end: self.hip_dof_end,
+            scan_speed: self.scan_speed,
+            scan_accel: self.scan_accel,
+            scan_pause_time: self.scan_pause_time,
+            flame_table_first_person,
+            flame_table_third_person,
+            flame_table_first_person_ptr,
+            flame_table_third_person_ptr,
+            tag_fx_preparation_effect,
+            tag_flash_preparation_effect,
+            do_gibbing: self.do_gibbing,
+            max_gib_distance: self.max_gib_distance,
+        })
     }
 }
 

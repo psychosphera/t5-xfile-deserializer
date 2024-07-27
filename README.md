@@ -35,12 +35,12 @@ Data stored by `XFiles` includes shaders, the clipmap/PVS, scripts, animations, 
 15. Emblem Sets
 16. Menu Lists
 17. Menus
+18. Weapon Variants
 
 ### What hasn't yet been implemented
 1. Clipmap/PVS
 2. ComWorld
 3. GfxWorld
-4. Weapon Variants (in progress, almost done)
 
 ## Building
 ```bash
@@ -62,7 +62,7 @@ I primarily created this to integrate into OpenT5 once it's done, but I figured 
 5. Relatedly, account for linked lists.
 6. Tidy up the deserializer's API.
 7. Better CLI for the binary.
-8. Implement the remaining unimplemented `XAssets` (Only four left!).
+8. Implement the remaining unimplemented `XAssets` (Only three left!).
 9. Then debug them (yay...).
 10. Verify whether macOS `XFiles` are identical to Windows.
 11. Verify whether Wii even uses `XFiles`.
