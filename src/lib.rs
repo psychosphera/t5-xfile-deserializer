@@ -35,6 +35,18 @@
 // |           |      |             | inflated.                               |
 // ----------------------------------------------------------------------------
 //
+// XFiles don't contain an easy way to detect the platform they're compiled 
+// for. The endianness of the Version field can serve as a simple sanity
+// check (i.e., if the expected platform is Windows but Version is 
+// big-endian, then the platform is obviously wrong), but since both 
+// little- and big-endian have multiple potential platforms, the correct
+// platform can't be derived for certain, and even if the endianness matches
+// the expected platform, that's no guarantee the expected platform is correct.
+//
+// (In theory, one could probably use structure differences between platforms
+// or other known values that differ between platforms to verify the correct
+// platform, but someone else can do that.)
+//
 // The inflated blob is structured as follows:
 //
 // ----------------------------------------------------------------------------
@@ -437,6 +449,16 @@ fn de_do<T, F: FnOnce(&mut T5XFileDeserializer) -> Result<T>>(
     t
 }
 
+pub enum InflateSuccess {
+    NewlyInflated,
+    AlreadyInflated,
+}
+
+pub enum CacheSuccess {
+    CacheCreated,
+    CacheOverwritten,
+}
+
 impl<'a> T5XFileDeserializer<'a> {
     pub fn from_file(
         mut file: &'a mut std::fs::File,
@@ -567,12 +589,12 @@ impl<'a> T5XFileDeserializer<'a> {
         })
     }
 
-    pub fn inflate(&mut self) -> Result<()> {
+    pub fn inflate(&mut self) -> Result<InflateSuccess> {
         if self.reader.is_some() {
             if !self.silent {
                 println!("Cannot inflate: already inflated.");
             }
-            return Ok(());
+            return Ok(InflateSuccess::AlreadyInflated);
         }
 
         let reader = if let Some(f) = self.cache_file.take() {
@@ -635,14 +657,16 @@ impl<'a> T5XFileDeserializer<'a> {
             let assets = xasset_list.assets.to_vec(de.reader.as_mut().unwrap())?;
 
             de.xassets_raw = VecDeque::from_iter(assets);
-            Ok(())
+            Ok(InflateSuccess::NewlyInflated)
         })
     }
 
-    pub fn cache(&mut self, path: impl AsRef<Path>) -> Result<()> {
+    pub fn cache(&mut self, path: impl AsRef<Path>) -> Result<CacheSuccess> {
         if !self.silent {
             println!("Caching decompressed payload to disk...");
         }
+
+        let cache_exists = path.as_ref().exists();
 
         let mut f = std::fs::File::create(path)?;
         let pos = self.reader.as_ref().unwrap().position();
@@ -655,7 +679,11 @@ impl<'a> T5XFileDeserializer<'a> {
             println!("Decompressed payload cached.");
         }
 
-        Ok(())
+        if cache_exists {
+            Ok(CacheSuccess::CacheOverwritten)
+        } else {
+            Ok(CacheSuccess::CacheCreated)
+        }
     }
 
     pub fn deserialize_next(&mut self) -> Result<Option<XAsset>> {
