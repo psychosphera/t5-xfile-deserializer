@@ -62,7 +62,7 @@ I primarily created this to integrate into OpenT5 once it's done, but I figured 
 5. Relatedly, account for linked lists.
 6. Tidy up the deserializer's API.
 7. Better CLI for the binary.
-8. Implement the remaining unimplemented `XAssets` (Only three left!).
+8. Implement the remaining unimplemented `XAssets` (Only two left!).
 9. Then debug them (yay...).
 10. Verify whether macOS `XFiles` are identical to Windows.
 11. Verify whether Wii even uses `XFiles`.
