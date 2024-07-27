@@ -1,7 +1,3 @@
-#![allow(dead_code)]
-#![allow(non_camel_case_types)]
-#![feature(seek_stream_len)]
-
 use std::{ffi::OsString, path::Path, str::FromStr};
 
 use t5_xfile_deserializer::{T5XFileDeserializer, XFilePlatform};
