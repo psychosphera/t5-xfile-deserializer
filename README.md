@@ -36,11 +36,11 @@ Data stored by `XFiles` includes shaders, the clipmap/PVS, scripts, animations, 
 16. Menu Lists
 17. Menus
 18. Weapon Variants
+19. ComWorld
 
 ### What hasn't yet been implemented
 1. Clipmap/PVS
-2. ComWorld
-3. GfxWorld
+2. GfxWorld
 
 ## Building
 ```bash

@@ -74,6 +74,7 @@
 #![allow(clippy::from_over_into)]
 #![allow(clippy::needless_borrows_for_generic_args)]
 
+pub mod com_world;
 pub mod common;
 pub mod ddl;
 pub mod destructible;
@@ -710,6 +711,7 @@ pub enum XAsset {
     Image(Option<Box<techset::GfxImage>>),
     Sound(Option<Box<sound::SndBank>>),
     SoundPatch(Option<Box<sound::SndPatch>>),
+    ComWorld(Option<Box<com_world::ComWorld>>),
     GameWorldSp(Option<Box<gameworld::GameWorldSp>>),
     GameWorldMp(Option<Box<gameworld::GameWorldMp>>),
     MapEnts(Option<Box<MapEnts>>),
@@ -744,6 +746,7 @@ impl XAsset {
             Self::Image(p) => p.is_some(),
             Self::Sound(p) => p.is_some(),
             Self::SoundPatch(p) => p.is_some(),
+            Self::ComWorld(p) => p.is_some(),
             Self::GameWorldSp(p) => p.is_some(),
             Self::GameWorldMp(p) => p.is_some(),
             Self::MapEnts(p) => p.is_some(),
@@ -782,6 +785,7 @@ impl XAsset {
             Self::Image(p) => p.as_ref().map(|p| p.name.as_str()),
             Self::Sound(p) => p.as_ref().map(|p| p.name.as_str()),
             Self::SoundPatch(p) => p.as_ref().map(|p| p.name.as_str()),
+            Self::ComWorld(p) => p.as_ref().map(|p| p.name.as_str()),
             Self::GameWorldSp(p) => p.as_ref().map(|p| p.name.as_str()),
             Self::GameWorldMp(p) => p.as_ref().map(|p| p.name.as_str()),
             Self::MapEnts(p) => p.as_ref().map(|p| p.name.as_str()),
@@ -939,6 +943,11 @@ impl<'a> XFileInto<XAsset, ()> for XAssetRaw<'a> {
                 self.asset_data
                     .cast::<sound::SndPatchRaw>()
                     .xfile_into(xfile, ())?,
+            ),
+            XAssetType::COMWORLD => XAsset::ComWorld(
+                self.asset_data
+                    .cast::<com_world::ComWorldRaw>()
+                    .xfile_into(xfile, ())?,  
             ),
             XAssetType::GAMEWORLD_SP => XAsset::GameWorldSp(
                 self.asset_data
