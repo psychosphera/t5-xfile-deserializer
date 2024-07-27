@@ -16,8 +16,8 @@ pub struct DdlRoot {
 }
 
 impl<'a> XFileInto<DdlRoot, ()> for DdlRootRaw<'a> {
-    fn xfile_into(&self, mut xfile: impl Read + Seek, _data: ()) -> Result<DdlRoot> {
-        let name = self.name.xfile_into(&mut xfile, ())?;
+    fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<DdlRoot> {
+        let name = self.name.xfile_into(de, ())?;
 
         let mut ddl_defs = Vec::new();
         let mut ddl_def_raw = self.ddl_def;
@@ -27,9 +27,9 @@ impl<'a> XFileInto<DdlRoot, ()> for DdlRootRaw<'a> {
                 break;
             }
 
-            let ddl_def = ddl_def_raw.xfile_get(&mut xfile)?.unwrap();
+            let ddl_def = ddl_def_raw.xfile_get(de)?.unwrap();
             ddl_def_raw = ddl_def.next;
-            ddl_defs.push(Box::new(ddl_def.xfile_into(&mut xfile, ())?));
+            ddl_defs.push(Box::new(ddl_def.xfile_into(de, ())?));
         }
 
         Ok(DdlRoot { name, ddl_defs })
@@ -57,9 +57,9 @@ pub struct DdlDef {
 }
 
 impl<'a> XFileInto<DdlDef, ()> for DdlDefRaw<'a> {
-    fn xfile_into(&self, mut xfile: impl Read + Seek, _data: ()) -> Result<DdlDef> {
-        let struct_list = self.struct_list.xfile_into(&mut xfile, ())?;
-        let enum_list = self.enum_list.xfile_into(&mut xfile, ())?;
+    fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<DdlDef> {
+        let struct_list = self.struct_list.xfile_into(de, ())?;
+        let enum_list = self.enum_list.xfile_into(de, ())?;
 
         Ok(DdlDef {
             version: self.version,
@@ -88,9 +88,9 @@ pub struct DdlStructDef {
 }
 
 impl<'a> XFileInto<DdlStructDef, ()> for DdlStructDefRaw<'a> {
-    fn xfile_into(&self, mut xfile: impl Read + Seek, _data: ()) -> Result<DdlStructDef> {
-        let name = self.name.xfile_into(&mut xfile, ())?;
-        let members = self.members.xfile_into(xfile, ())?;
+    fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<DdlStructDef> {
+        let name = self.name.xfile_into(de, ())?;
+        let members = self.members.xfile_into(de, ())?;
 
         Ok(DdlStructDef {
             name,
@@ -136,8 +136,8 @@ pub struct DdlMemberDef {
 }
 
 impl<'a> XFileInto<DdlMemberDef, ()> for DdlMemberDefRaw<'a> {
-    fn xfile_into(&self, xfile: impl Read + Seek, _data: ()) -> Result<DdlMemberDef> {
-        let name = self.name.xfile_into(xfile, ())?;
+    fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<DdlMemberDef> {
+        let name = self.name.xfile_into(de, ())?;
 
         Ok(DdlMemberDef {
             name,
@@ -172,9 +172,9 @@ pub struct DdlEnumDef {
 }
 
 impl<'a> XFileInto<DdlEnumDef, ()> for DdlEnumDefRaw<'a> {
-    fn xfile_into(&self, mut xfile: impl Read + Seek, _data: ()) -> Result<DdlEnumDef> {
-        let name = self.name.xfile_into(&mut xfile, ())?;
-        let members = self.members.xfile_into(&mut xfile, ())?;
+    fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<DdlEnumDef> {
+        let name = self.name.xfile_into(de, ())?;
+        let members = self.members.xfile_into(de, ())?;
 
         Ok(DdlEnumDef { name, members })
     }

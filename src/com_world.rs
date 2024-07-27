@@ -27,11 +27,11 @@ pub struct ComWorld {
 }
 
 impl<'a> XFileInto<ComWorld, ()> for ComWorldRaw<'a> {
-    fn xfile_into(&self, mut xfile: impl Read + Seek, _data: ()) -> Result<ComWorld> {
-        let name = self.name.xfile_into(&mut xfile, ())?;
-        let primary_lights = self.primary_lights.xfile_into(&mut xfile, ())?;
-        let water_cells = self.water_cells.to_vec(&mut xfile)?;
-        let burnable_cells = self.burnable_cells.xfile_into(xfile, ())?;
+    fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<ComWorld> {
+        let name = self.name.xfile_into(de, ())?;
+        let primary_lights = self.primary_lights.xfile_into(de, ())?;
+        let water_cells = self.water_cells.to_vec(de)?;
+        let burnable_cells = self.burnable_cells.xfile_into(de, ())?;
 
         Ok(ComWorld {
             name,
@@ -108,7 +108,7 @@ pub struct ComPrimaryLight {
 }
 
 impl<'a> XFileInto<ComPrimaryLight, ()> for ComPrimaryLightRaw<'a> {
-    fn xfile_into(&self, xfile: impl Read + Seek, _data: ()) -> Result<ComPrimaryLight> {
+    fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<ComPrimaryLight> {
         let color = self.color.into();
         let dir = self.dir.into();
         let origin = self.origin.into();
@@ -121,7 +121,7 @@ impl<'a> XFileInto<ComPrimaryLight, ()> for ComPrimaryLightRaw<'a> {
         let cookie_control_0 = self.cookie_control_0.into();
         let cookie_control_1 = self.cookie_control_0.into();
         let cookie_control_2 = self.cookie_control_0.into();
-        let def_name = self.def_name.xfile_into(xfile, ())?;
+        let def_name = self.def_name.xfile_into(de, ())?;
 
         Ok(ComPrimaryLight {
             type_: self.type_,
@@ -201,8 +201,12 @@ pub struct ComBurnableCell {
 }
 
 impl<'a> XFileInto<ComBurnableCell, ()> for ComBurnableCellRaw<'a> {
-    fn xfile_into(&self, xfile: impl Read + Seek, _data: ()) -> Result<ComBurnableCell> {
-        let data = if self.data.is_null() { None } else { Some(Box::new(self.data.to_vec(xfile)?.try_into().unwrap())) };
+    fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<ComBurnableCell> {
+        let data = if self.data.is_null() {
+            None
+        } else {
+            Some(Box::new(self.data.to_vec(de)?.try_into().unwrap()))
+        };
         Ok(ComBurnableCell {
             x: self.x,
             y: self.y,

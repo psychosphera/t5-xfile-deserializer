@@ -3,7 +3,7 @@ use crate::*;
 use std::{
     ffi::CString,
     fmt::{self, Debug},
-    io::{Read, Seek, SeekFrom},
+    io::{Seek, SeekFrom},
     marker::PhantomData,
 };
 
@@ -152,7 +152,7 @@ impl<'a> XString<'a> {
 }
 
 impl<'a> XFileInto<String, ()> for XString<'a> {
-    fn xfile_into(&self, mut xfile: impl Read + Seek, _data: ()) -> Result<String> {
+    fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<String> {
         //dbg!(*self);
 
         if self.0.is_null() {
@@ -164,17 +164,17 @@ impl<'a> XFileInto<String, ()> for XString<'a> {
             return Ok(String::new());
         }
 
-        xfile.seek_and(std::io::SeekFrom::Start(self.as_u32() as _), |f| {
-            xfile_read_string(f)
+        de.seek_and(std::io::SeekFrom::Start(self.as_u32() as _), |de| {
+            xfile_read_string(de)
         })?
     }
 }
 
-pub(crate) fn xfile_read_string(mut xfile: impl Read + Seek) -> Result<String> {
+pub(crate) fn xfile_read_string(de: &mut T5XFileDeserializer) -> Result<String> {
     let mut string_buf = Vec::new();
 
     loop {
-        let c = load_from_xfile::<u8>(&mut xfile)?;
+        let c = de.load_from_xfile::<u8>()?;
 
         if !c.is_ascii() {
             return Err(Error::BrokenInvariant(format!(
@@ -212,7 +212,7 @@ pub(crate) trait XFileInto<T, U: Copy> {
     /// without any such conversion, we'd probably end up converting them
     /// separately later anyways, it's a nice touch to have both done in one
     /// go.
-    fn xfile_into(&self, xfile: impl Read + Seek, data: U) -> Result<T>;
+    fn xfile_into(&self, de: &mut T5XFileDeserializer, data: U) -> Result<T>;
 }
 
 impl<'a, T, U, V, const N: usize> XFileInto<[U; N], V> for [T; N]
@@ -223,10 +223,10 @@ where
     T: DeserializeOwned + Clone + Debug + XFileInto<U, V>,
     V: Copy,
 {
-    fn xfile_into(&self, mut xfile: impl Read + Seek, data: V) -> Result<[U; N]> {
+    fn xfile_into(&self, de: &mut T5XFileDeserializer, data: V) -> Result<[U; N]> {
         self.iter()
             .cloned()
-            .map(|t| t.xfile_into(&mut xfile, data))
+            .map(|t| t.xfile_into(de, data))
             .collect::<Result<Vec<_>>>()
             .map(|v| TryInto::<[U; N]>::try_into(v).unwrap())
     }
@@ -281,59 +281,10 @@ impl<'a, T> Ptr32<'a, T> {
     }
 }
 
-pub(crate) trait SeekAnd: Read + Seek + StreamLen {
-    fn seek_and<T>(
-        &mut self,
-        from: std::io::SeekFrom,
-        predicate: impl FnOnce(&mut Self) -> T,
-    ) -> Result<T> {
-        let pos = self.stream_position()?;
-
-        if let std::io::SeekFrom::Start(p) = from {
-            if p != 0xFFFFFFFF && p != 0xFFFFFFFE {
-                let (_, off) = convert_offset_to_ptr(p as _)?;
-                let len = StreamLen::stream_len(self)?;
-                if off as u64 > len {
-                    return Err(Error::InvalidSeek { off, max: len as _ });
-                }
-                self.seek(std::io::SeekFrom::Start(off as _))?;
-            }
-        } else if let std::io::SeekFrom::Current(p) = from {
-            let len = StreamLen::stream_len(self)?;
-            let off = pos as i64 + p;
-            if pos as i64 + p > len as i64 {
-                return Err(Error::InvalidSeek {
-                    off: off as _,
-                    max: len as _,
-                });
-            }
-            self.seek(from)?;
-        } else {
-            unimplemented!()
-        }
-
-        let t = predicate(self);
-
-        if let std::io::SeekFrom::Start(p) = from {
-            if p != 0xFFFFFFFF && p != 0xFFFFFFFE {
-                self.seek(std::io::SeekFrom::Start(pos))?;
-            }
-        } else if let std::io::SeekFrom::Current(p) = from {
-            self.seek(std::io::SeekFrom::Current(-p))?;
-        } else {
-            unimplemented!()
-        }
-
-        Ok(t)
-    }
-}
-
-impl<S: Read + Seek> SeekAnd for S {}
-
 impl<'a, T: DeserializeOwned + Clone + Debug + XFileInto<U, V>, U, V: Copy>
     XFileInto<Option<Box<U>>, V> for Ptr32<'a, T>
 {
-    fn xfile_into(&self, mut xfile: impl Read + Seek, data: V) -> Result<Option<Box<U>>> {
+    fn xfile_into(&self, de: &mut T5XFileDeserializer, data: V) -> Result<Option<Box<U>>> {
         if self.is_null() {
             return Ok(None);
         }
@@ -343,14 +294,13 @@ impl<'a, T: DeserializeOwned + Clone + Debug + XFileInto<U, V>, U, V: Copy>
             return Ok(None);
         }
 
-        xfile
-            .seek_and(
-                std::io::SeekFrom::Start(self.as_u32() as _),
-                |f| -> Result<T> { load_from_xfile(f) },
-            )??
-            .xfile_into(xfile, data)
-            .map(Box::new)
-            .map(Some)
+        de.seek_and(
+            std::io::SeekFrom::Start(self.as_u32() as _),
+            |de| -> Result<T> { de.load_from_xfile() },
+        )??
+        .xfile_into(de, data)
+        .map(Box::new)
+        .map(Some)
     }
 }
 
@@ -358,7 +308,7 @@ impl<'a, T: DeserializeOwned + Debug> Ptr32<'a, T> {
     /// Same principle as [`XFileInto::xfile_into`], except it doesn't do any
     /// type conversion. Useful for the rare structs that don't need any such
     /// conversion.
-    pub(crate) fn xfile_get(self, mut xfile: impl Read + Seek) -> Result<Option<T>> {
+    pub(crate) fn xfile_get(self, de: &mut T5XFileDeserializer) -> Result<Option<T>> {
         if self.is_null() {
             return Ok(None);
         }
@@ -368,8 +318,8 @@ impl<'a, T: DeserializeOwned + Debug> Ptr32<'a, T> {
             return Ok(None);
         }
 
-        xfile.seek_and(std::io::SeekFrom::Start(self.as_u32() as _), |f| {
-            load_from_xfile(f)
+        de.seek_and(std::io::SeekFrom::Start(self.as_u32() as _), |de| {
+            de.load_from_xfile()
         })?
     }
 }
@@ -427,11 +377,11 @@ pub(crate) struct FlexibleArrayU32<T: DeserializeOwned> {
 pub(crate) trait FlexibleArray<T: DeserializeOwned> {
     fn count(&self) -> usize;
 
-    fn to_vec(&self, mut xfile: impl Read + Seek) -> Result<Vec<T>> {
+    fn to_vec(&self, de: &mut T5XFileDeserializer) -> Result<Vec<T>> {
         let mut vt = Vec::new();
 
         for _ in 0..self.count() {
-            vt.push(load_from_xfile(&mut xfile)?);
+            vt.push(de.load_from_xfile()?);
         }
 
         Ok(vt)
@@ -460,7 +410,7 @@ pub(crate) trait FatPointer<'a, T: DeserializeOwned + 'a> {
         self.p().is_null()
     }
 
-    fn to_vec(&self, mut xfile: impl Read + Seek) -> Result<Vec<T>> {
+    fn to_vec(&self, de: &mut T5XFileDeserializer) -> Result<Vec<T>> {
         if self.p().is_null() {
             return Ok(Vec::new());
         }
@@ -470,22 +420,21 @@ pub(crate) trait FatPointer<'a, T: DeserializeOwned + 'a> {
             return Ok(Vec::new());
         }
 
-        xfile
-            .seek_and(std::io::SeekFrom::Start(self.p().as_u32() as _), |mut f| {
-                let mut vt = Vec::new();
+        de.seek_and(std::io::SeekFrom::Start(self.p().as_u32() as _), |de| {
+            let mut vt = Vec::new();
 
-                for _ in 0..self.size() {
-                    vt.push(load_from_xfile(&mut f));
-                }
+            for _ in 0..self.size() {
+                vt.push(de.load_from_xfile());
+            }
 
-                vt
-            })?
-            .into_iter()
-            .collect::<Result<Vec<_>>>()
+            vt
+        })?
+        .into_iter()
+        .collect::<Result<Vec<_>>>()
     }
 
-    fn to_vec_into<U: From<T>>(&self, xfile: impl Read + Seek) -> Result<Vec<U>> {
-        self.to_vec(xfile)
+    fn to_vec_into<U: From<T>>(&self, de: &mut T5XFileDeserializer) -> Result<Vec<U>> {
+        self.to_vec(de)
             .map(|v| v.into_iter().map(Into::<U>::into).collect())
     }
 }
@@ -616,11 +565,11 @@ macro_rules! impl_xfile_into_for_fat_pointer {
                 T: DeserializeOwned + Debug + Clone + XFileInto<U, V>,
                 V: Copy,
             {
-                fn xfile_into(&self, mut xfile: impl Read + Seek, data: V) -> Result<Vec<U>> {
+                fn xfile_into(&self, de: &mut T5XFileDeserializer, data: V) -> Result<Vec<U>> {
                     self.clone()
-                        .to_vec(&mut xfile)?
+                        .to_vec(de)?
                         .into_iter()
-                        .map(|a| a.xfile_into(&mut xfile, data))
+                        .map(|a| a.xfile_into(de, data))
                         .collect()
                 }
             }
@@ -642,11 +591,11 @@ where
     T: DeserializeOwned + Debug + Clone + XFileInto<U, V>,
     V: Copy,
 {
-    fn xfile_into(&self, mut xfile: impl Read + Seek, data: V) -> Result<Vec<U>> {
+    fn xfile_into(&self, de: &mut T5XFileDeserializer, data: V) -> Result<Vec<U>> {
         self.clone()
-            .to_vec(&mut xfile)?
+            .to_vec(de)?
             .into_iter()
-            .map(|a| a.xfile_into(&mut xfile, data))
+            .map(|a| a.xfile_into(de, data))
             .collect()
     }
 }

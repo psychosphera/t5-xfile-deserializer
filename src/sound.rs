@@ -29,15 +29,15 @@ pub struct SndBank {
 }
 
 impl<'a> XFileInto<SndBank, ()> for SndBankRaw<'a> {
-    fn xfile_into(&self, mut xfile: impl Read + Seek, _data: ()) -> Result<SndBank> {
-        let name = self.name.xfile_into(&mut xfile, ())?;
-        let aliases = self.aliases.xfile_into(&mut xfile, ())?;
+    fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<SndBank> {
+        let name = self.name.xfile_into(de, ())?;
+        let aliases = self.aliases.xfile_into(de, ())?;
         let alias_index = self
             .alias_index
             .to_array(self.aliases.size() as _)
-            .to_vec(&mut xfile)?;
-        let radverbs = self.radverbs.to_vec_into(&mut xfile)?;
-        let snapshots = self.snapshots.to_vec_into(xfile)?;
+            .to_vec(de)?;
+        let radverbs = self.radverbs.to_vec_into(de)?;
+        let snapshots = self.snapshots.to_vec_into(de)?;
 
         Ok(SndBank {
             name,
@@ -143,11 +143,11 @@ pub struct SndAlias {
 }
 
 impl<'a> XFileInto<SndAlias, ()> for SndAliasRaw<'a> {
-    fn xfile_into(&self, mut xfile: impl Read + Seek, _data: ()) -> Result<SndAlias> {
-        let name = self.name.xfile_into(&mut xfile, ())?;
-        let subtitle = self.subtitle.xfile_into(&mut xfile, ())?;
-        let secondaryname = self.secondaryname.xfile_into(&mut xfile, ())?;
-        let sound_file = self.sound_file.xfile_into(&mut xfile, ())?;
+    fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<SndAlias> {
+        let name = self.name.xfile_into(de, ())?;
+        let subtitle = self.subtitle.xfile_into(de, ())?;
+        let secondaryname = self.secondaryname.xfile_into(de, ())?;
+        let sound_file = self.sound_file.xfile_into(de, ())?;
 
         Ok(SndAlias {
             name,
@@ -211,8 +211,8 @@ pub struct SoundFile {
 }
 
 impl<'a> XFileInto<SoundFile, ()> for SoundFileRaw<'a> {
-    fn xfile_into(&self, xfile: impl Read + Seek, _data: ()) -> Result<SoundFile> {
-        let u = self.u.xfile_into(xfile, self.type_)?;
+    fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<SoundFile> {
+        let u = self.u.xfile_into(de, self.type_)?;
         let exists = self.exists != 0;
 
         Ok(SoundFile { u, exists })
@@ -232,14 +232,14 @@ pub enum SoundFileRef {
 }
 
 impl<'a> XFileInto<SoundFileRef, u8> for SoundFileRefRaw<'a> {
-    fn xfile_into(&self, xfile: impl Read + Seek, type_: u8) -> Result<SoundFileRef> {
+    fn xfile_into(&self, de: &mut T5XFileDeserializer, type_: u8) -> Result<SoundFileRef> {
         if type_ == 1 {
             Ok(SoundFileRef::Loaded(
-                self.0.cast::<LoadedSoundRaw>().xfile_into(xfile, ())?,
+                self.0.cast::<LoadedSoundRaw>().xfile_into(de, ())?,
             ))
         } else {
             Ok(SoundFileRef::Streamed(
-                self.0.cast::<StreamedSoundRaw>().xfile_into(xfile, ())?,
+                self.0.cast::<StreamedSoundRaw>().xfile_into(de, ())?,
             ))
         }
     }
@@ -261,9 +261,9 @@ pub struct LoadedSound {
 }
 
 impl<'a> XFileInto<LoadedSound, ()> for LoadedSoundRaw<'a> {
-    fn xfile_into(&self, mut xfile: impl Read + Seek, _data: ()) -> Result<LoadedSound> {
-        let name = self.name.xfile_into(&mut xfile, ())?;
-        let sound = self.sound.xfile_into(xfile, ())?;
+    fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<LoadedSound> {
+        let name = self.name.xfile_into(de, ())?;
+        let sound = self.sound.xfile_into(de, ())?;
 
         Ok(LoadedSound { name, sound })
     }
@@ -344,15 +344,15 @@ pub struct SndAsset {
 }
 
 impl<'a> XFileInto<SndAsset, ()> for SndAssetRaw<'a> {
-    fn xfile_into(&self, mut xfile: impl Read + Seek, _data: ()) -> Result<SndAsset> {
+    fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<SndAsset> {
         let format = num::FromPrimitive::from_u32(self.format)
             .ok_or(Error::BadFromPrimitive(self.format as _))?;
         let channel_flags = SndAssetChannel::from_bits(self.channel_flags)
             .ok_or(Error::BadFromPrimitive(self.channel_flags as _))?;
         let flags =
             SndAssetFlags::from_bits(self.flags).ok_or(Error::BadFromPrimitive(self.flags as _))?;
-        let seek_table = self.seek_table.to_vec(&mut xfile)?;
-        let data = self.data.to_vec(xfile)?;
+        let seek_table = self.seek_table.to_vec(de)?;
+        let data = self.data.to_vec(de)?;
 
         Ok(SndAsset {
             version: self.version,
@@ -387,9 +387,9 @@ pub struct StreamedSound {
 }
 
 impl<'a> XFileInto<StreamedSound, ()> for StreamedSoundRaw<'a> {
-    fn xfile_into(&self, mut xfile: impl Read + Seek, _data: ()) -> Result<StreamedSound> {
-        let filename = self.filename.xfile_into(&mut xfile, ())?;
-        let prime_snd = self.prime_snd.xfile_into(xfile, ())?;
+    fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<StreamedSound> {
+        let filename = self.filename.xfile_into(de, ())?;
+        let prime_snd = self.prime_snd.xfile_into(de, ())?;
 
         Ok(StreamedSound {
             filename,
@@ -414,9 +414,9 @@ pub struct PrimedSnd {
 }
 
 impl<'a> XFileInto<PrimedSnd, ()> for PrimedSndRaw<'a> {
-    fn xfile_into(&self, mut xfile: impl Read + Seek, _data: ()) -> Result<PrimedSnd> {
-        let name = self.name.xfile_into(&mut xfile, ())?;
-        let buffer = self.buffer.to_vec(xfile)?;
+    fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<PrimedSnd> {
+        let name = self.name.xfile_into(de, ())?;
+        let buffer = self.buffer.to_vec(de)?;
 
         Ok(PrimedSnd { name, buffer })
     }
@@ -580,10 +580,10 @@ pub struct SndPatch {
 }
 
 impl<'a> XFileInto<SndPatch, ()> for SndPatchRaw<'a> {
-    fn xfile_into(&self, mut xfile: impl Read + Seek, _data: ()) -> Result<SndPatch> {
-        let name = self.name.xfile_into(&mut xfile, ())?;
-        let elements = self.elements.to_vec(&mut xfile)?;
-        let files = self.files.xfile_into(xfile, ())?;
+    fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<SndPatch> {
+        let name = self.name.xfile_into(de, ())?;
+        let elements = self.elements.to_vec(de)?;
+        let files = self.files.xfile_into(de, ())?;
 
         Ok(SndPatch {
             name,
@@ -619,19 +619,19 @@ pub struct SndDriverGlobals {
 }
 
 impl<'a> XFileInto<SndDriverGlobals, ()> for SndDriverGlobalsRaw<'a> {
-    fn xfile_into(&self, mut xfile: impl Read + Seek, _data: ()) -> Result<SndDriverGlobals> {
-        let name = self.name.xfile_into(&mut xfile, ())?;
+    fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<SndDriverGlobals> {
+        let name = self.name.xfile_into(de, ())?;
         let groups = self
             .groups
-            .to_vec(&mut xfile)?
+            .to_vec(de)?
             .into_iter()
             .map(TryInto::try_into)
             .collect::<Result<Vec<_>>>()?;
-        let curves = self.curves.to_vec_into(&mut xfile)?;
-        let pans = self.pans.to_vec_into(&mut xfile)?;
-        let snapshot_groups = self.snapshot_groups.to_vec_into(&mut xfile)?;
-        let contexts = self.contexts.to_vec_into(&mut xfile)?;
-        let masters = self.masters.to_vec_into(xfile)?;
+        let curves = self.curves.to_vec_into(de)?;
+        let pans = self.pans.to_vec_into(de)?;
+        let snapshot_groups = self.snapshot_groups.to_vec_into(de)?;
+        let contexts = self.contexts.to_vec_into(de)?;
+        let masters = self.masters.to_vec_into(de)?;
 
         Ok(SndDriverGlobals {
             name,

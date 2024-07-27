@@ -57,15 +57,14 @@ I primarily created this to integrate into OpenT5 once it's done, but I figured 
 ## Todo
 1. Fix deserialization of `XModel` and whatever deserialization problems come next. (Probably a lot.)
 2. Get offsets working.
-3. Eliminate global state (probably going to require adding the deserializer as a parameter of `XFileInto`, which will involve changing every single `impl` and call. Not fun.)
-4. Account for shared pointers. (All pointers get boxed currently, but that's definitely not correct semantically for a lot of them.)
-5. Relatedly, account for linked lists.
-6. Tidy up the deserializer's API.
-7. Better CLI for the binary.
-8. Implement the remaining unimplemented `XAssets` (Only two left!).
-9. Then debug them (yay...).
-10. Verify whether macOS `XFiles` are identical to Windows.
-11. Verify whether Wii even uses `XFiles`.
+3. Account for shared pointers. (All pointers get boxed currently, but that's definitely not correct semantically for a lot of them.)
+4. Relatedly, account for linked lists.
+5. Tidy up the deserializer's API.
+6. Better CLI for the binary.
+7. Implement the remaining unimplemented `XAssets` (Only two left!).
+8. Then debug them (yay...).
+9. Verify whether macOS `XFiles` are identical to Windows.
+10. Verify whether Wii even uses `XFiles`.
 
 ## Future Todo
 1. Account for arrays whose size depends on `MAX_LOCAL_CLIENTS`. Currently `MAX_LOCAL_CLIENTS` is just hard-coded to `1`, which is correct for Windows and presumably macOS, but certainly isn't for consoles. This will probably involve using a const generic to size the arrays, which will end up propogating all the way up every `XAsset` `struct` that contains one or points to a `struct` that contains one. Again, not fun.

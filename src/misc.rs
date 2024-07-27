@@ -19,10 +19,10 @@ pub struct RawFile {
 }
 
 impl<'a> XFileInto<RawFile, ()> for RawFileRaw<'a> {
-    fn xfile_into(&self, mut xfile: impl Read + Seek, _data: ()) -> Result<RawFile> {
+    fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<RawFile> {
         Ok(RawFile {
-            name: self.name.xfile_into(&mut xfile, ())?,
-            buffer: self.buffer.to_vec(xfile)?,
+            name: self.name.xfile_into(de, ())?,
+            buffer: self.buffer.to_vec(de)?,
         })
     }
 }
@@ -49,15 +49,15 @@ pub struct StringTable {
 }
 
 impl<'a> XFileInto<StringTable, ()> for StringTableRaw<'a> {
-    fn xfile_into(&self, mut xfile: impl Read + Seek, _data: ()) -> Result<StringTable> {
+    fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<StringTable> {
         let size = self.column_count as usize * self.row_count as usize;
 
         Ok(StringTable {
-            name: self.name.xfile_into(&mut xfile, ())?,
+            name: self.name.xfile_into(de, ())?,
             column_count: self.column_count as _,
             row_count: self.row_count as _,
-            values: self.values.to_array(size).xfile_into(&mut xfile, ())?,
-            cell_index: self.cell_index.to_array(size).to_vec(xfile)?,
+            values: self.values.to_array(size).xfile_into(de, ())?,
+            cell_index: self.cell_index.to_array(size).to_vec(de)?,
         })
     }
 }
@@ -78,9 +78,9 @@ pub struct StringTableCell {
 }
 
 impl<'a> XFileInto<StringTableCell, ()> for StringTableCellRaw<'a> {
-    fn xfile_into(&self, xfile: impl Read + Seek, _data: ()) -> Result<StringTableCell> {
+    fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<StringTableCell> {
         Ok(StringTableCell {
-            name: self.name.xfile_into(xfile, ())?,
+            name: self.name.xfile_into(de, ())?,
             hash: self.hash,
         })
     }
@@ -104,14 +104,14 @@ pub struct PackIndex {
 }
 
 impl<'a> XFileInto<PackIndex, ()> for PackIndexRaw<'a> {
-    fn xfile_into(&self, mut xfile: impl Read + Seek, _data: ()) -> Result<PackIndex> {
+    fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<PackIndex> {
         Ok(PackIndex {
-            name: self.name.xfile_into(&mut xfile, ())?,
+            name: self.name.xfile_into(de, ())?,
             header: self.header.into(),
             entries: self
                 .entries
                 .to_array(self.header.count as _)
-                .to_vec_into(xfile)?,
+                .to_vec_into(de)?,
         })
     }
 }
@@ -192,10 +192,10 @@ pub struct MapEnts {
 }
 
 impl<'a> XFileInto<MapEnts, ()> for MapEntsRaw<'a> {
-    fn xfile_into(&self, mut xfile: impl Read + Seek, _data: ()) -> Result<MapEnts> {
-        let name = self.name.xfile_into(&mut xfile, ())?;
+    fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<MapEnts> {
+        let name = self.name.xfile_into(de, ())?;
 
-        let mut chars = self.entity_string.to_vec(xfile)?;
+        let mut chars = self.entity_string.to_vec(de)?;
         if chars.is_empty() {
             return Ok(MapEnts {
                 name,
@@ -235,10 +235,10 @@ pub struct LocalizeEntry {
 }
 
 impl<'a> XFileInto<LocalizeEntry, ()> for LocalizeEntryRaw<'a> {
-    fn xfile_into(&self, mut xfile: impl Read + Seek, _data: ()) -> Result<LocalizeEntry> {
+    fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<LocalizeEntry> {
         Ok(LocalizeEntry {
-            value: self.value.xfile_into(&mut xfile, ())?,
-            name: self.name.xfile_into(xfile, ())?,
+            value: self.value.xfile_into(de, ())?,
+            name: self.name.xfile_into(de, ())?,
         })
     }
 }
@@ -268,9 +268,9 @@ pub struct XGlobals {
 }
 
 impl<'a> XFileInto<XGlobals, ()> for XGlobalsRaw<'a> {
-    fn xfile_into(&self, xfile: impl Read + Seek, _data: ()) -> Result<XGlobals> {
+    fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<XGlobals> {
         Ok(XGlobals {
-            name: self.name.xfile_into(xfile, ())?,
+            name: self.name.xfile_into(de, ())?,
             xanim_stream_buffer_size: self.xanim_stream_buffer_size,
             cinematic_max_width: self.cinematic_max_width,
             cinematic_max_height: self.cinematic_max_height,
@@ -317,10 +317,10 @@ pub struct Glasses {
 }
 
 impl<'a> XFileInto<Glasses, ()> for GlassesRaw<'a> {
-    fn xfile_into(&self, mut xfile: impl Read + Seek, _data: ()) -> Result<Glasses> {
-        let name = self.name.xfile_into(&mut xfile, ())?;
-        let glasses = self.glasses.xfile_into(&mut xfile, ())?;
-        let work_memory = self.work_memory.to_vec(xfile)?;
+    fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<Glasses> {
+        let name = self.name.xfile_into(de, ())?;
+        let glasses = self.glasses.xfile_into(de, ())?;
+        let work_memory = self.work_memory.to_vec(de)?;
 
         Ok(Glasses {
             name,
@@ -378,8 +378,8 @@ pub struct Glass {
 }
 
 impl<'a> XFileInto<Glass, ()> for GlassRaw<'a> {
-    fn xfile_into(&self, mut xfile: impl Read + Seek, _data: ()) -> Result<Glass> {
-        let glass_def = self.glass_def.xfile_into(&mut xfile, ())?;
+    fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<Glass> {
+        let glass_def = self.glass_def.xfile_into(de, ())?;
         let origin = self.origin.into();
         let angles = self.angles.into();
         let absmin = self.absmin.into();
@@ -387,7 +387,7 @@ impl<'a> XFileInto<Glass, ()> for GlassRaw<'a> {
         let outline = self
             .outline
             .to_array(self.num_outline_verts as _)
-            .to_vec_into(xfile)?;
+            .to_vec_into(de)?;
         let outline_axis = self.outline_axis.into();
         let outline_origin = self.outline_origin.into();
 
@@ -451,16 +451,16 @@ pub struct GlassDef {
 }
 
 impl<'a> XFileInto<GlassDef, ()> for GlassDefRaw<'a> {
-    fn xfile_into(&self, mut xfile: impl Read + Seek, _data: ()) -> Result<GlassDef> {
-        let name = self.name.xfile_into(&mut xfile, ())?;
-        let pristine_material = self.pristine_material.xfile_into(&mut xfile, ())?;
-        let cracked_material = self.cracked_material.xfile_into(&mut xfile, ())?;
-        let shard_material = self.shard_material.xfile_into(&mut xfile, ())?;
-        let crack_sound = self.crack_sound.xfile_into(&mut xfile, ())?;
-        let shatter_sound = self.shatter_sound.xfile_into(&mut xfile, ())?;
-        let auto_shatter_sound = self.auto_shatter_sound.xfile_into(&mut xfile, ())?;
-        let crack_effect = self.crack_effect.xfile_into(&mut xfile, ())?;
-        let shatter_effect = self.shatter_effect.xfile_into(xfile, ())?;
+    fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<GlassDef> {
+        let name = self.name.xfile_into(de, ())?;
+        let pristine_material = self.pristine_material.xfile_into(de, ())?;
+        let cracked_material = self.cracked_material.xfile_into(de, ())?;
+        let shard_material = self.shard_material.xfile_into(de, ())?;
+        let crack_sound = self.crack_sound.xfile_into(de, ())?;
+        let shatter_sound = self.shatter_sound.xfile_into(de, ())?;
+        let auto_shatter_sound = self.auto_shatter_sound.xfile_into(de, ())?;
+        let crack_effect = self.crack_effect.xfile_into(de, ())?;
+        let shatter_effect = self.shatter_effect.xfile_into(de, ())?;
 
         Ok(GlassDef {
             name,
@@ -506,12 +506,12 @@ pub struct EmblemSet {
 }
 
 impl<'a> XFileInto<EmblemSet, ()> for EmblemSetRaw<'a> {
-    fn xfile_into(&self, mut xfile: impl Read + Seek, _data: ()) -> Result<EmblemSet> {
-        let layers = self.layers.to_vec(&mut xfile)?;
-        let categories = self.categories.xfile_into(&mut xfile, ())?;
-        let icons = self.icons.xfile_into(&mut xfile, ())?;
-        let backgrounds = self.backgrounds.xfile_into(&mut xfile, ())?;
-        let background_lookup = self.background_lookup.to_vec(xfile)?;
+    fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<EmblemSet> {
+        let layers = self.layers.to_vec(de)?;
+        let categories = self.categories.xfile_into(de, ())?;
+        let icons = self.icons.xfile_into(de, ())?;
+        let backgrounds = self.backgrounds.xfile_into(de, ())?;
+        let background_lookup = self.background_lookup.to_vec(de)?;
 
         Ok(EmblemSet {
             color_count: self.color_count,
@@ -549,9 +549,9 @@ pub struct EmblemCategory {
 }
 
 impl<'a> XFileInto<EmblemCategory, ()> for EmblemCategoryRaw<'a> {
-    fn xfile_into(&self, mut xfile: impl Read + Seek, _data: ()) -> Result<EmblemCategory> {
-        let name = self.name.xfile_into(&mut xfile, ())?;
-        let description = self.description.xfile_into(xfile, ())?;
+    fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<EmblemCategory> {
+        let name = self.name.xfile_into(de, ())?;
+        let description = self.description.xfile_into(de, ())?;
 
         Ok(EmblemCategory { name, description })
     }
@@ -589,9 +589,9 @@ pub struct EmblemIcon {
 }
 
 impl<'a> XFileInto<EmblemIcon, ()> for EmblemIconRaw<'a> {
-    fn xfile_into(&self, mut xfile: impl Read + Seek, _data: ()) -> Result<EmblemIcon> {
-        let image = self.image.xfile_into(&mut xfile, ())?;
-        let description = self.description.xfile_into(&mut xfile, ())?;
+    fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<EmblemIcon> {
+        let image = self.image.xfile_into(de, ())?;
+        let description = self.description.xfile_into(de, ())?;
 
         Ok(EmblemIcon {
             image,
@@ -632,9 +632,9 @@ pub struct EmblemBackground {
 }
 
 impl<'a> XFileInto<EmblemBackground, ()> for EmblemBackgroundRaw<'a> {
-    fn xfile_into(&self, mut xfile: impl Read + Seek, _data: ()) -> Result<EmblemBackground> {
-        let material = self.material.xfile_into(&mut xfile, ())?;
-        let description = self.description.xfile_into(&mut xfile, ())?;
+    fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<EmblemBackground> {
+        let material = self.material.xfile_into(de, ())?;
+        let description = self.description.xfile_into(de, ())?;
 
         Ok(EmblemBackground {
             material,

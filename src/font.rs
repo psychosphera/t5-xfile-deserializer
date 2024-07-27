@@ -23,13 +23,13 @@ pub struct Font {
 }
 
 impl<'a> XFileInto<Font, ()> for FontRaw<'a> {
-    fn xfile_into(&self, mut xfile: impl Read + Seek, _data: ()) -> Result<Font> {
+    fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<Font> {
         Ok(Font {
-            font_name: self.font_name.xfile_into(&mut xfile, ())?,
+            font_name: self.font_name.xfile_into(de, ())?,
             pixel_height: self.pixel_height,
-            material: self.material.xfile_into(&mut xfile, ())?,
-            glow_material: self.glow_material.xfile_into(&mut xfile, ())?,
-            glyphs: self.glyphs.to_array(self.glyph_count as _).to_vec(xfile)?,
+            material: self.material.xfile_into(de, ())?,
+            glow_material: self.glow_material.xfile_into(de, ())?,
+            glyphs: self.glyphs.to_array(self.glyph_count as _).to_vec(de)?,
         })
     }
 }

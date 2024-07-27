@@ -21,9 +21,9 @@ pub struct MenuList {
 }
 
 impl<'a> XFileInto<MenuList, ()> for MenuListRaw<'a> {
-    fn xfile_into(&self, mut xfile: impl Read + Seek, _data: ()) -> Result<MenuList> {
-        let name = self.name.xfile_into(&mut xfile, ())?;
-        let menus = self.menus.xfile_into(&mut xfile, ())?;
+    fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<MenuList> {
+        let name = self.name.xfile_into(de, ())?;
+        let menus = self.menus.xfile_into(de, ())?;
 
         Ok(MenuList { name, menus })
     }
@@ -113,24 +113,24 @@ pub struct MenuDef {
 }
 
 impl<'a> XFileInto<MenuDef, ()> for MenuDefRaw<'a> {
-    fn xfile_into(&self, mut xfile: impl Read + Seek, _data: ()) -> Result<MenuDef> {
-        let window = self.window.xfile_into(&mut xfile, ())?;
-        let font = self.font.xfile_into(&mut xfile, ())?;
+    fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<MenuDef> {
+        let window = self.window.xfile_into(de, ())?;
+        let font = self.font.xfile_into(de, ())?;
         let full_screen = self.full_screen != 0;
         let intial_rect_info = self.intial_rect_info.into();
-        let on_event = self.on_event.xfile_into(&mut xfile, ())?;
-        let on_key = self.on_key.xfile_into(&mut xfile, ())?;
-        let visible_exp = self.visible_exp.xfile_into(&mut xfile, ())?;
-        let allowed_binding = self.allowed_binding.xfile_into(&mut xfile, ())?;
-        let sound_name = self.sound_name.xfile_into(&mut xfile, ())?;
+        let on_event = self.on_event.xfile_into(de, ())?;
+        let on_key = self.on_key.xfile_into(de, ())?;
+        let visible_exp = self.visible_exp.xfile_into(de, ())?;
+        let allowed_binding = self.allowed_binding.xfile_into(de, ())?;
+        let sound_name = self.sound_name.xfile_into(de, ())?;
         let focus_color = self.focus_color.into();
         let disable_color = self.disable_color.into();
-        let rect_x_exp = self.rect_x_exp.xfile_into(&mut xfile, ())?;
-        let rect_y_exp = self.rect_y_exp.xfile_into(&mut xfile, ())?;
+        let rect_x_exp = self.rect_x_exp.xfile_into(de, ())?;
+        let rect_y_exp = self.rect_y_exp.xfile_into(de, ())?;
         let items = self
             .items
             .to_array(self.item_count as _)
-            .xfile_into(&mut xfile, ())?
+            .xfile_into(de, ())?
             .into_iter()
             .flatten()
             .collect();
@@ -231,16 +231,16 @@ pub struct WindowDef {
 }
 
 impl<'a> XFileInto<WindowDef, ()> for WindowDefRaw<'a> {
-    fn xfile_into(&self, mut xfile: impl Read + Seek, _data: ()) -> Result<WindowDef> {
-        let name = self.name.xfile_into(&mut xfile, ())?;
+    fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<WindowDef> {
+        let name = self.name.xfile_into(de, ())?;
         let rect = self.rect.into();
         let rect_client = self.rect_client.into();
-        let group = self.group.xfile_into(&mut xfile, ())?;
+        let group = self.group.xfile_into(de, ())?;
         let fore_color = self.fore_color.into();
         let back_color = self.back_color.into();
         let border_color = self.border_color.into();
         let outline_color = self.outline_color.into();
-        let background = self.background.xfile_into(xfile, ())?;
+        let background = self.background.xfile_into(de, ())?;
 
         Ok(WindowDef {
             name,
@@ -323,13 +323,13 @@ pub struct GenericEventHandler {
 }
 
 impl<'a> XFileInto<GenericEventHandler, ()> for GenericEventHandlerRaw<'a> {
-    fn xfile_into(&self, mut xfile: impl Read + Seek, _data: ()) -> Result<GenericEventHandler> {
-        let name = self.name.xfile_into(&mut xfile, ())?;
-        let event_script = self.event_script.xfile_into(&mut xfile, ())?;
+    fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<GenericEventHandler> {
+        let name = self.name.xfile_into(de, ())?;
+        let event_script = self.event_script.xfile_into(de, ())?;
         let next = if self.next.is_null() {
             None
         } else {
-            self.next.xfile_into(xfile, ())?
+            self.next.xfile_into(de, ())?
         };
 
         Ok(GenericEventHandler {
@@ -368,14 +368,14 @@ pub struct GenericEventScript {
 }
 
 impl<'a> XFileInto<GenericEventScript, ()> for GenericEventScriptRaw<'a> {
-    fn xfile_into(&self, mut xfile: impl Read + Seek, _data: ()) -> Result<GenericEventScript> {
-        let prerequisites = self.prerequisites.xfile_into(&mut xfile, ())?;
-        let condition = self.condition.xfile_into(&mut xfile, ())?;
-        let action = self.action.xfile_into(&mut xfile, ())?;
+    fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<GenericEventScript> {
+        let prerequisites = self.prerequisites.xfile_into(de, ())?;
+        let condition = self.condition.xfile_into(de, ())?;
+        let action = self.action.xfile_into(de, ())?;
         let next = if self.next.is_null() {
             None
         } else {
-            self.next.xfile_into(xfile, ())?
+            self.next.xfile_into(de, ())?
         };
 
         Ok(GenericEventScript {
@@ -411,11 +411,11 @@ pub struct ScriptCondition {
 }
 
 impl<'a> XFileInto<ScriptCondition, ()> for ScriptConditionRaw<'a> {
-    fn xfile_into(&self, xfile: impl Read + Seek, _data: ()) -> Result<ScriptCondition> {
+    fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<ScriptCondition> {
         let next = if self.next.is_null() {
             None
         } else {
-            self.next.xfile_into(xfile, ())?
+            self.next.xfile_into(de, ())?
         };
 
         Ok(ScriptCondition {
@@ -445,9 +445,9 @@ pub struct ExpressionStatement {
 }
 
 impl<'a> XFileInto<ExpressionStatement, ()> for ExpressionStatementRaw<'a> {
-    fn xfile_into(&self, mut xfile: impl Read + Seek, _data: ()) -> Result<ExpressionStatement> {
-        let filename = self.filename.xfile_into(&mut xfile, ())?;
-        let rpn = self.rpn.xfile_into(&mut xfile, ())?;
+    fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<ExpressionStatement> {
+        let filename = self.filename.xfile_into(de, ())?;
+        let rpn = self.rpn.xfile_into(de, ())?;
 
         Ok(ExpressionStatement {
             filename,
@@ -472,8 +472,8 @@ pub struct ExpressionRpn {
 }
 
 impl XFileInto<ExpressionRpn, ()> for ExpressionRpnRaw {
-    fn xfile_into(&self, xfile: impl Read + Seek, _data: ()) -> Result<ExpressionRpn> {
-        let data = self.data.xfile_into(xfile, self.type_)?;
+    fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<ExpressionRpn> {
+        let data = self.data.xfile_into(de, self.type_)?;
         Ok(ExpressionRpn { data })
     }
 }
@@ -491,10 +491,14 @@ pub enum ExpressionRpnDataUnion {
 }
 
 impl XFileInto<ExpressionRpnDataUnion, i32> for ExpressionRpnDataUnionRaw {
-    fn xfile_into(&self, xfile: impl Read + Seek, type_: i32) -> Result<ExpressionRpnDataUnion> {
+    fn xfile_into(
+        &self,
+        de: &mut T5XFileDeserializer,
+        type_: i32,
+    ) -> Result<ExpressionRpnDataUnion> {
         if type_ == 0 {
             Ok(ExpressionRpnDataUnion::Constant(
-                unsafe { transmute::<_, OperandRaw>(self.0) }.xfile_into(xfile, ())?,
+                unsafe { transmute::<_, OperandRaw>(self.0) }.xfile_into(de, ())?,
             ))
         } else {
             Err(Error::BrokenInvariant(format!(
@@ -529,10 +533,10 @@ pub struct Operand {
 }
 
 impl XFileInto<Operand, ()> for OperandRaw {
-    fn xfile_into(&self, xfile: impl Read + Seek, _data: ()) -> Result<Operand> {
+    fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<Operand> {
         let data_type = FromPrimitive::from_i32(self.data_type)
             .ok_or(Error::BadFromPrimitive(self.data_type as _))?;
-        let internals = self.internals.xfile_into(xfile, data_type)?;
+        let internals = self.internals.xfile_into(de, data_type)?;
         Ok(Operand { internals })
     }
 }
@@ -553,14 +557,14 @@ pub enum OperandInternalDataUnion {
 impl XFileInto<OperandInternalDataUnion, ExpDataType> for OperandInternalDataUnionRaw {
     fn xfile_into(
         &self,
-        xfile: impl Read + Seek,
+        de: &mut T5XFileDeserializer,
         data_type: ExpDataType,
     ) -> Result<OperandInternalDataUnion> {
         Ok(match data_type {
             ExpDataType::INT => OperandInternalDataUnion::Int(self.0 as _),
             ExpDataType::FLOAT => OperandInternalDataUnion::Float(f32::from_bits(self.0)),
             ExpDataType::STRING => {
-                OperandInternalDataUnion::String(XString::from_u32(self.0).xfile_into(xfile, ())?)
+                OperandInternalDataUnion::String(XString::from_u32(self.0).xfile_into(de, ())?)
             }
         })
     }
@@ -584,12 +588,12 @@ pub struct ItemKeyHandler {
 }
 
 impl<'a> XFileInto<ItemKeyHandler, ()> for ItemKeyHandlerRaw<'a> {
-    fn xfile_into(&self, mut xfile: impl Read + Seek, _data: ()) -> Result<ItemKeyHandler> {
-        let key_script = self.key_script.xfile_into(&mut xfile, ())?;
+    fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<ItemKeyHandler> {
+        let key_script = self.key_script.xfile_into(de, ())?;
         let next = if self.next.is_null() {
             None
         } else {
-            self.next.xfile_into(xfile, ())?
+            self.next.xfile_into(de, ())?
         };
         Ok(ItemKeyHandler {
             key: self.key,
@@ -648,12 +652,12 @@ pub struct ItemDef {
 }
 
 impl<'a> XFileInto<ItemDef, ()> for ItemDefRaw<'a> {
-    fn xfile_into(&self, mut xfile: impl Read + Seek, _data: ()) -> Result<ItemDef> {
-        let window = self.window.xfile_into(&mut xfile, ())?;
-        let dvar = self.dvar.xfile_into(&mut xfile, ())?;
-        let dvar_text = self.dvar_text.xfile_into(&mut xfile, ())?;
-        let enable_dvar = self.enable_dvar.xfile_into(&mut xfile, ())?;
-        let type_data = self.type_data.xfile_into(&mut xfile, self.type_)?;
+    fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<ItemDef> {
+        let window = self.window.xfile_into(de, ())?;
+        let dvar = self.dvar.xfile_into(de, ())?;
+        let dvar_text = self.dvar_text.xfile_into(de, ())?;
+        let enable_dvar = self.enable_dvar.xfile_into(de, ())?;
+        let type_data = self.type_data.xfile_into(de, self.type_)?;
         let parent = if self.parent.is_null() || self.parent.as_u32() != 0xFFFFFFFF {
             None
         } else {
@@ -662,11 +666,11 @@ impl<'a> XFileInto<ItemDef, ()> for ItemDefRaw<'a> {
                 file_line_col!()
             )));
         };
-        let rect_exp_data = self.rect_exp_data.xfile_into(&mut xfile, ())?;
-        let visible_exp = self.visible_exp.xfile_into(&mut xfile, ())?;
-        let forecolor_a_exp = self.forecolor_a_exp.xfile_into(&mut xfile, ())?;
-        let on_event = self.on_event.xfile_into(&mut xfile, ())?;
-        let anim_info = self.anim_info.xfile_into(xfile, ())?;
+        let rect_exp_data = self.rect_exp_data.xfile_into(de, ())?;
+        let visible_exp = self.visible_exp.xfile_into(de, ())?;
+        let forecolor_a_exp = self.forecolor_a_exp.xfile_into(de, ())?;
+        let on_event = self.on_event.xfile_into(de, ())?;
+        let anim_info = self.anim_info.xfile_into(de, ())?;
 
         Ok(ItemDef {
             window,
@@ -706,18 +710,18 @@ pub enum ItemDefData {
 }
 
 impl<'a> XFileInto<ItemDefData, i32> for ItemDefDataRaw<'a> {
-    fn xfile_into(&self, xfile: impl Read + Seek, type_: i32) -> Result<ItemDefData> {
+    fn xfile_into(&self, de: &mut T5XFileDeserializer, type_: i32) -> Result<ItemDefData> {
         if type_ == 2 {
             Ok(ItemDefData::ImageDef(
-                self.0.cast::<ImageDefRaw>().xfile_into(xfile, ())?,
+                self.0.cast::<ImageDefRaw>().xfile_into(de, ())?,
             ))
         } else if type_ == 21 || type_ == 19 {
             Ok(ItemDefData::BlankButtonDef(
-                self.0.cast::<FocusItemDefRaw>().xfile_into(xfile, type_)?,
+                self.0.cast::<FocusItemDefRaw>().xfile_into(de, type_)?,
             ))
         } else if type_ == 6 {
             Ok(ItemDefData::OwnerDrawDef(
-                self.0.cast::<OwnerDrawDefRaw>().xfile_into(xfile, ())?,
+                self.0.cast::<OwnerDrawDefRaw>().xfile_into(de, ())?,
             ))
         } else if type_ > 22 {
             Err(Error::BrokenInvariant(format!(
@@ -726,7 +730,7 @@ impl<'a> XFileInto<ItemDefData, i32> for ItemDefDataRaw<'a> {
             )))
         } else {
             Ok(ItemDefData::TextDef(
-                self.0.cast::<TextDefRaw>().xfile_into(xfile, type_)?,
+                self.0.cast::<TextDefRaw>().xfile_into(de, type_)?,
             ))
         }
     }
@@ -768,11 +772,11 @@ pub struct TextDef {
 }
 
 impl<'a> XFileInto<TextDef, i32> for TextDefRaw<'a> {
-    fn xfile_into(&self, mut xfile: impl Read + Seek, type_: i32) -> Result<TextDef> {
+    fn xfile_into(&self, de: &mut T5XFileDeserializer, type_: i32) -> Result<TextDef> {
         let text_rect = self.text_rect.map(Into::into);
-        let text = self.text.xfile_into(&mut xfile, ())?;
-        let text_exp_data = self.text_exp_data.xfile_into(&mut xfile, ())?;
-        let text_type_data = self.text_type_data.xfile_into(xfile, type_)?;
+        let text = self.text.xfile_into(de, ())?;
+        let text_exp_data = self.text_exp_data.xfile_into(de, ())?;
+        let text_type_data = self.text_type_data.xfile_into(de, type_)?;
 
         Ok(TextDef {
             text_rect,
@@ -805,8 +809,8 @@ pub struct TextExp {
 }
 
 impl<'a> XFileInto<TextExp, ()> for TextExpRaw<'a> {
-    fn xfile_into(&self, xfile: impl Read + Seek, _data: ()) -> Result<TextExp> {
-        let text_exp = self.text_exp.xfile_into(xfile, ())?;
+    fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<TextExp> {
+        let text_exp = self.text_exp.xfile_into(de, ())?;
 
         Ok(TextExp { text_exp })
     }
@@ -825,10 +829,10 @@ pub enum TextDefData {
 }
 
 impl<'a> XFileInto<TextDefData, i32> for TextDefDataRaw<'a> {
-    fn xfile_into(&self, xfile: impl Read + Seek, type_: i32) -> Result<TextDefData> {
+    fn xfile_into(&self, de: &mut T5XFileDeserializer, type_: i32) -> Result<TextDefData> {
         if type_ == 15 {
             Ok(TextDefData::GameMsgDef(
-                self.0.cast::<GameMsgDef>().xfile_get(xfile)?.map(Box::new),
+                self.0.cast::<GameMsgDef>().xfile_get(de)?.map(Box::new),
             ))
         } else if type_ < 3
             || type_ == 6
@@ -844,7 +848,7 @@ impl<'a> XFileInto<TextDefData, i32> for TextDefDataRaw<'a> {
             )))
         } else {
             Ok(TextDefData::FocusItemDef(
-                self.0.cast::<FocusItemDefRaw>().xfile_into(xfile, type_)?,
+                self.0.cast::<FocusItemDefRaw>().xfile_into(de, type_)?,
             ))
         }
     }
@@ -874,13 +878,13 @@ pub struct FocusItemDef {
 }
 
 impl<'a> XFileInto<FocusItemDef, i32> for FocusItemDefRaw<'a> {
-    fn xfile_into(&self, mut xfile: impl Read + Seek, type_: i32) -> Result<FocusItemDef> {
-        let mouse_enter_text = self.mouse_enter_text.xfile_into(&mut xfile, ())?;
-        let mouse_exit_text = self.mouse_exit_text.xfile_into(&mut xfile, ())?;
-        let mouse_enter = self.mouse_enter.xfile_into(&mut xfile, ())?;
-        let mouse_exit = self.mouse_exit.xfile_into(&mut xfile, ())?;
-        let on_key = self.on_key.xfile_into(&mut xfile, ())?;
-        let focus_type_data = self.focus_type_data.xfile_into(xfile, type_)?;
+    fn xfile_into(&self, de: &mut T5XFileDeserializer, type_: i32) -> Result<FocusItemDef> {
+        let mouse_enter_text = self.mouse_enter_text.xfile_into(de, ())?;
+        let mouse_exit_text = self.mouse_exit_text.xfile_into(de, ())?;
+        let mouse_enter = self.mouse_enter.xfile_into(de, ())?;
+        let mouse_exit = self.mouse_exit.xfile_into(de, ())?;
+        let on_key = self.on_key.xfile_into(de, ())?;
+        let focus_type_data = self.focus_type_data.xfile_into(de, type_)?;
 
         Ok(FocusItemDef {
             mouse_enter_text,
@@ -908,18 +912,18 @@ pub enum FocusDefData {
 }
 
 impl<'a> XFileInto<FocusDefData, i32> for FocusDefDataRaw<'a> {
-    fn xfile_into(&self, xfile: impl Read + Seek, type_: i32) -> Result<FocusDefData> {
+    fn xfile_into(&self, de: &mut T5XFileDeserializer, type_: i32) -> Result<FocusDefData> {
         if type_ == 4 {
             Ok(FocusDefData::ListBox(
-                self.0.cast::<ListBoxDefRaw>().xfile_into(xfile, ())?,
+                self.0.cast::<ListBoxDefRaw>().xfile_into(de, ())?,
             ))
         } else if type_ == 10 {
             Ok(FocusDefData::Multi(
-                self.0.cast::<MultiDefRaw>().xfile_into(xfile, ())?,
+                self.0.cast::<MultiDefRaw>().xfile_into(de, ())?,
             ))
         } else if type_ == 11 {
             Ok(FocusDefData::EnumDvar(
-                self.0.cast::<EnumDvarDefRaw>().xfile_into(xfile, ())?,
+                self.0.cast::<EnumDvarDefRaw>().xfile_into(de, ())?,
             ))
         } else if type_ == 5
             || type_ == 7
@@ -933,10 +937,7 @@ impl<'a> XFileInto<FocusDefData, i32> for FocusDefDataRaw<'a> {
             || type_ == 30
         {
             Ok(FocusDefData::EditField(
-                self.0
-                    .cast::<EditFieldDef>()
-                    .xfile_get(xfile)?
-                    .map(Box::new),
+                self.0.cast::<EditFieldDef>().xfile_get(de)?.map(Box::new),
             ))
         } else {
             Err(Error::BrokenInvariant(format!(
@@ -1006,7 +1007,7 @@ pub struct ListBoxDef {
 }
 
 impl<'a> XFileInto<ListBoxDef, ()> for ListBoxDefRaw<'a> {
-    fn xfile_into(&self, mut xfile: impl Read + Seek, _data: ()) -> Result<ListBoxDef> {
+    fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<ListBoxDef> {
         let draw_padding = self.draw_padding != 0;
         let column_info = self.column_info.map(Into::into);
         let not_selectable = self.not_selectable != 0;
@@ -1017,11 +1018,11 @@ impl<'a> XFileInto<ListBoxDef, ()> for ListBoxDefRaw<'a> {
         let focus_color = self.focus_color.into();
         let element_highlight_color = self.element_highlight_color.into();
         let element_background_color = self.element_background_color.into();
-        let select_icon = self.select_icon.xfile_into(&mut xfile, ())?;
-        let background_item_listbox = self.background_item_listbox.xfile_into(&mut xfile, ())?;
-        let highlight_texture = self.highlight_texture.xfile_into(&mut xfile, ())?;
+        let select_icon = self.select_icon.xfile_into(de, ())?;
+        let background_item_listbox = self.background_item_listbox.xfile_into(de, ())?;
+        let highlight_texture = self.highlight_texture.xfile_into(de, ())?;
         let no_blinking_highlight = self.no_blinking_highlight != 0;
-        let rows = self.rows.xfile_into(xfile, self.num_columns)?;
+        let rows = self.rows.xfile_into(de, self.num_columns)?;
 
         Ok(ListBoxDef {
             mouse_pos: self.mouse_pos,
@@ -1104,13 +1105,10 @@ pub struct MenuRow {
 }
 
 impl<'a> XFileInto<MenuRow, i32> for MenuRowRaw<'a> {
-    fn xfile_into(&self, mut xfile: impl Read + Seek, num_columns: i32) -> Result<MenuRow> {
-        let cells = self
-            .cells
-            .to_array(num_columns as _)
-            .xfile_into(&mut xfile, ())?;
-        let event_name = self.event_name.xfile_into(&mut xfile, ())?;
-        let on_focus_event_name = self.on_focus_event_name.xfile_into(xfile, ())?;
+    fn xfile_into(&self, de: &mut T5XFileDeserializer, num_columns: i32) -> Result<MenuRow> {
+        let cells = self.cells.to_array(num_columns as _).xfile_into(de, ())?;
+        let event_name = self.event_name.xfile_into(de, ())?;
+        let on_focus_event_name = self.on_focus_event_name.xfile_into(de, ())?;
 
         Ok(MenuRow {
             cells,
@@ -1141,8 +1139,8 @@ pub struct MenuCell {
 }
 
 impl<'a> XFileInto<MenuCell, ()> for MenuCellRaw<'a> {
-    fn xfile_into(&self, xfile: impl Read + Seek, _data: ()) -> Result<MenuCell> {
-        let string_value = self.string_value.xfile_into(xfile, ())?;
+    fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<MenuCell> {
+        let string_value = self.string_value.xfile_into(de, ())?;
 
         Ok(MenuCell {
             type_: self.type_,
@@ -1176,18 +1174,18 @@ pub struct MultiDef {
 }
 
 impl<'a> XFileInto<MultiDef, ()> for MultiDefRaw<'a> {
-    fn xfile_into(&self, mut xfile: impl Read + Seek, _data: ()) -> Result<MultiDef> {
+    fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<MultiDef> {
         let dvar_list = self
             .dvar_list
             .into_iter()
-            .map(|d| d.xfile_into(&mut xfile, ()))
+            .map(|d| d.xfile_into(de, ()))
             .collect::<Result<Vec<_>>>()?
             .try_into()
             .unwrap();
         let dvar_str = self
             .dvar_str
             .into_iter()
-            .map(|d| d.xfile_into(&mut xfile, ()))
+            .map(|d| d.xfile_into(de, ()))
             .collect::<Result<Vec<_>>>()?
             .try_into()
             .unwrap();
@@ -1233,8 +1231,8 @@ pub struct EnumDvarDef {
 }
 
 impl<'a> XFileInto<EnumDvarDef, ()> for EnumDvarDefRaw<'a> {
-    fn xfile_into(&self, xfile: impl Read + Seek, _data: ()) -> Result<EnumDvarDef> {
-        let enum_dvar_name = self.enum_dvar_name.xfile_into(xfile, ())?;
+    fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<EnumDvarDef> {
+        let enum_dvar_name = self.enum_dvar_name.xfile_into(de, ())?;
 
         Ok(EnumDvarDef { enum_dvar_name })
     }
@@ -1262,8 +1260,8 @@ pub struct ImageDef {
 }
 
 impl<'a> XFileInto<ImageDef, ()> for ImageDefRaw<'a> {
-    fn xfile_into(&self, xfile: impl Read + Seek, _data: ()) -> Result<ImageDef> {
-        let material_exp = self.material_exp.xfile_into(xfile, ())?;
+    fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<ImageDef> {
+        let material_exp = self.material_exp.xfile_into(de, ())?;
 
         Ok(ImageDef { material_exp })
     }
@@ -1283,8 +1281,8 @@ pub struct OwnerDrawDef {
 }
 
 impl<'a> XFileInto<OwnerDrawDef, ()> for OwnerDrawDefRaw<'a> {
-    fn xfile_into(&self, xfile: impl Read + Seek, _data: ()) -> Result<OwnerDrawDef> {
-        let data_exp = self.data_exp.xfile_into(xfile, ())?;
+    fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<OwnerDrawDef> {
+        let data_exp = self.data_exp.xfile_into(de, ())?;
 
         Ok(OwnerDrawDef { data_exp })
     }
@@ -1310,11 +1308,11 @@ pub struct RectData {
 }
 
 impl<'a> XFileInto<RectData, ()> for RectDataRaw<'a> {
-    fn xfile_into(&self, mut xfile: impl Read + Seek, _data: ()) -> Result<RectData> {
-        let rect_x_exp = self.rect_x_exp.xfile_into(&mut xfile, ())?;
-        let rect_y_exp = self.rect_y_exp.xfile_into(&mut xfile, ())?;
-        let rect_w_exp = self.rect_w_exp.xfile_into(&mut xfile, ())?;
-        let rect_h_exp = self.rect_h_exp.xfile_into(&mut xfile, ())?;
+    fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<RectData> {
+        let rect_x_exp = self.rect_x_exp.xfile_into(de, ())?;
+        let rect_y_exp = self.rect_y_exp.xfile_into(de, ())?;
+        let rect_w_exp = self.rect_w_exp.xfile_into(de, ())?;
+        let rect_h_exp = self.rect_h_exp.xfile_into(de, ())?;
 
         Ok(RectData {
             rect_x_exp,
@@ -1349,15 +1347,15 @@ pub struct UIAnimInfo {
 }
 
 impl<'a> XFileInto<UIAnimInfo, ()> for UIAnimInfoRaw<'a> {
-    fn xfile_into(&self, mut xfile: impl Read + Seek, _data: ()) -> Result<UIAnimInfo> {
+    fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<UIAnimInfo> {
         let anim_states = self
             .anim_states
-            .xfile_into(&mut xfile, ())?
+            .xfile_into(de, ())?
             .into_iter()
             .flatten()
             .collect();
-        let current_anim_state = self.current_anim_state.xfile_into(&mut xfile, ())?;
-        let next_anim_state = self.next_anim_state.xfile_into(xfile, ())?;
+        let current_anim_state = self.current_anim_state.xfile_into(de, ())?;
+        let next_anim_state = self.next_anim_state.xfile_into(de, ())?;
         let animating = self.animating != 0;
 
         Ok(UIAnimInfo {
@@ -1403,14 +1401,14 @@ pub struct AnimParamsDef {
 }
 
 impl<'a> XFileInto<AnimParamsDef, ()> for AnimParamsDefRaw<'a> {
-    fn xfile_into(&self, mut xfile: impl Read + Seek, _data: ()) -> Result<AnimParamsDef> {
-        let name = self.name.xfile_into(&mut xfile, ())?;
+    fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<AnimParamsDef> {
+        let name = self.name.xfile_into(de, ())?;
         let rect_client = self.rect_client.into();
         let fore_color = self.fore_color.into();
         let back_color = self.back_color.into();
         let border_color = self.border_color.into();
         let outline_color = self.outline_color.into();
-        let on_event = self.on_event.xfile_into(xfile, ())?;
+        let on_event = self.on_event.xfile_into(de, ())?;
 
         Ok(AnimParamsDef {
             name,

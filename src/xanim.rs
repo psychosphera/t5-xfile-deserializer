@@ -72,13 +72,13 @@ pub struct XAnimParts {
 }
 
 impl<'a> XFileInto<XAnimParts, ()> for XAnimPartsRaw<'a> {
-    fn xfile_into(&self, mut xfile: impl Read + Seek, _data: ()) -> Result<XAnimParts> {
-        let name = self.name.xfile_into(&mut xfile, ())?;
+    fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<XAnimParts> {
+        let name = self.name.xfile_into(de, ())?;
         let notify = self
             .notify
             .to_array(self.notify_count as _)
-            .to_vec_into(&mut xfile)?;
-        let delta_part = self.delta_part.xfile_into(&mut xfile, self.numframes)?;
+            .xfile_into(de, ())?;
+        let delta_part = self.delta_part.xfile_into(de, self.numframes)?;
 
         Ok(XAnimParts {
             name,
@@ -100,37 +100,37 @@ impl<'a> XFileInto<XAnimParts, ()> for XAnimPartsRaw<'a> {
             names: self
                 .names
                 .to_array(self.bone_count[PART_TYPE_ALL] as _)
-                .to_vec(&mut xfile)?
+                .to_vec(de)?
                 .into_iter()
-                .map(|s| s.to_string())
+                .map(|s| s.to_string(&de.script_strings).unwrap_or_default())
                 .collect(),
             data_byte: self
                 .data_byte
                 .to_array(self.data_byte_count as _)
-                .to_vec(&mut xfile)?,
+                .to_vec(de)?,
             data_short: self
                 .data_short
                 .to_array(self.data_short_count as _)
-                .to_vec(&mut xfile)?,
+                .to_vec(de)?,
             data_int: self
                 .data_int
                 .to_array(self.data_int_count as _)
-                .to_vec(&mut xfile)?,
+                .to_vec(de)?,
             random_data_short: self
                 .random_data_short
                 .to_array(self.random_data_short_count as _)
-                .to_vec(&mut xfile)?,
+                .to_vec(de)?,
             random_data_byte: self
                 .random_data_byte
                 .to_array(self.random_data_byte_count as _)
-                .to_vec(&mut xfile)?,
+                .to_vec(de)?,
             random_data_int: self
                 .random_data_int
                 .to_array(self.random_data_int_count as _)
-                .to_vec(&mut xfile)?,
+                .to_vec(de)?,
             indices: self
                 .indices
-                .xfile_into(&mut xfile, (self.numframes, self.index_count))?,
+                .xfile_into(de, (self.numframes, self.index_count))?,
             notify,
             delta_part,
         })
@@ -152,22 +152,16 @@ pub enum XAnimIndices {
 impl<'a> XFileInto<XAnimIndices, (u16, u32)> for XAnimIndicesRaw<'a> {
     fn xfile_into(
         &self,
-        xfile: impl Read + Seek,
+        de: &mut T5XFileDeserializer,
         (num_frames, index_count): (u16, u32),
     ) -> Result<XAnimIndices> {
         if num_frames < 256 {
             Ok(XAnimIndices::_1(
-                self.0
-                    .cast::<u8>()
-                    .to_array(index_count as _)
-                    .to_vec(xfile)?,
+                self.0.cast::<u8>().to_array(index_count as _).to_vec(de)?,
             ))
         } else {
             Ok(XAnimIndices::_2(
-                self.0
-                    .cast::<u16>()
-                    .to_array(index_count as _)
-                    .to_vec(xfile)?,
+                self.0.cast::<u16>().to_array(index_count as _).to_vec(de)?,
             ))
         }
     }
@@ -188,12 +182,12 @@ pub struct XAnimNotifyInfo {
     pub time: f32,
 }
 
-impl From<XAnimNotifyInfoRaw> for XAnimNotifyInfo {
-    fn from(value: XAnimNotifyInfoRaw) -> Self {
-        Self {
-            name: value.name.to_string(),
-            time: value.time,
-        }
+impl XFileInto<XAnimNotifyInfo, ()> for XAnimNotifyInfoRaw {
+    fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<XAnimNotifyInfo> {
+        Ok(XAnimNotifyInfo {
+            name: self.name.to_string(&de.script_strings).unwrap_or_default(),
+            time: self.time,
+        })
     }
 }
 
@@ -213,10 +207,10 @@ pub struct XAnimDeltaPart {
 }
 
 impl<'a> XFileInto<XAnimDeltaPart, u16> for XAnimDeltaPartRaw<'a> {
-    fn xfile_into(&self, mut xfile: impl Read + Seek, numframes: u16) -> Result<XAnimDeltaPart> {
+    fn xfile_into(&self, de: &mut T5XFileDeserializer, numframes: u16) -> Result<XAnimDeltaPart> {
         Ok(XAnimDeltaPart {
-            trans: self.trans.xfile_into(&mut xfile, numframes)?,
-            quat: self.quat.xfile_into(xfile, numframes)?,
+            trans: self.trans.xfile_into(de, numframes)?,
+            quat: self.quat.xfile_into(de, numframes)?,
         })
     }
 }
@@ -240,13 +234,13 @@ pub struct XAnimPartTrans {
 }
 
 impl<'a> XFileInto<XAnimPartTrans, u16> for XAnimPartTransRaw<'a> {
-    fn xfile_into(&self, xfile: impl Read + Seek, numframes: u16) -> Result<XAnimPartTrans> {
+    fn xfile_into(&self, de: &mut T5XFileDeserializer, numframes: u16) -> Result<XAnimPartTrans> {
         Ok(XAnimPartTrans {
             size: self.size,
             small_trans: self.small_trans,
             u: self
                 .u
-                .xfile_into(xfile, (numframes, self.small_trans, self.size))?,
+                .xfile_into(de, (numframes, self.small_trans, self.size))?,
         })
     }
 }
@@ -266,7 +260,7 @@ pub enum XAnimPartTransData {
 impl<'a> XFileInto<Option<XAnimPartTransData>, (u16, u8, u16)> for XAnimPartTransDataRaw<'a> {
     fn xfile_into(
         &self,
-        xfile: impl Read + Seek,
+        de: &mut T5XFileDeserializer,
         (numframes, small_trans, size): (u16, u8, u16),
     ) -> Result<Option<XAnimPartTransData>> {
         if self.0.is_null() {
@@ -277,7 +271,7 @@ impl<'a> XFileInto<Option<XAnimPartTransData>, (u16, u8, u16)> for XAnimPartTran
             Ok(Some(XAnimPartTransData::Frame0(
                 self.0
                     .cast::<[f32; 3]>()
-                    .xfile_get(xfile)?
+                    .xfile_get(de)?
                     .map(Into::into)
                     .unwrap(),
             )))
@@ -286,7 +280,7 @@ impl<'a> XFileInto<Option<XAnimPartTransData>, (u16, u8, u16)> for XAnimPartTran
                 *self
                     .0
                     .cast::<XAnimPartTransFramesRaw>()
-                    .xfile_into(xfile, (numframes, small_trans, size))?
+                    .xfile_into(de, (numframes, small_trans, size))?
                     .unwrap(),
             )))
         }
@@ -315,14 +309,14 @@ pub struct XAnimPartTransFrames {
 impl<'a> XFileInto<XAnimPartTransFrames, (u16, u8, u16)> for XAnimPartTransFramesRaw<'a> {
     fn xfile_into(
         &self,
-        mut xfile: impl Read + Seek,
+        de: &mut T5XFileDeserializer,
         (numframes, small_trans, size): (u16, u8, u16),
     ) -> Result<XAnimPartTransFrames> {
-        let indices = self.indices.xfile_into(&mut xfile, (numframes, size))?;
+        let indices = self.indices.xfile_into(de, (numframes, size))?;
         Ok(XAnimPartTransFrames {
             mins: self.mins.into(),
             maxs: self.maxs.into(),
-            frames: self.frames.xfile_into(xfile, (small_trans, size))?,
+            frames: self.frames.xfile_into(de, (small_trans, size))?,
             indices,
         })
     }
@@ -342,7 +336,7 @@ pub enum XAnimDynamicFrames {
 impl<'a> XFileInto<XAnimDynamicFrames, (u8, u16)> for XAnimDynamicFramesRaw<'a> {
     fn xfile_into(
         &self,
-        xfile: impl Read + Seek,
+        de: &mut T5XFileDeserializer,
         (small_trans, size): (u8, u16),
     ) -> Result<XAnimDynamicFrames> {
         if small_trans == 0 {
@@ -350,7 +344,7 @@ impl<'a> XFileInto<XAnimDynamicFrames, (u8, u16)> for XAnimDynamicFramesRaw<'a> 
                 self.0
                     .cast::<[u16; 3]>()
                     .to_array(size as usize + 1)
-                    .to_vec(xfile)?
+                    .to_vec(de)?
             } else {
                 Vec::new()
             }))
@@ -359,7 +353,7 @@ impl<'a> XFileInto<XAnimDynamicFrames, (u8, u16)> for XAnimDynamicFramesRaw<'a> 
                 self.0
                     .cast::<[u8; 3]>()
                     .to_array(size as usize + 1)
-                    .to_vec(xfile)?
+                    .to_vec(de)?
             } else {
                 Vec::new()
             }))
@@ -382,22 +376,19 @@ pub enum XAnimDynamicIndices {
 impl<'a> XFileInto<XAnimDynamicIndices, (u16, u16)> for XAnimDynamicIndicesRaw<'a> {
     fn xfile_into(
         &self,
-        xfile: impl Read + Seek,
+        de: &mut T5XFileDeserializer,
         (numframes, size): (u16, u16),
     ) -> Result<XAnimDynamicIndices> {
         if numframes < 256 {
             Ok(XAnimDynamicIndices::_1(
-                self.0
-                    .cast::<u8>()
-                    .to_array(size as usize + 1)
-                    .to_vec(xfile)?,
+                self.0.cast::<u8>().to_array(size as usize + 1).to_vec(de)?,
             ))
         } else {
             Ok(XAnimDynamicIndices::_2(
                 self.0
                     .cast::<u16>()
                     .to_array(size as usize + 1)
-                    .to_vec(xfile)?,
+                    .to_vec(de)?,
             ))
         }
     }
@@ -421,10 +412,14 @@ pub struct XAnimDeltaPartQuat {
 }
 
 impl<'a> XFileInto<XAnimDeltaPartQuat, u16> for XAnimDeltaPartQuatRaw<'a> {
-    fn xfile_into(&self, xfile: impl Read + Seek, numframes: u16) -> Result<XAnimDeltaPartQuat> {
+    fn xfile_into(
+        &self,
+        de: &mut T5XFileDeserializer,
+        numframes: u16,
+    ) -> Result<XAnimDeltaPartQuat> {
         Ok(XAnimDeltaPartQuat {
             size: self.size,
-            u: self.u.xfile_into(xfile, (numframes, self.size))?,
+            u: self.u.xfile_into(de, (numframes, self.size))?,
             pad: [0; 4],
         })
     }
@@ -445,7 +440,7 @@ pub enum XAnimDeltaPartQuatData {
 impl<'a> XFileInto<Option<XAnimDeltaPartQuatData>, (u16, u16)> for XAnimDeltaPartQuatDataRaw<'a> {
     fn xfile_into(
         &self,
-        xfile: impl Read + Seek,
+        de: &mut T5XFileDeserializer,
         (numframes, size): (u16, u16),
     ) -> Result<Option<XAnimDeltaPartQuatData>> {
         if self.0.is_null() {
@@ -454,16 +449,13 @@ impl<'a> XFileInto<Option<XAnimDeltaPartQuatData>, (u16, u16)> for XAnimDeltaPar
 
         if numframes == 0 {
             Ok(Some(XAnimDeltaPartQuatData::Frame0(
-                self.0
-                    .cast::<[i16; 2]>()
-                    .xfile_get(xfile)?
-                    .unwrap_or_default(),
+                self.0.cast::<[i16; 2]>().xfile_get(de)?.unwrap_or_default(),
             )))
         } else {
             Ok(Some(XAnimDeltaPartQuatData::Frames(
                 self.0
                     .cast::<XAnimDeltaPartQuatDataFramesRaw>()
-                    .xfile_into(xfile, (numframes, size))?
+                    .xfile_into(de, (numframes, size))?
                     .map(|d| *d)
                     .unwrap(),
             )))
@@ -491,12 +483,12 @@ impl<'a> XFileInto<XAnimDeltaPartQuatDataFrames, (u16, u16)>
 {
     fn xfile_into(
         &self,
-        mut xfile: impl Read + Seek,
+        de: &mut T5XFileDeserializer,
         data: (u16, u16),
     ) -> Result<XAnimDeltaPartQuatDataFrames> {
-        let indices = self.indices.xfile_into(&mut xfile, data)?;
+        let indices = self.indices.xfile_into(de, data)?;
         let frames = if data.1 != 0 {
-            self.frames.to_array(data.1 as usize + 1).to_vec(xfile)?
+            self.frames.to_array(data.1 as usize + 1).to_vec(de)?
         } else {
             Vec::new()
         };

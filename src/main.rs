@@ -26,7 +26,7 @@ fn main() {
         de.cache(cached_filename).unwrap();
     }
     let assets = de.deserialize_remaining().unwrap();
-    for (i, asset) in assets.iter().enumerate() {
+    for (i, asset) in assets.into_iter().enumerate() {
         println!("Found asset '{}' ({})", asset.name().unwrap_or_default(), i);
     }
     //dbg!(assets);

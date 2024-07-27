@@ -17,10 +17,10 @@ pub struct GfxLightDef {
 }
 
 impl<'a> XFileInto<GfxLightDef, ()> for GfxLightDefRaw<'a> {
-    fn xfile_into(&self, mut xfile: impl Read + Seek, _data: ()) -> Result<GfxLightDef> {
+    fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<GfxLightDef> {
         Ok(GfxLightDef {
-            name: self.name.xfile_into(&mut xfile, ())?,
-            attenuation: self.attenuation.xfile_into(xfile, ())?,
+            name: self.name.xfile_into(de, ())?,
+            attenuation: self.attenuation.xfile_into(de, ())?,
             lmap_lookup_start: self.lmap_lookup_start,
         })
     }
@@ -41,9 +41,9 @@ pub struct GfxLightImage {
 }
 
 impl<'a> XFileInto<GfxLightImage, ()> for GfxLightImageRaw<'a> {
-    fn xfile_into(&self, xfile: impl Read + Seek, _data: ()) -> Result<GfxLightImage> {
+    fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<GfxLightImage> {
         Ok(GfxLightImage {
-            image: self.image.xfile_into(xfile, ())?,
+            image: self.image.xfile_into(de, ())?,
             sampler_state: self.sampler_state,
         })
     }
