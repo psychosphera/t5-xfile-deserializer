@@ -102,7 +102,7 @@ impl<'a> XFileInto<XAnimParts, ()> for XAnimPartsRaw<'a> {
                 .to_array(self.bone_count[PART_TYPE_ALL] as _)
                 .to_vec(de)?
                 .into_iter()
-                .map(|s| s.to_string(&de.script_strings).unwrap_or_default())
+                .map(|s| s.to_string(de).unwrap_or_default())
                 .collect(),
             data_byte: self
                 .data_byte
@@ -185,7 +185,7 @@ pub struct XAnimNotifyInfo {
 impl XFileInto<XAnimNotifyInfo, ()> for XAnimNotifyInfoRaw {
     fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<XAnimNotifyInfo> {
         Ok(XAnimNotifyInfo {
-            name: self.name.to_string(&de.script_strings).unwrap_or_default(),
+            name: self.name.to_string(de).unwrap_or_default(),
             time: self.time,
         })
     }

@@ -7,21 +7,27 @@ use crate::*;
 
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
-pub(crate) struct MenuListRaw<'a> {
+pub(crate) struct MenuListRaw<'a, const MAX_LOCAL_CLIENTS: usize> {
     pub name: XString<'a>,
-    pub menus: FatPointerCountFirstU32<'a, MenuDefRaw<'a>>,
+    pub menus: FatPointerCountFirstU32<'a, MenuDefRaw<'a, MAX_LOCAL_CLIENTS>>,
 }
-assert_size!(MenuListRaw, 12);
+assert_size!(MenuListRaw<1>, 12);
 
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug)]
-pub struct MenuList {
+pub struct MenuList<const MAX_LOCAL_CLIENTS: usize> {
     pub name: String,
-    pub menus: Vec<MenuDef>,
+    pub menus: Vec<MenuDef<MAX_LOCAL_CLIENTS>>,
 }
 
-impl<'a> XFileInto<MenuList, ()> for MenuListRaw<'a> {
-    fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<MenuList> {
+impl<'a, const MAX_LOCAL_CLIENTS: usize> XFileInto<MenuList<MAX_LOCAL_CLIENTS>, ()>
+    for MenuListRaw<'a, MAX_LOCAL_CLIENTS>
+{
+    fn xfile_into(
+        &self,
+        de: &mut T5XFileDeserializer,
+        _data: (),
+    ) -> Result<MenuList<MAX_LOCAL_CLIENTS>> {
         let name = self.name.xfile_into(de, ())?;
         let menus = self.menus.xfile_into(de, ())?;
 
@@ -30,14 +36,15 @@ impl<'a> XFileInto<MenuList, ()> for MenuListRaw<'a> {
 }
 
 #[cfg_attr(feature = "serde", derive(Serialize))]
-#[derive(Copy, Clone, Default, Debug, Deserialize)]
-pub(crate) struct MenuDefRaw<'a> {
-    pub window: WindowDefRaw<'a>,
+#[derive(Copy, Clone, Debug, Deserialize)]
+pub(crate) struct MenuDefRaw<'a, const MAX_LOCAL_CLIENTS: usize> {
+    pub window: WindowDefRaw<'a, MAX_LOCAL_CLIENTS>,
     pub font: XString<'a>,
     pub full_screen: i32,
     pub ui_3d_window_id: i32,
     pub item_count: i32,
     pub font_index: i32,
+    #[serde(with = "serde_arrays")]
     pub cursor_item: [i32; MAX_LOCAL_CLIENTS],
     pub fade_cycle: i32,
     pub priority: i32,
@@ -67,19 +74,64 @@ pub(crate) struct MenuDefRaw<'a> {
     pub disable_color: [f32; 4],
     pub rect_x_exp: ExpressionStatementRaw<'a>,
     pub rect_y_exp: ExpressionStatementRaw<'a>,
-    pub items: Ptr32<'a, Ptr32<'a, ItemDefRaw<'a>>>,
+    pub items: Ptr32<'a, Ptr32<'a, ItemDefRaw<'a, MAX_LOCAL_CLIENTS>>>,
     pub pad: [u8; 4],
 }
-assert_size!(MenuDefRaw, 400);
+assert_size!(MenuDefRaw<1>, 400);
+
+impl<'a, const MAX_LOCAL_CLIENTS: usize> Default for MenuDefRaw<'a, MAX_LOCAL_CLIENTS> {
+    fn default() -> Self {
+        Self {
+            window: WindowDefRaw::default(),
+            font: XString::default(),
+            full_screen: i32::default(),
+            ui_3d_window_id: i32::default(),
+            item_count: i32::default(),
+            font_index: i32::default(),
+            cursor_item: [i32::default(); MAX_LOCAL_CLIENTS],
+            fade_cycle: i32::default(),
+            priority: i32::default(),
+            fade_clamp: f32::default(),
+            fade_amount: f32::default(),
+            fade_in_amount: f32::default(),
+            blur_radius: f32::default(),
+            open_slide_speed: i32::default(),
+            close_slide_speed: i32::default(),
+            open_slide_direction: i32::default(),
+            close_slide_direction: i32::default(),
+            intial_rect_info: RectDefRaw::default(),
+            open_fading_time: i32::default(),
+            close_fading_time: i32::default(),
+            fade_time_counter: i32::default(),
+            slide_time_counter: i32::default(),
+            on_event: Ptr32::default(),
+            on_key: Ptr32::default(),
+            visible_exp: ExpressionStatementRaw::default(),
+            show_bits: u64::default(),
+            hide_bits: u64::default(),
+            allowed_binding: XString::default(),
+            sound_name: XString::default(),
+            image_track: i32::default(),
+            control: i32::default(),
+            focus_color: [f32::default(); 4],
+            disable_color: [f32::default(); 4],
+            rect_x_exp: ExpressionStatementRaw::default(),
+            rect_y_exp: ExpressionStatementRaw::default(),
+            items: Ptr32::default(),
+            pad: [u8::default(); 4],
+        }
+    }
+}
 
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug)]
-pub struct MenuDef {
-    pub window: WindowDef,
+pub struct MenuDef<const MAX_LOCAL_CLIENTS: usize> {
+    pub window: WindowDef<MAX_LOCAL_CLIENTS>,
     pub font: String,
     pub full_screen: bool,
     pub ui_3d_window_id: i32,
     pub font_index: i32,
+    #[serde(with = "serde_arrays")]
     pub cursor_item: [i32; MAX_LOCAL_CLIENTS],
     pub fade_cycle: i32,
     pub priority: i32,
@@ -109,11 +161,17 @@ pub struct MenuDef {
     pub disable_color: Vec4,
     pub rect_x_exp: ExpressionStatement,
     pub rect_y_exp: ExpressionStatement,
-    pub items: Vec<Box<ItemDef>>,
+    pub items: Vec<Box<ItemDef<MAX_LOCAL_CLIENTS>>>,
 }
 
-impl<'a> XFileInto<MenuDef, ()> for MenuDefRaw<'a> {
-    fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<MenuDef> {
+impl<'a, const MAX_LOCAL_CLIENTS: usize> XFileInto<MenuDef<MAX_LOCAL_CLIENTS>, ()>
+    for MenuDefRaw<'a, MAX_LOCAL_CLIENTS>
+{
+    fn xfile_into(
+        &self,
+        de: &mut T5XFileDeserializer,
+        _data: (),
+    ) -> Result<MenuDef<MAX_LOCAL_CLIENTS>> {
         let window = self.window.xfile_into(de, ())?;
         let font = self.font.xfile_into(de, ())?;
         let full_screen = self.full_screen != 0;
@@ -176,8 +234,8 @@ impl<'a> XFileInto<MenuDef, ()> for MenuDefRaw<'a> {
 }
 
 #[cfg_attr(feature = "serde", derive(Serialize))]
-#[derive(Copy, Clone, Default, Debug, Deserialize)]
-pub(crate) struct WindowDefRaw<'a> {
+#[derive(Copy, Clone, Debug, Deserialize)]
+pub(crate) struct WindowDefRaw<'a, const MAX_LOCAL_CLIENTS: usize> {
     pub name: XString<'a>,
     pub rect: RectDefRaw,
     pub rect_client: RectDefRaw,
@@ -192,6 +250,7 @@ pub(crate) struct WindowDefRaw<'a> {
     pub owner_draw_flags: i32,
     pub border_size: f32,
     pub static_flags: i32,
+    #[serde(with = "serde_arrays")]
     pub dynamic_flags: [i32; MAX_LOCAL_CLIENTS],
     pub next_time: i32,
     pub fore_color: [f32; 4],
@@ -201,11 +260,40 @@ pub(crate) struct WindowDefRaw<'a> {
     pub rotation: f32,
     pub background: Ptr32<'a, techset::MaterialRaw<'a>>,
 }
-assert_size!(WindowDefRaw, 164);
+assert_size!(WindowDefRaw<1>, 164);
+
+impl<'a, const MAX_LOCAL_CLIENTS: usize> Default for WindowDefRaw<'a, MAX_LOCAL_CLIENTS> {
+    fn default() -> Self {
+        Self {
+            name: XString::default(),
+            rect: RectDefRaw::default(),
+            rect_client: RectDefRaw::default(),
+            group: XString::default(),
+            style: u8::default(),
+            border: u8::default(),
+            modal: u8::default(),
+            frame_sides: u8::default(),
+            frame_tex_size: f32::default(),
+            frame_size: f32::default(),
+            owner_draw: i32::default(),
+            owner_draw_flags: i32::default(),
+            border_size: f32::default(),
+            static_flags: i32::default(),
+            dynamic_flags: [i32::default(); MAX_LOCAL_CLIENTS],
+            next_time: i32::default(),
+            fore_color: [f32::default(); 4],
+            back_color: [f32::default(); 4],
+            border_color: [f32::default(); 4],
+            outline_color: [f32::default(); 4],
+            rotation: f32::default(),
+            background: Ptr32::default(),
+        }
+    }
+}
 
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug)]
-pub struct WindowDef {
+pub struct WindowDef<const MAX_LOCAL_CLIENTS: usize> {
     pub name: String,
     pub rect: RectDef,
     pub rect_client: RectDef,
@@ -220,6 +308,7 @@ pub struct WindowDef {
     pub owner_draw_flags: i32,
     pub border_size: f32,
     pub static_flags: i32,
+    #[serde(with = "serde_arrays")]
     pub dynamic_flags: [i32; MAX_LOCAL_CLIENTS],
     pub next_time: i32,
     pub fore_color: Vec4,
@@ -230,8 +319,14 @@ pub struct WindowDef {
     pub background: Option<Box<techset::Material>>,
 }
 
-impl<'a> XFileInto<WindowDef, ()> for WindowDefRaw<'a> {
-    fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<WindowDef> {
+impl<'a, const MAX_LOCAL_CLIENTS: usize> XFileInto<WindowDef<MAX_LOCAL_CLIENTS>, ()>
+    for WindowDefRaw<'a, MAX_LOCAL_CLIENTS>
+{
+    fn xfile_into(
+        &self,
+        de: &mut T5XFileDeserializer,
+        _data: (),
+    ) -> Result<WindowDef<MAX_LOCAL_CLIENTS>> {
         let name = self.name.xfile_into(de, ())?;
         let rect = self.rect.into();
         let rect_client = self.rect_client.into();
@@ -605,8 +700,8 @@ impl<'a> XFileInto<ItemKeyHandler, ()> for ItemKeyHandlerRaw<'a> {
 
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
-pub(crate) struct ItemDefRaw<'a> {
-    pub window: WindowDefRaw<'a>,
+pub(crate) struct ItemDefRaw<'a, const MAX_LOCAL_CLIENTS: usize> {
+    pub window: WindowDefRaw<'a, MAX_LOCAL_CLIENTS>,
     pub type_: i32,
     pub data_type: i32,
     pub image_track: i32,
@@ -614,8 +709,8 @@ pub(crate) struct ItemDefRaw<'a> {
     pub dvar_text: XString<'a>,
     pub enable_dvar: XString<'a>,
     pub dvar_flags: i32,
-    pub type_data: ItemDefDataRaw<'a>,
-    pub parent: Ptr32<'a, MenuDefRaw<'a>>,
+    pub type_data: ItemDefDataRaw<'a, MAX_LOCAL_CLIENTS>,
+    pub parent: Ptr32<'a, MenuDefRaw<'a, MAX_LOCAL_CLIENTS>>,
     pub rect_exp_data: Ptr32<'a, RectDataRaw<'a>>,
     pub visible_exp: ExpressionStatementRaw<'a>,
     pub show_bits: u64,
@@ -626,12 +721,12 @@ pub(crate) struct ItemDefRaw<'a> {
     pub anim_info: Ptr32<'a, UIAnimInfoRaw<'a>>,
     pad: [u8; 8],
 }
-assert_size!(ItemDefRaw, 272);
+assert_size!(ItemDefRaw<1>, 272);
 
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug)]
-pub struct ItemDef {
-    pub window: WindowDef,
+pub struct ItemDef<const MAX_LOCAL_CLIENTS: usize> {
+    pub window: WindowDef<MAX_LOCAL_CLIENTS>,
     pub type_: i32,
     pub data_type: i32,
     pub image_track: i32,
@@ -639,8 +734,8 @@ pub struct ItemDef {
     pub dvar_text: String,
     pub enable_dvar: String,
     pub dvar_flags: i32,
-    pub type_data: ItemDefData,
-    pub parent: Option<Box<MenuDef>>, // TODO
+    pub type_data: ItemDefData<MAX_LOCAL_CLIENTS>,
+    pub parent: Option<Box<MenuDef<MAX_LOCAL_CLIENTS>>>, // TODO
     pub rect_exp_data: Option<Box<RectData>>,
     pub visible_exp: ExpressionStatement,
     pub show_bits: u64,
@@ -651,8 +746,14 @@ pub struct ItemDef {
     pub anim_info: Option<Box<UIAnimInfo>>,
 }
 
-impl<'a> XFileInto<ItemDef, ()> for ItemDefRaw<'a> {
-    fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<ItemDef> {
+impl<'a, const MAX_LOCAL_CLIENTS: usize> XFileInto<ItemDef<MAX_LOCAL_CLIENTS>, ()>
+    for ItemDefRaw<'a, MAX_LOCAL_CLIENTS>
+{
+    fn xfile_into(
+        &self,
+        de: &mut T5XFileDeserializer,
+        _data: (),
+    ) -> Result<ItemDef<MAX_LOCAL_CLIENTS>> {
         let window = self.window.xfile_into(de, ())?;
         let dvar = self.dvar.xfile_into(de, ())?;
         let dvar_text = self.dvar_text.xfile_into(de, ())?;
@@ -697,27 +798,35 @@ impl<'a> XFileInto<ItemDef, ()> for ItemDefRaw<'a> {
 
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
-pub(crate) struct ItemDefDataRaw<'a>(Ptr32<'a, ()>);
-assert_size!(ItemDefDataRaw, 4);
+pub(crate) struct ItemDefDataRaw<'a, const MAX_LOCAL_CLIENTS: usize>(Ptr32<'a, ()>);
+assert_size!(ItemDefDataRaw<1>, 4);
 
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug)]
-pub enum ItemDefData {
-    TextDef(Option<Box<TextDef>>),
+pub enum ItemDefData<const MAX_LOCAL_CLIENTS: usize> {
+    TextDef(Option<Box<TextDef<MAX_LOCAL_CLIENTS>>>),
     ImageDef(Option<Box<ImageDef>>),
-    BlankButtonDef(Option<Box<FocusItemDef>>),
+    BlankButtonDef(Option<Box<FocusItemDef<MAX_LOCAL_CLIENTS>>>),
     OwnerDrawDef(Option<Box<OwnerDrawDef>>),
 }
 
-impl<'a> XFileInto<ItemDefData, i32> for ItemDefDataRaw<'a> {
-    fn xfile_into(&self, de: &mut T5XFileDeserializer, type_: i32) -> Result<ItemDefData> {
+impl<'a, const MAX_LOCAL_CLIENTS: usize> XFileInto<ItemDefData<MAX_LOCAL_CLIENTS>, i32>
+    for ItemDefDataRaw<'a, MAX_LOCAL_CLIENTS>
+{
+    fn xfile_into(
+        &self,
+        de: &mut T5XFileDeserializer,
+        type_: i32,
+    ) -> Result<ItemDefData<MAX_LOCAL_CLIENTS>> {
         if type_ == 2 {
             Ok(ItemDefData::ImageDef(
                 self.0.cast::<ImageDefRaw>().xfile_into(de, ())?,
             ))
         } else if type_ == 21 || type_ == 19 {
             Ok(ItemDefData::BlankButtonDef(
-                self.0.cast::<FocusItemDefRaw>().xfile_into(de, type_)?,
+                self.0
+                    .cast::<FocusItemDefRaw<MAX_LOCAL_CLIENTS>>()
+                    .xfile_into(de, type_)?,
             ))
         } else if type_ == 6 {
             Ok(ItemDefData::OwnerDrawDef(
@@ -730,15 +839,18 @@ impl<'a> XFileInto<ItemDefData, i32> for ItemDefDataRaw<'a> {
             )))
         } else {
             Ok(ItemDefData::TextDef(
-                self.0.cast::<TextDefRaw>().xfile_into(de, type_)?,
+                self.0
+                    .cast::<TextDefRaw<MAX_LOCAL_CLIENTS>>()
+                    .xfile_into(de, type_)?,
             ))
         }
     }
 }
 
 #[cfg_attr(feature = "serde", derive(Serialize))]
-#[derive(Copy, Clone, Default, Debug, Deserialize)]
-pub(crate) struct TextDefRaw<'a> {
+#[derive(Copy, Clone, Debug, Deserialize)]
+pub(crate) struct TextDefRaw<'a, const MAX_LOCAL_CLIENTS: usize> {
+    #[serde(with = "serde_arrays")]
     pub text_rect: [RectDefRaw; MAX_LOCAL_CLIENTS],
     pub alignment: i32,
     pub font_enum: i32,
@@ -750,13 +862,33 @@ pub(crate) struct TextDefRaw<'a> {
     pub text_style: i32,
     pub text: XString<'a>,
     pub text_exp_data: Ptr32<'a, TextExpRaw<'a>>,
-    pub text_type_data: TextDefDataRaw<'a>,
+    pub text_type_data: TextDefDataRaw<'a, MAX_LOCAL_CLIENTS>,
 }
-assert_size!(TextDefRaw, 68);
+assert_size!(TextDefRaw<1>, 68);
+
+impl<'a, const MAX_LOCAL_CLIENTS: usize> Default for TextDefRaw<'a, MAX_LOCAL_CLIENTS> {
+    fn default() -> Self {
+        Self {
+            text_rect: [RectDefRaw::default(); MAX_LOCAL_CLIENTS],
+            alignment: i32::default(),
+            font_enum: i32::default(),
+            item_flags: i32::default(),
+            text_align_mode: i32::default(),
+            textalignx: f32::default(),
+            textaligny: f32::default(),
+            textscale: f32::default(),
+            text_style: i32::default(),
+            text: XString::default(),
+            text_exp_data: Ptr32::default(),
+            text_type_data: TextDefDataRaw::default(),
+        }
+    }
+}
 
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug)]
-pub struct TextDef {
+pub struct TextDef<const MAX_LOCAL_CLIENTS: usize> {
+    #[serde(with = "serde_arrays")]
     pub text_rect: [RectDef; MAX_LOCAL_CLIENTS],
     pub alignment: i32,
     pub font_enum: i32,
@@ -768,11 +900,17 @@ pub struct TextDef {
     pub text_style: i32,
     pub text: String,
     pub text_exp_data: Option<Box<TextExp>>,
-    pub text_type_data: TextDefData,
+    pub text_type_data: TextDefData<MAX_LOCAL_CLIENTS>,
 }
 
-impl<'a> XFileInto<TextDef, i32> for TextDefRaw<'a> {
-    fn xfile_into(&self, de: &mut T5XFileDeserializer, type_: i32) -> Result<TextDef> {
+impl<'a, const MAX_LOCAL_CLIENTS: usize> XFileInto<TextDef<MAX_LOCAL_CLIENTS>, i32>
+    for TextDefRaw<'a, MAX_LOCAL_CLIENTS>
+{
+    fn xfile_into(
+        &self,
+        de: &mut T5XFileDeserializer,
+        type_: i32,
+    ) -> Result<TextDef<MAX_LOCAL_CLIENTS>> {
         let text_rect = self.text_rect.map(Into::into);
         let text = self.text.xfile_into(de, ())?;
         let text_exp_data = self.text_exp_data.xfile_into(de, ())?;
@@ -818,18 +956,24 @@ impl<'a> XFileInto<TextExp, ()> for TextExpRaw<'a> {
 
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
-pub(crate) struct TextDefDataRaw<'a>(Ptr32<'a, ()>);
-assert_size!(TextDefDataRaw, 4);
+pub(crate) struct TextDefDataRaw<'a, const MAX_LOCAL_CLIENTS: usize>(Ptr32<'a, ()>);
+assert_size!(TextDefDataRaw<1>, 4);
 
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug)]
-pub enum TextDefData {
-    FocusItemDef(Option<Box<FocusItemDef>>),
+pub enum TextDefData<const MAX_LOCAL_CLIENTS: usize> {
+    FocusItemDef(Option<Box<FocusItemDef<MAX_LOCAL_CLIENTS>>>),
     GameMsgDef(Option<Box<GameMsgDef>>),
 }
 
-impl<'a> XFileInto<TextDefData, i32> for TextDefDataRaw<'a> {
-    fn xfile_into(&self, de: &mut T5XFileDeserializer, type_: i32) -> Result<TextDefData> {
+impl<'a, const MAX_LOCAL_CLIENTS: usize> XFileInto<TextDefData<MAX_LOCAL_CLIENTS>, i32>
+    for TextDefDataRaw<'a, MAX_LOCAL_CLIENTS>
+{
+    fn xfile_into(
+        &self,
+        de: &mut T5XFileDeserializer,
+        type_: i32,
+    ) -> Result<TextDefData<MAX_LOCAL_CLIENTS>> {
         if type_ == 15 {
             Ok(TextDefData::GameMsgDef(
                 self.0.cast::<GameMsgDef>().xfile_get(de)?.map(Box::new),
@@ -848,7 +992,9 @@ impl<'a> XFileInto<TextDefData, i32> for TextDefDataRaw<'a> {
             )))
         } else {
             Ok(TextDefData::FocusItemDef(
-                self.0.cast::<FocusItemDefRaw>().xfile_into(de, type_)?,
+                self.0
+                    .cast::<FocusItemDefRaw<MAX_LOCAL_CLIENTS>>()
+                    .xfile_into(de, type_)?,
             ))
         }
     }
@@ -856,29 +1002,35 @@ impl<'a> XFileInto<TextDefData, i32> for TextDefDataRaw<'a> {
 
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
-pub(crate) struct FocusItemDefRaw<'a> {
+pub(crate) struct FocusItemDefRaw<'a, const MAX_LOCAL_CLIENTS: usize> {
     pub mouse_enter_text: XString<'a>,
     pub mouse_exit_text: XString<'a>,
     pub mouse_enter: XString<'a>,
     pub mouse_exit: XString<'a>,
     pub on_key: Ptr32<'a, ItemKeyHandlerRaw<'a>>,
-    pub focus_type_data: FocusDefDataRaw<'a>,
+    pub focus_type_data: FocusDefDataRaw<'a, MAX_LOCAL_CLIENTS>,
 }
-assert_size!(FocusItemDefRaw, 24);
+assert_size!(FocusItemDefRaw<1>, 24);
 
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug)]
-pub struct FocusItemDef {
+pub struct FocusItemDef<const MAX_LOCAL_CLIENTS: usize> {
     pub mouse_enter_text: String,
     pub mouse_exit_text: String,
     pub mouse_enter: String,
     pub mouse_exit: String,
     pub on_key: Option<Box<ItemKeyHandler>>,
-    pub focus_type_data: FocusDefData,
+    pub focus_type_data: FocusDefData<MAX_LOCAL_CLIENTS>,
 }
 
-impl<'a> XFileInto<FocusItemDef, i32> for FocusItemDefRaw<'a> {
-    fn xfile_into(&self, de: &mut T5XFileDeserializer, type_: i32) -> Result<FocusItemDef> {
+impl<'a, const MAX_LOCAL_CLIENTS: usize> XFileInto<FocusItemDef<MAX_LOCAL_CLIENTS>, i32>
+    for FocusItemDefRaw<'a, MAX_LOCAL_CLIENTS>
+{
+    fn xfile_into(
+        &self,
+        de: &mut T5XFileDeserializer,
+        type_: i32,
+    ) -> Result<FocusItemDef<MAX_LOCAL_CLIENTS>> {
         let mouse_enter_text = self.mouse_enter_text.xfile_into(de, ())?;
         let mouse_exit_text = self.mouse_exit_text.xfile_into(de, ())?;
         let mouse_enter = self.mouse_enter.xfile_into(de, ())?;
@@ -899,23 +1051,31 @@ impl<'a> XFileInto<FocusItemDef, i32> for FocusItemDefRaw<'a> {
 
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
-pub(crate) struct FocusDefDataRaw<'a>(Ptr32<'a, ()>);
-assert_size!(FocusDefDataRaw, 4);
+pub(crate) struct FocusDefDataRaw<'a, const MAX_LOCAL_CLIENTS: usize>(Ptr32<'a, ()>);
+assert_size!(FocusDefDataRaw<1>, 4);
 
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug)]
-pub enum FocusDefData {
-    ListBox(Option<Box<ListBoxDef>>),
+pub enum FocusDefData<const MAX_LOCAL_CLIENTS: usize> {
+    ListBox(Option<Box<ListBoxDef<MAX_LOCAL_CLIENTS>>>),
     Multi(Option<Box<MultiDef>>),
-    EditField(Option<Box<EditFieldDef>>),
+    EditField(Option<Box<EditFieldDef<MAX_LOCAL_CLIENTS>>>),
     EnumDvar(Option<Box<EnumDvarDef>>),
 }
 
-impl<'a> XFileInto<FocusDefData, i32> for FocusDefDataRaw<'a> {
-    fn xfile_into(&self, de: &mut T5XFileDeserializer, type_: i32) -> Result<FocusDefData> {
+impl<'a, const MAX_LOCAL_CLIENTS: usize> XFileInto<FocusDefData<MAX_LOCAL_CLIENTS>, i32>
+    for FocusDefDataRaw<'a, MAX_LOCAL_CLIENTS>
+{
+    fn xfile_into(
+        &self,
+        de: &mut T5XFileDeserializer,
+        type_: i32,
+    ) -> Result<FocusDefData<MAX_LOCAL_CLIENTS>> {
         if type_ == 4 {
             Ok(FocusDefData::ListBox(
-                self.0.cast::<ListBoxDefRaw>().xfile_into(de, ())?,
+                self.0
+                    .cast::<ListBoxDefRaw<MAX_LOCAL_CLIENTS>>()
+                    .xfile_into(de, ())?,
             ))
         } else if type_ == 10 {
             Ok(FocusDefData::Multi(
@@ -937,7 +1097,10 @@ impl<'a> XFileInto<FocusDefData, i32> for FocusDefDataRaw<'a> {
             || type_ == 30
         {
             Ok(FocusDefData::EditField(
-                self.0.cast::<EditFieldDef>().xfile_get(de)?.map(Box::new),
+                self.0
+                    .cast::<EditFieldDef<MAX_LOCAL_CLIENTS>>()
+                    .xfile_get(de)?
+                    .map(Box::new),
             ))
         } else {
             Err(Error::BrokenInvariant(format!(
@@ -949,11 +1112,14 @@ impl<'a> XFileInto<FocusDefData, i32> for FocusDefDataRaw<'a> {
 }
 
 #[cfg_attr(feature = "serde", derive(Serialize))]
-#[derive(Copy, Clone, Default, Debug, Deserialize)]
-pub(crate) struct ListBoxDefRaw<'a> {
+#[derive(Copy, Clone, Debug, Deserialize)]
+pub(crate) struct ListBoxDefRaw<'a, const MAX_LOCAL_CLIENTS: usize> {
     pub mouse_pos: i32,
+    #[serde(with = "serde_arrays")]
     pub cursor_pos: [i32; MAX_LOCAL_CLIENTS],
+    #[serde(with = "serde_arrays")]
     pub start_pos: [i32; MAX_LOCAL_CLIENTS],
+    #[serde(with = "serde_arrays")]
     pub end_pos: [i32; MAX_LOCAL_CLIENTS],
     pub draw_padding: i32,
     pub element_width: f32,
@@ -976,14 +1142,48 @@ pub(crate) struct ListBoxDefRaw<'a> {
     pub rows: FatPointerCountLastU32<'a, MenuRowRaw<'a>>,
     pub row_count: i32,
 }
-assert_size!(ListBoxDefRaw, 668);
+assert_size!(ListBoxDefRaw<1>, 668);
+
+impl<'a, const MAX_LOCAL_CLIENTS: usize> Default for ListBoxDefRaw<'a, MAX_LOCAL_CLIENTS> {
+    fn default() -> Self {
+        Self {
+            mouse_pos: i32::default(),
+            cursor_pos: [i32::default(); MAX_LOCAL_CLIENTS],
+            start_pos: [i32::default(); MAX_LOCAL_CLIENTS],
+            end_pos: [i32::default(); MAX_LOCAL_CLIENTS],
+            draw_padding: i32::default(),
+            element_width: f32::default(),
+            element_height: f32::default(),
+            num_columns: i32::default(),
+            special: f32::default(),
+            column_info: [ColumnInfoRaw::default(); 16],
+            not_selectable: i32::default(),
+            no_scroll_bars: i32::default(),
+            use_paging: i32::default(),
+            select_border: [f32::default(); 4],
+            disable_color: [f32::default(); 4],
+            focus_color: [f32::default(); 4],
+            element_highlight_color: [f32::default(); 4],
+            element_background_color: [f32::default(); 4],
+            select_icon: Ptr32::default(),
+            background_item_listbox: Ptr32::default(),
+            highlight_texture: Ptr32::default(),
+            no_blinking_highlight: i32::default(),
+            rows: FatPointerCountLastU32::default(),
+            row_count: i32::default(),
+        }
+    }
+}
 
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug)]
-pub struct ListBoxDef {
+pub struct ListBoxDef<const MAX_LOCAL_CLIENTS: usize> {
     pub mouse_pos: i32,
+    #[serde(with = "serde_arrays")]
     pub cursor_pos: [i32; MAX_LOCAL_CLIENTS],
+    #[serde(with = "serde_arrays")]
     pub start_pos: [i32; MAX_LOCAL_CLIENTS],
+    #[serde(with = "serde_arrays")]
     pub end_pos: [i32; MAX_LOCAL_CLIENTS],
     pub draw_padding: bool,
     pub element_width: f32,
@@ -1006,8 +1206,14 @@ pub struct ListBoxDef {
     pub rows: Vec<MenuRow>,
 }
 
-impl<'a> XFileInto<ListBoxDef, ()> for ListBoxDefRaw<'a> {
-    fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<ListBoxDef> {
+impl<'a, const MAX_LOCAL_CLIENTS: usize> XFileInto<ListBoxDef<MAX_LOCAL_CLIENTS>, ()>
+    for ListBoxDefRaw<'a, MAX_LOCAL_CLIENTS>
+{
+    fn xfile_into(
+        &self,
+        de: &mut T5XFileDeserializer,
+        _data: (),
+    ) -> Result<ListBoxDef<MAX_LOCAL_CLIENTS>> {
         let draw_padding = self.draw_padding != 0;
         let column_info = self.column_info.map(Into::into);
         let not_selectable = self.not_selectable != 0;
@@ -1203,8 +1409,9 @@ impl<'a> XFileInto<MultiDef, ()> for MultiDefRaw<'a> {
 }
 
 #[cfg_attr(feature = "serde", derive(Serialize))]
-#[derive(Copy, Clone, Default, Debug, Deserialize)]
-pub struct EditFieldDef {
+#[derive(Copy, Clone, Debug, Deserialize)]
+pub struct EditFieldDef<const MAX_LOCAL_CLIENTS: usize> {
+    #[serde(with = "serde_arrays")]
     pub cursor_pos: [i32; MAX_LOCAL_CLIENTS],
     pub min_val: f32,
     pub max_val: f32,
@@ -1215,7 +1422,23 @@ pub struct EditFieldDef {
     pub max_paint_chars: i32,
     pub paint_offset: i32,
 }
-assert_size!(EditFieldDef, 36);
+assert_size!(EditFieldDef<1>, 36);
+
+impl<const MAX_LOCAL_CLIENTS: usize> Default for EditFieldDef<MAX_LOCAL_CLIENTS> {
+    fn default() -> Self {
+        Self {
+            cursor_pos: [i32::default(); MAX_LOCAL_CLIENTS],
+            min_val: f32::default(),
+            max_val: f32::default(),
+            def_val: f32::default(),
+            range: f32::default(),
+            max_chars: i32::default(),
+            max_chars_goto_next: i32::default(),
+            max_paint_chars: i32::default(),
+            paint_offset: i32::default(),
+        }
+    }
+}
 
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Default, Debug, Deserialize)]

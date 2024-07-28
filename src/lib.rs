@@ -105,11 +105,7 @@ pub mod xasset;
 pub mod xmodel;
 
 use std::{
-    collections::VecDeque,
-    ffi::CString,
-    fmt::{Debug, Display},
-    io::{Cursor, Read, Seek, SeekFrom, Write},
-    path::Path,
+    collections::VecDeque, ffi::CString, fmt::{Debug, Display}, io::{Cursor, Read, Seek, SeekFrom, Write}, marker::PhantomData, path::Path
 };
 
 use bincode::{
@@ -125,8 +121,6 @@ use serde::Serialize;
 pub use misc::*;
 use util::{StreamLen, *};
 use xasset::{XAsset, XAssetList, XAssetRaw};
-
-const MAX_LOCAL_CLIENTS: usize = 1;
 
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
@@ -167,8 +161,8 @@ assert_size!(XFile, 36);
 struct ScriptString(u16);
 
 impl ScriptString {
-    pub fn to_string(self, script_strings: &[String]) -> Option<String> {
-        script_strings.get(self.0 as usize).cloned()
+    pub fn to_string(self, de: &T5XFileDeserializer) -> Option<String> {
+        de.script_strings.get(self.0 as usize).cloned()
     }
 }
 
@@ -271,25 +265,37 @@ impl XFilePlatform {
     }
 }
 
-pub struct T5XFileDeserializer<'a> {
+pub(crate) trait T5XFileDeserializerTypestate {}
+
+pub enum T5XFileDeserializerUninflated {}
+pub enum T5XFileDeserializerInflated {}
+pub enum T5XFileDeserializerDeserialize {}
+
+impl T5XFileDeserializerTypestate for T5XFileDeserializerUninflated {}
+impl T5XFileDeserializerTypestate for T5XFileDeserializerInflated {}
+impl T5XFileDeserializerTypestate for T5XFileDeserializerDeserialize {}
+
+#[allow(private_bounds, private_interfaces)]
+pub struct T5XFileDeserializer<'a, T: T5XFileDeserializerTypestate = T5XFileDeserializerDeserialize> {
     silent: bool,
     xfile: XFile,
     script_strings: Vec<String>,
     file: Option<&'a mut std::fs::File>,
     cache_file: Option<&'a mut std::fs::File>,
     reader: Option<Cursor<Vec<u8>>>,
+    xasset_list: XAssetList<'a>,
     xassets_raw: VecDeque<XAssetRaw<'a>>,
     deserialized_assets: usize,
     opts: BincodeOptions,
+    platform: XFilePlatform,
+    _p: PhantomData<T>,
 }
 
 #[derive(Debug)]
 pub enum Error {
-    Poison(Box<dyn std::error::Error>),
     Io(std::io::Error),
     Bincode(Box<bincode::ErrorKind>),
     Inflate(String),
-    NotInflated,
     BadOffset(u32),
     BadFromPrimitive(i64),
     BadBitflags(u32),
@@ -300,14 +306,7 @@ pub enum Error {
     WrongVersion(u32),
     WrongEndiannessForPlatform(XFilePlatform),
     UnsupportedPlatform(XFilePlatform),
-    Other(Box<dyn std::error::Error>),
     Todo(String),
-}
-
-impl From<Box<dyn std::error::Error>> for Error {
-    fn from(value: Box<dyn std::error::Error>) -> Self {
-        Self::Poison(value)
-    }
 }
 
 impl From<std::io::Error> for Error {
@@ -387,11 +386,10 @@ pub enum CacheSuccess {
     CacheOverwritten,
 }
 
-impl<'a> T5XFileDeserializer<'a> {
+impl<'a> T5XFileDeserializer<'a, T5XFileDeserializerUninflated> {
     pub fn from_file(
         mut file: &'a mut std::fs::File,
         silent: bool,
-        inflate: bool,
         platform: XFilePlatform,
     ) -> Result<Self> {
         if platform == XFilePlatform::Wii {
@@ -463,21 +461,20 @@ impl<'a> T5XFileDeserializer<'a> {
             println!("Header verified, reading playload...");
         }
 
-        let mut de = Self {
+        let de = Self {
             silent,
             xfile: XFile::default(),
             script_strings: Vec::default(),
             file: Some(file),
             cache_file: None,
             reader: None,
+            xasset_list: XAssetList::default(),
             xassets_raw: VecDeque::new(),
             deserialized_assets: 0,
             opts,
+            platform,
+            _p: PhantomData
         };
-
-        if inflate {
-            de.inflate()?;
-        }
 
         Ok(de)
     }
@@ -498,26 +495,24 @@ impl<'a> T5XFileDeserializer<'a> {
             println!("Found inflated cache file, reading...");
         }
 
-        Ok(Self {
+        Ok(T5XFileDeserializer::<'a, T5XFileDeserializerUninflated> {
             silent,
             xfile: XFile::default(),
             script_strings: Vec::default(),
             file: None,
             cache_file: Some(file),
             reader: None,
+            xasset_list: XAssetList::default(),
             xassets_raw: VecDeque::new(),
             deserialized_assets: 0,
             opts: BincodeOptions::from_platform(platform),
+            platform,
+            _p: PhantomData
         })
     }
 
-    pub fn inflate(&mut self) -> Result<InflateSuccess> {
-        if self.reader.is_some() {
-            if !self.silent {
-                println!("Cannot inflate: already inflated.");
-            }
-            return Ok(InflateSuccess::AlreadyInflated);
-        }
+    pub fn inflate(mut self) -> Result<T5XFileDeserializer<'a, T5XFileDeserializerInflated>> {
+        assert!(self.reader.is_none());
 
         let reader = if let Some(f) = self.cache_file.take() {
             let mut decompressed_payload = Vec::new();
@@ -565,19 +560,27 @@ impl<'a> T5XFileDeserializer<'a> {
             println!("Fastfile contains {} assets.", xasset_list.assets.size());
         }
 
-        self.script_strings = xasset_list
-            .strings
-            .to_vec(self)?
-            .into_iter()
-            .map(|s| s.xfile_into(self, ()))
-            .collect::<Result<Vec<_>>>()?;
-        //dbg!(&strings);
-        let assets = xasset_list.assets.to_vec(self)?;
-        self.xassets_raw = VecDeque::from_iter(assets);
-        Ok(InflateSuccess::NewlyInflated)
-    }
+        let de = T5XFileDeserializer::<T5XFileDeserializerInflated> {
+            silent: self.silent,
+            xfile: self.xfile,
+            script_strings: Vec::new(),
+            file: self.file,
+            cache_file: self.cache_file,
+            reader: self.reader,
+            xasset_list,
+            xassets_raw: VecDeque::new(),
+            deserialized_assets: self.deserialized_assets,
+            opts: self.opts,
+            platform: self.platform,
+            _p: PhantomData
+        };
 
-    pub fn cache(&mut self, path: impl AsRef<Path>) -> Result<CacheSuccess> {
+        Ok(de)
+    }
+}
+
+impl<'a> T5XFileDeserializer<'a, T5XFileDeserializerInflated> {
+    pub fn cache(mut self, path: impl AsRef<Path>) -> Result<(T5XFileDeserializer<'a, T5XFileDeserializerDeserialize>, CacheSuccess)> {
         if !self.silent {
             println!("Caching decompressed payload to disk...");
         }
@@ -595,23 +598,59 @@ impl<'a> T5XFileDeserializer<'a> {
             println!("Decompressed payload cached.");
         }
 
+        let mut de = T5XFileDeserializer::<'a, T5XFileDeserializerDeserialize> {
+            silent: self.silent,
+            xfile: self.xfile,
+            script_strings: Vec::new(),
+            file: self.file,
+            cache_file: self.cache_file,
+            reader: self.reader,
+            xasset_list: self.xasset_list,
+            xassets_raw: self.xassets_raw,
+            deserialized_assets: self.deserialized_assets,
+            opts: self.opts,
+            platform: self.platform,
+            _p: PhantomData
+        };
+
+        de.get_script_strings_and_assets()?;
+
         if cache_exists {
-            Ok(CacheSuccess::CacheOverwritten)
+            Ok((de, CacheSuccess::CacheOverwritten))
         } else {
-            Ok(CacheSuccess::CacheCreated)
+            Ok((de, CacheSuccess::CacheCreated))
         }
     }
 
-    pub fn deserialize_next(&mut self) -> Result<Option<XAsset>> {
-        if self.reader.is_none() {
-            return Err(Error::NotInflated);
-        }
+    pub fn no_cache(self) -> Result<T5XFileDeserializer<'a, T5XFileDeserializerDeserialize>> {
+        let mut de = T5XFileDeserializer::<'a, T5XFileDeserializerDeserialize> {
+            silent: self.silent,
+            xfile: self.xfile,
+            script_strings: Vec::new(),
+            file: self.file,
+            cache_file: self.cache_file,
+            reader: self.reader,
+            xasset_list: self.xasset_list,
+            xassets_raw: self.xassets_raw,
+            deserialized_assets: self.deserialized_assets,
+            opts: self.opts,
+            platform: self.platform,
+            _p: PhantomData
+        };
 
+        de.get_script_strings_and_assets()?;
+
+        Ok(de)
+    }
+}
+
+impl<'a> T5XFileDeserializer<'a, T5XFileDeserializerDeserialize> {
+    pub fn deserialize_next(&mut self) -> Result<Option<XAsset>> {
         let Some(asset) = self.xassets_raw.pop_front() else {
             return Ok(None);
         };
 
-        let a = asset.xfile_into(self, ());
+        let a = XAsset::try_get(self, asset, self.platform);
         if a.is_ok() {
             self.deserialized_assets += 1;
 
@@ -639,24 +678,6 @@ impl<'a> T5XFileDeserializer<'a> {
         }
 
         Ok(deserialized_assets)
-    }
-
-    pub(crate) fn load_from_xfile<T: DeserializeOwned>(&mut self) -> Result<T> {
-        self.opts
-            .deserialize_from(self.reader.as_mut().unwrap())
-            .map_err(|e| Error::Poison(Box::new(e)))
-    }
-
-    pub(crate) fn convert_offset_to_ptr(&self, offset: u32) -> Result<(u8, u32)> {
-        let block = ((offset - 1) >> 29) as u8;
-        let off = (offset - 1) & 0x1FFFFFFF;
-
-        let start = self.xfile.block_size[0..block as usize].iter().sum::<u32>();
-        let p = start + off;
-
-        //dbg!(block_sizes, block, off, start, p);
-
-        Ok((block, p))
     }
 
     pub(crate) fn seek_and<T, F: FnOnce(&mut Self) -> T>(
@@ -711,5 +732,39 @@ impl<'a> T5XFileDeserializer<'a> {
         }
 
         Ok(t)
+    }
+
+    pub(crate) fn load_from_xfile<T: DeserializeOwned>(&mut self) -> Result<T> {
+        self.opts
+            .deserialize_from(self.reader.as_mut().unwrap())
+            .map_err(|e| Error::Bincode(e))
+    }
+
+    pub(crate) fn convert_offset_to_ptr(&self, offset: u32) -> Result<(u8, u32)> {
+        let block = ((offset - 1) >> 29) as u8;
+        let off = (offset - 1) & 0x1FFFFFFF;
+
+        let start = self.xfile.block_size[0..block as usize].iter().sum::<u32>();
+        let p = start + off;
+
+        //dbg!(block_sizes, block, off, start, p);
+
+        Ok((block, p))
+    }
+
+    fn get_script_strings_and_assets(&mut self) -> Result<()> {
+        let xasset_list = self.xasset_list;
+        let assets = xasset_list.clone().assets.to_vec(self)?;
+        self.xassets_raw = VecDeque::from_iter(assets);
+
+        self.script_strings = xasset_list
+            .strings
+            .to_vec(self)?
+            .into_iter()
+            .map(|s| s.xfile_into(self, ()))
+            .collect::<Result<Vec<_>>>()?;
+        //dbg!(&strings);
+
+        Ok(())
     }
 }

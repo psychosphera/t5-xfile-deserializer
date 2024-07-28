@@ -9,10 +9,8 @@ use std::{
 
 use serde::{
     de::{DeserializeOwned, SeqAccess, Visitor},
-    Deserialize, Deserializer,
+    Deserialize,
 };
-#[cfg(feature = "serde")]
-use serde::{ser::SerializeTuple, Serializer};
 
 /// Helper macro to ensure the structs we're deserializing are the correct
 /// size.
@@ -42,16 +40,6 @@ macro_rules! sizeof {
 }
 
 // ============================================================================
-// A couple of the structs we have to deserialize have arrays bigger than
-// serialize and deserialize are implemented for by default, so we have to
-// implement that ourselves.
-
-pub(crate) trait BigArray<'de>: Sized {
-    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> core::result::Result<Self, D::Error>;
-    #[cfg(feature = "serde")]
-    fn serialize<S: Serializer>(&self, serializer: S) -> core::result::Result<S::Ok, S::Error>;
-}
-
 pub(crate) struct ArrayVisitor<T, const N: usize> {
     element: PhantomData<[T; N]>,
 }
@@ -86,38 +74,6 @@ impl<'de, T: Default + Copy + Deserialize<'de>, const N: usize> Visitor<'de>
         }
         Ok(arr)
     }
-}
-
-#[macro_export]
-macro_rules! big_array {
-    ($($len:expr,)+) => {
-        $(
-            impl<'de, T: Default + Copy + Deserialize<'de> + Serialize> BigArray<'de> for [T; $len] {
-                fn deserialize<D>(
-                    deserializer: D
-                ) -> core::result::Result<[T; $len], D::Error>
-                    where D: Deserializer<'de>
-                {
-                    let visitor = ArrayVisitor::<T, $len>::new();
-                    deserializer.deserialize_tuple($len, visitor)
-                }
-
-                #[cfg(feature = "serde")]
-                fn serialize<S: Serializer>(&self, serializer: S) -> core::result::Result<S::Ok, S::Error> {
-                    let mut st = serializer.serialize_tuple($len)?;
-                    for t in self {
-                        st.serialize_element(&t)?;
-                    };
-                    st.end()
-                }
-            }
-        )+
-    }
-}
-
-big_array! {
-    64,
-    130,
 }
 // ============================================================================
 

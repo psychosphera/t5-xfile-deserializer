@@ -129,7 +129,7 @@ impl<'a> XFileInto<WeaponVariantDef, ()> for WeaponVariantDefRaw<'a> {
             .hide_tags
             .to_vec(de)?
             .into_iter()
-            .map(|s| s.to_string(&de.script_strings).unwrap_or_default())
+            .map(|s| s.to_string(de).unwrap_or_default())
             .collect();
         let ammo_name = self.ammo_name.xfile_into(de, ())?;
         let clip_name = self.clip_name.xfile_into(de, ())?;
@@ -1479,7 +1479,7 @@ impl<'a> XFileInto<WeaponDef, ()> for WeaponDefRaw<'a> {
                 self.notetrack_sound_map_keys
                     .to_vec(de)?
                     .into_iter()
-                    .map(|k| k.to_string(&de.script_strings).unwrap_or_default())
+                    .map(|k| k.to_string(de).unwrap_or_default())
                     .collect::<Vec<_>>()
                     .try_into()
                     .unwrap(),
@@ -1492,7 +1492,7 @@ impl<'a> XFileInto<WeaponDef, ()> for WeaponDefRaw<'a> {
                 self.notetrack_sound_map_values
                     .to_vec(de)?
                     .into_iter()
-                    .map(|v| v.to_string(&de.script_strings).unwrap_or_default())
+                    .map(|v| v.to_string(de).unwrap_or_default())
                     .collect::<Vec<_>>()
                     .try_into()
                     .unwrap(),
@@ -1629,7 +1629,7 @@ impl<'a> XFileInto<WeaponDef, ()> for WeaponDefRaw<'a> {
         let shared_ammo_cap_name = self.shared_ammo_cap_name.xfile_into(de, ())?;
         let explosion_tag = self
             .explosion_tag
-            .to_string(&de.script_strings)
+            .to_string(de)
             .unwrap_or_default();
         let spin_loop_sound = self.spin_loop_sound.xfile_into(de, ())?;
         let spin_loop_sound_player = self.spin_loop_sound_player.xfile_into(de, ())?;

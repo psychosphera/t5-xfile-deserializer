@@ -14,17 +14,19 @@ fn main() {
         std::fs::File::open(&filename).unwrap()
     };
 
-    let mut de = if cache_exists {
+    let de = if cache_exists {
         println!("Found inflated cache file, reading...");
         T5XFileDeserializer::from_cache_file(&mut file, false, XFilePlatform::Windows).unwrap()
     } else {
-        T5XFileDeserializer::from_file(&mut file, false, false, XFilePlatform::Windows).unwrap()
+        T5XFileDeserializer::from_file(&mut file, false, XFilePlatform::Windows).unwrap()
+    }.inflate().unwrap();
+
+    let de = if !cache_exists {
+        de.cache(cached_filename).unwrap().0
+    } else {
+        de.no_cache().unwrap()
     };
 
-    de.inflate().unwrap();
-    if !cache_exists {
-        de.cache(cached_filename).unwrap();
-    }
     let assets = de.deserialize_remaining().unwrap();
     for (i, asset) in assets.into_iter().enumerate() {
         println!("Found asset '{}' ({})", asset.name().unwrap_or_default(), i);

@@ -140,7 +140,7 @@ impl<'a> XFileInto<DestructibleStage, ()> for DestructibleStageRaw<'a> {
         Ok(DestructibleStage {
             show_bone: self
                 .show_bone
-                .to_string(&de.script_strings)
+                .to_string(de)
                 .unwrap_or_default(),
             break_health: self.break_health,
             max_time: self.max_time,

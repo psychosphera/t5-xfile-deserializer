@@ -132,7 +132,7 @@ impl<'a> XFileInto<XModel, ()> for XModelRaw<'a> {
             .to_array(self.num_bones as _)
             .to_vec(de)?
             .into_iter()
-            .map(|s| s.to_string(&de.script_strings).unwrap_or_default())
+            .map(|s| s.to_string(de).unwrap_or_default())
             .collect();
         dbg!(&bone_names);
         //dbg!(xfile.stream_position()?);
@@ -1263,16 +1263,16 @@ impl<'a> XFileInto<PhysConstraint, ()> for PhysConstraintRaw<'a> {
     fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<PhysConstraint> {
         let targetname = self
             .targetname
-            .to_string(&de.script_strings)
+            .to_string(de)
             .unwrap_or_default();
         let target_ent1 = self
             .target_ent1
-            .to_string(&de.script_strings)
+            .to_string(de)
             .unwrap_or_default();
         let target_bone1 = self.target_bone1.xfile_into(de, ())?;
         let target_ent2 = self
             .target_ent2
-            .to_string(&de.script_strings)
+            .to_string(de)
             .unwrap_or_default();
         let target_bone2 = self.target_bone2.xfile_into(de, ())?;
         dbg!(&targetname);

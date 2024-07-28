@@ -523,7 +523,7 @@ pub(crate) struct SndSnapshotRaw {
     pub distance: f32,
     pub fade_in_curve: u32,
     pub fade_out_curve: u32,
-    #[serde(with = "BigArray")]
+    #[serde(with = "serde_arrays")]
     pub attenuation: [f32; 64],
 }
 assert_size!(SndSnapshotRaw, 348);
@@ -539,7 +539,7 @@ pub struct SndSnapshot {
     pub distance: f32,
     pub fade_in_curve: u32,
     pub fade_out_curve: u32,
-    #[serde(with = "BigArray")]
+    #[serde(with = "serde_arrays")]
     pub attenuation: [f32; 64],
 }
 

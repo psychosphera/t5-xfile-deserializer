@@ -12,7 +12,7 @@ pub(crate) struct MaterialTechniqueSetRaw<'a> {
     pub world_vert_format: u8,
     unused: u8,
     pub techset_flags: u16,
-    #[serde(with = "BigArray")]
+    #[serde(with = "serde_arrays")]
     pub techniques: [Ptr32<'a, MaterialTechniqueRaw<'a>>; MAX_TECHNIQUES],
 }
 assert_size!(MaterialTechniqueSetRaw, 528);
@@ -517,7 +517,7 @@ pub enum MtlArg {
 #[derive(Copy, Clone, Debug, Deserialize)]
 pub(crate) struct MaterialRaw<'a> {
     pub info: MaterialInfoRaw<'a>,
-    #[serde(with = "BigArray")]
+    #[serde(with = "serde_arrays")]
     pub state_bits_entry: [u8; 130],
     pub texture_count: u8,
     pub constant_count: u8,
@@ -555,7 +555,7 @@ impl<'a> Default for MaterialRaw<'a> {
 #[derive(Clone, Debug)]
 pub struct Material {
     pub info: MaterialInfo,
-    #[serde(with = "BigArray")]
+    #[serde(with = "serde_arrays")]
     pub state_bits_entry: [u8; MAX_TECHNIQUES],
     pub textures: Vec<MaterialTextureDef>,
     pub constants: Vec<MaterialConstantDef>,
