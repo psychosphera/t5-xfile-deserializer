@@ -256,26 +256,11 @@ impl<'a> XFileInto<PathNodeConstant, ()> for PathNodeConstantRaw<'a> {
                 .ok_or(Error::BadFromPrimitive(self.type_ as _))?,
             spawnflags: SpawnFlags::from_bits(self.spawnflags)
                 .ok_or(Error::BadBitflags(self.spawnflags as _))?,
-            targetname: self
-                .targetname
-                .to_string(de)
-                .unwrap_or_default(),
-            script_linkname: self
-                .script_linkname
-                .to_string(de)
-                .unwrap_or_default(),
-            script_noteworthy: self
-                .script_noteworthy
-                .to_string(de)
-                .unwrap_or_default(),
-            target: self
-                .target
-                .to_string(de)
-                .unwrap_or_default(),
-            animscript: self
-                .animscript
-                .to_string(de)
-                .unwrap_or_default(),
+            targetname: self.targetname.to_string(de).unwrap_or_default(),
+            script_linkname: self.script_linkname.to_string(de).unwrap_or_default(),
+            script_noteworthy: self.script_noteworthy.to_string(de).unwrap_or_default(),
+            target: self.target.to_string(de).unwrap_or_default(),
+            animscript: self.animscript.to_string(de).unwrap_or_default(),
             animscriptfunc: self.animscriptfunc,
             origin: self.origin.into(),
             angle: self.angle,

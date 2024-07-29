@@ -436,7 +436,17 @@ pub(crate) struct SndName([u8; 32]);
 
 impl Display for SndName {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let s = self.0.into_iter().map(|c| c as char).collect::<String>();
+        let len = self
+            .0
+            .into_iter()
+            .enumerate()
+            .find(|(_, c)| *c == 0)
+            .map(|(i, _)| i)
+            .unwrap_or(32);
+        let s = self.0[..len]
+            .iter()
+            .map(|c| *c as char)
+            .collect::<String>();
         write!(f, "{}", s)
     }
 }

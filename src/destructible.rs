@@ -138,10 +138,7 @@ pub struct DestructibleStage {
 impl<'a> XFileInto<DestructibleStage, ()> for DestructibleStageRaw<'a> {
     fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<DestructibleStage> {
         Ok(DestructibleStage {
-            show_bone: self
-                .show_bone
-                .to_string(de)
-                .unwrap_or_default(),
+            show_bone: self.show_bone.to_string(de).unwrap_or_default(),
             break_health: self.break_health,
             max_time: self.max_time,
             flags: self.flags,

@@ -1627,10 +1627,7 @@ impl<'a> XFileInto<WeaponDef, ()> for WeaponDefRaw<'a> {
         let ammo_counter_clip = FromPrimitive::from_u32(self.ammo_counter_clip)
             .ok_or(Error::BadFromPrimitive(self.ammo_counter_clip as _))?;
         let shared_ammo_cap_name = self.shared_ammo_cap_name.xfile_into(de, ())?;
-        let explosion_tag = self
-            .explosion_tag
-            .to_string(de)
-            .unwrap_or_default();
+        let explosion_tag = self.explosion_tag.to_string(de).unwrap_or_default();
         let spin_loop_sound = self.spin_loop_sound.xfile_into(de, ())?;
         let spin_loop_sound_player = self.spin_loop_sound_player.xfile_into(de, ())?;
         let start_spin_sound = self.start_spin_sound.xfile_into(de, ())?;

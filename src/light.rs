@@ -1,7 +1,7 @@
 use crate::*;
 
 #[cfg_attr(feature = "serde", derive(Serialize))]
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Copy, Clone, Debug, Deserialize)]
 pub(crate) struct GfxLightDefRaw<'a> {
     pub name: XString<'a>,
     pub attenuation: GfxLightImageRaw<'a>,
@@ -27,7 +27,7 @@ impl<'a> XFileInto<GfxLightDef, ()> for GfxLightDefRaw<'a> {
 }
 
 #[cfg_attr(feature = "serde", derive(Serialize))]
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Copy, Clone, Debug, Deserialize)]
 pub(crate) struct GfxLightImageRaw<'a> {
     pub image: Ptr32<'a, techset::GfxImageRaw<'a>>,
     pub sampler_state: u8,

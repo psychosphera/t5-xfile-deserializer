@@ -93,6 +93,7 @@ pub mod destructible;
 pub mod font;
 pub mod fx;
 pub mod gameworld;
+pub mod gfx_world;
 pub mod light;
 pub mod menu;
 pub mod misc;
@@ -105,7 +106,12 @@ pub mod xasset;
 pub mod xmodel;
 
 use std::{
-    collections::VecDeque, ffi::CString, fmt::{Debug, Display}, io::{Cursor, Read, Seek, SeekFrom, Write}, marker::PhantomData, path::Path
+    collections::VecDeque,
+    ffi::CString,
+    fmt::{Debug, Display},
+    io::{Cursor, Read, Seek, SeekFrom, Write},
+    marker::PhantomData,
+    path::Path,
 };
 
 use bincode::{
@@ -276,7 +282,8 @@ impl T5XFileDeserializerTypestate for T5XFileDeserializerInflated {}
 impl T5XFileDeserializerTypestate for T5XFileDeserializerDeserialize {}
 
 #[allow(private_bounds, private_interfaces)]
-pub struct T5XFileDeserializer<'a, T: T5XFileDeserializerTypestate = T5XFileDeserializerDeserialize> {
+pub struct T5XFileDeserializer<'a, T: T5XFileDeserializerTypestate = T5XFileDeserializerDeserialize>
+{
     silent: bool,
     xfile: XFile,
     script_strings: Vec<String>,
@@ -473,7 +480,7 @@ impl<'a> T5XFileDeserializer<'a, T5XFileDeserializerUninflated> {
             deserialized_assets: 0,
             opts,
             platform,
-            _p: PhantomData
+            _p: PhantomData,
         };
 
         Ok(de)
@@ -507,7 +514,7 @@ impl<'a> T5XFileDeserializer<'a, T5XFileDeserializerUninflated> {
             deserialized_assets: 0,
             opts: BincodeOptions::from_platform(platform),
             platform,
-            _p: PhantomData
+            _p: PhantomData,
         })
     }
 
@@ -572,7 +579,7 @@ impl<'a> T5XFileDeserializer<'a, T5XFileDeserializerUninflated> {
             deserialized_assets: self.deserialized_assets,
             opts: self.opts,
             platform: self.platform,
-            _p: PhantomData
+            _p: PhantomData,
         };
 
         Ok(de)
@@ -580,7 +587,13 @@ impl<'a> T5XFileDeserializer<'a, T5XFileDeserializerUninflated> {
 }
 
 impl<'a> T5XFileDeserializer<'a, T5XFileDeserializerInflated> {
-    pub fn cache(mut self, path: impl AsRef<Path>) -> Result<(T5XFileDeserializer<'a, T5XFileDeserializerDeserialize>, CacheSuccess)> {
+    pub fn cache(
+        mut self,
+        path: impl AsRef<Path>,
+    ) -> Result<(
+        T5XFileDeserializer<'a, T5XFileDeserializerDeserialize>,
+        CacheSuccess,
+    )> {
         if !self.silent {
             println!("Caching decompressed payload to disk...");
         }
@@ -610,7 +623,7 @@ impl<'a> T5XFileDeserializer<'a, T5XFileDeserializerInflated> {
             deserialized_assets: self.deserialized_assets,
             opts: self.opts,
             platform: self.platform,
-            _p: PhantomData
+            _p: PhantomData,
         };
 
         de.get_script_strings_and_assets()?;
@@ -635,7 +648,7 @@ impl<'a> T5XFileDeserializer<'a, T5XFileDeserializerInflated> {
             deserialized_assets: self.deserialized_assets,
             opts: self.opts,
             platform: self.platform,
-            _p: PhantomData
+            _p: PhantomData,
         };
 
         de.get_script_strings_and_assets()?;
@@ -737,7 +750,7 @@ impl<'a> T5XFileDeserializer<'a, T5XFileDeserializerDeserialize> {
     pub(crate) fn load_from_xfile<T: DeserializeOwned>(&mut self) -> Result<T> {
         self.opts
             .deserialize_from(self.reader.as_mut().unwrap())
-            .map_err(|e| Error::Bincode(e))
+            .map_err(Error::Bincode)
     }
 
     pub(crate) fn convert_offset_to_ptr(&self, offset: u32) -> Result<(u8, u32)> {
@@ -754,7 +767,7 @@ impl<'a> T5XFileDeserializer<'a, T5XFileDeserializerDeserialize> {
 
     fn get_script_strings_and_assets(&mut self) -> Result<()> {
         let xasset_list = self.xasset_list;
-        let assets = xasset_list.clone().assets.to_vec(self)?;
+        let assets = xasset_list.assets.to_vec(self)?;
         self.xassets_raw = VecDeque::from_iter(assets);
 
         self.script_strings = xasset_list

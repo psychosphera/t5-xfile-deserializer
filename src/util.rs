@@ -418,7 +418,23 @@ macro_rules! impl_fat_pointer {
 /// Represents an offset containing [`Self::size`] [`T`]s.
 ///
 /// Serialized structs often contain these, but sometimes the size comes
-/// before the pointer instead of after, and sometimes it's a [`u16`] instead
+/// before the pointer instead of after, and sometimes it's a [`u8`] or [`u16`] instead
+/// of a [`u32`].
+///
+/// In this case, [`Self::size`] is a [`u8`], and comes before the pointer.
+#[cfg_attr(feature = "serde", derive(Serialize))]
+#[derive(Copy, Clone, Debug, Deserialize)]
+pub(crate) struct FatPointerCountFirstU8<'a, T: Debug + Clone> {
+    size: u8,
+    p: Ptr32<'a, T>,
+}
+
+/// Newtype for a fat pointer to a `[T]`.
+///
+/// Represents an offset containing [`Self::size`] [`T`]s.
+///
+/// Serialized structs often contain these, but sometimes the size comes
+/// before the pointer instead of after, and sometimes it's a [`u8`] or [`u16`] instead
 /// of a [`u32`].
 ///
 /// In this case, [`Self::size`] is a [`u16`], and comes before the pointer.
@@ -434,7 +450,7 @@ pub(crate) struct FatPointerCountFirstU16<'a, T: Debug + Clone> {
 /// Represents an offset containing [`Self::size`] [`T`]s.
 ///
 /// Serialized structs often contain these, but sometimes the size comes
-/// before the pointer instead of after, and sometimes it's a [`u16`] instead
+/// before the pointer instead of after, and sometimes it's a [`u8`] or [`u16`] instead
 /// of a [`u32`].
 ///
 /// In this case, [`Self::size`] is a [`u32`], and comes before the pointer.
@@ -450,7 +466,23 @@ pub(crate) struct FatPointerCountFirstU32<'a, T> {
 /// Represents an offset containing [`Self::size`] [`T`]s.
 ///
 /// Serialized structs often contain these, but sometimes the size comes
-/// before the pointer instead of after, and sometimes it's a [`u16`] instead
+/// before the pointer instead of after, and sometimes it's a [`u8`] or [`u16`] instead
+/// of a [`u32`].
+///
+/// In this case, [`Self::size`] is a [`u8`], and comes after the pointer.
+#[cfg_attr(feature = "serde", derive(Serialize))]
+#[derive(Copy, Clone, Debug, Deserialize)]
+pub(crate) struct FatPointerCountLastU8<'a, T> {
+    p: Ptr32<'a, T>,
+    size: u8,
+}
+
+/// Newtype for a fat pointer to a `[T]`.
+///
+/// Represents an offset containing [`Self::size`] [`T`]s.
+///
+/// Serialized structs often contain these, but sometimes the size comes
+/// before the pointer instead of after, and sometimes it's a [`u8`] or [`u16`] instead
 /// of a [`u32`].
 ///
 /// In this case, [`Self::size`] is a [`u16`], and comes after the pointer.
@@ -466,7 +498,7 @@ pub(crate) struct FatPointerCountLastU16<'a, T> {
 /// Represents an offset containing [`Self::size`] [`T`]s.
 ///
 /// Serialized structs often contain these, but sometimes the size comes
-/// before the pointer instead of after, and sometimes it's a [`u16`] instead
+/// before the pointer instead of after, and sometimes it's a [`u8`] or [`u16`] instead
 /// of a [`u32`].
 ///
 /// In this case, [`Self::size`] is a [`u32`], and comes after the pointer.
@@ -485,8 +517,10 @@ pub(crate) struct Ptr32Array<'a, T> {
 }
 
 impl_fat_pointer!(
+    FatPointerCountFirstU8,
     FatPointerCountFirstU16,
     FatPointerCountFirstU32,
+    FatPointerCountLastU8,
     FatPointerCountLastU16,
     FatPointerCountLastU32,
     Ptr32Array,

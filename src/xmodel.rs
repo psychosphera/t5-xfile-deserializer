@@ -14,7 +14,7 @@ use crate::{common::*, *};
 //   0x518    (518)
 
 #[cfg_attr(feature = "serde", derive(Serialize))]
-#[derive(Clone, Default, Debug, Deserialize)]
+#[derive(Copy, Clone, Default, Debug, Deserialize)]
 pub(crate) struct XModelRaw<'a> {
     pub name: XString<'a>,
     pub num_bones: u8,
@@ -168,7 +168,6 @@ impl<'a> XFileInto<XModel, ()> for XModelRaw<'a> {
         //dbg!(xfile.stream_position()?);
         let surfs = self
             .surfs
-            .clone()
             .to_array(self.numsurfs as _)
             .xfile_into(de, ())?;
         //dbg!(&surfs);
@@ -290,7 +289,7 @@ impl From<DObjAnimMatRaw> for DObjAnimMat {
 }
 
 #[cfg_attr(feature = "serde", derive(Serialize))]
-#[derive(Clone, Default, Debug, Deserialize)]
+#[derive(Copy, Clone, Default, Debug, Deserialize)]
 pub(crate) struct XSurfaceRaw<'a> {
     pub tile_mode: u8,
     pub vert_list_count: u8,
@@ -302,9 +301,9 @@ pub(crate) struct XSurfaceRaw<'a> {
     pub tri_indices: Ptr32<'a, u16>,
     pub vert_info: XSurfaceVertexInfoRaw<'a>,
     pub verts0: Ptr32<'a, GfxPackedVertexRaw>,
-    pub vb0: Ptr32<'a, IDirect3DVertexBuffer9>,
+    pub vb0: Ptr32<'a, ()>,
     pub vert_list: Ptr32<'a, XRigidVertListRaw<'a>>,
-    pub index_buffer: Ptr32<'a, IDirect3DIndexBuffer9>,
+    pub index_buffer: Ptr32<'a, ()>,
     pub part_bits: [i32; 5],
 }
 assert_size!(XSurfaceRaw, 68);
@@ -409,10 +408,10 @@ impl<'a> XFileInto<XSurfaceVertexInfo, ()> for XSurfaceVertexInfoRaw<'a> {
 pub(crate) struct GfxPackedVertexRaw {
     pub xyz: [f32; 3],
     pub binormal_sign: f32,
-    pub color: GfxColorRaw,
-    pub tex_coord: TexCoordsRaw,
-    pub normal: UnitVecRaw,
-    pub tangent: UnitVecRaw,
+    pub color: GfxColor,
+    pub tex_coord: TexCoords,
+    pub normal: UnitVec,
+    pub tangent: UnitVec,
 }
 assert_size!(GfxPackedVertexRaw, 32);
 
@@ -421,10 +420,10 @@ assert_size!(GfxPackedVertexRaw, 32);
 pub struct GfxPackedVertex {
     pub xyz: Vec3,
     pub binormal_sign: f32,
-    pub color: GfxColorRaw,
-    pub tex_coord: TexCoordsRaw,
-    pub normal: UnitVecRaw,
-    pub tangent: UnitVecRaw,
+    pub color: GfxColor,
+    pub tex_coord: TexCoords,
+    pub normal: UnitVec,
+    pub tangent: UnitVec,
 }
 
 impl From<GfxPackedVertexRaw> for GfxPackedVertex {
@@ -442,18 +441,18 @@ impl From<GfxPackedVertexRaw> for GfxPackedVertex {
 
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
-pub struct GfxColorRaw(pub [u8; 4]);
-assert_size!(GfxColorRaw, 4);
+pub struct GfxColor(pub [u8; 4]);
+assert_size!(GfxColor, 4);
 
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
-pub struct TexCoordsRaw(pub u32);
-assert_size!(TexCoordsRaw, 4);
+pub struct TexCoords(pub u32);
+assert_size!(TexCoords, 4);
 
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
-pub struct UnitVecRaw(pub [u8; 4]);
-assert_size!(UnitVecRaw, 4);
+pub struct UnitVec(pub [u8; 4]);
+assert_size!(UnitVec, 4);
 
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
@@ -1261,19 +1260,10 @@ pub struct PhysConstraint {
 
 impl<'a> XFileInto<PhysConstraint, ()> for PhysConstraintRaw<'a> {
     fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<PhysConstraint> {
-        let targetname = self
-            .targetname
-            .to_string(de)
-            .unwrap_or_default();
-        let target_ent1 = self
-            .target_ent1
-            .to_string(de)
-            .unwrap_or_default();
+        let targetname = self.targetname.to_string(de).unwrap_or_default();
+        let target_ent1 = self.target_ent1.to_string(de).unwrap_or_default();
         let target_bone1 = self.target_bone1.xfile_into(de, ())?;
-        let target_ent2 = self
-            .target_ent2
-            .to_string(de)
-            .unwrap_or_default();
+        let target_ent2 = self.target_ent2.to_string(de).unwrap_or_default();
         let target_bone2 = self.target_bone2.xfile_into(de, ())?;
         dbg!(&targetname);
         dbg!(&target_ent1);
@@ -1317,3 +1307,11 @@ impl<'a> XFileInto<PhysConstraint, ()> for PhysConstraintRaw<'a> {
         })
     }
 }
+
+#[cfg_attr(feature = "serde", derive(Serialize))]
+#[derive(Copy, Clone, Default, Debug, Deserialize)]
+pub struct XModelDrawInfo {
+    pub lod: u16,
+    pub surf_id: u16,
+}
+assert_size!(XModelDrawInfo, 4);

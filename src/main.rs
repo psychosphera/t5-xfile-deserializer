@@ -19,7 +19,9 @@ fn main() {
         T5XFileDeserializer::from_cache_file(&mut file, false, XFilePlatform::Windows).unwrap()
     } else {
         T5XFileDeserializer::from_file(&mut file, false, XFilePlatform::Windows).unwrap()
-    }.inflate().unwrap();
+    }
+    .inflate()
+    .unwrap();
 
     let de = if !cache_exists {
         de.cache(cached_filename).unwrap().0

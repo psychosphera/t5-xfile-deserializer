@@ -14,8 +14,12 @@ impl XAsset {
         platform: XFilePlatform,
     ) -> Result<Self> {
         Ok(match platform {
-            XFilePlatform::Windows | XFilePlatform::macOS => Self::PC(xasset_raw.xfile_into(de, ())?),
-            XFilePlatform::Xbox360 | XFilePlatform::PS3 => Self::Console(xasset_raw.xfile_into(de, ())?),
+            XFilePlatform::Windows | XFilePlatform::macOS => {
+                Self::PC(xasset_raw.xfile_into(de, ())?)
+            }
+            XFilePlatform::Xbox360 | XFilePlatform::PS3 => {
+                Self::Console(xasset_raw.xfile_into(de, ())?)
+            }
             XFilePlatform::Wii => unreachable!(),
         })
     }
@@ -67,6 +71,7 @@ pub enum XAssetGeneric<const MAX_LOCAL_CLIENTS: usize> {
     GameWorldSp(Option<Box<gameworld::GameWorldSp>>),
     GameWorldMp(Option<Box<gameworld::GameWorldMp>>),
     MapEnts(Option<Box<MapEnts>>),
+    GfxWorld(Option<Box<gfx_world::GfxWorld<MAX_LOCAL_CLIENTS>>>),
     LightDef(Option<Box<light::GfxLightDef>>),
     Font(Option<Box<font::Font>>),
     MenuList(Option<Box<menu::MenuList<MAX_LOCAL_CLIENTS>>>),
@@ -102,6 +107,7 @@ impl<const MAX_LOCAL_CLIENTS: usize> XAssetGeneric<MAX_LOCAL_CLIENTS> {
             Self::GameWorldSp(p) => p.is_some(),
             Self::GameWorldMp(p) => p.is_some(),
             Self::MapEnts(p) => p.is_some(),
+            Self::GfxWorld(p) => p.is_some(),
             Self::LightDef(p) => p.is_some(),
             Self::Font(p) => p.is_some(),
             Self::MenuList(p) => p.is_some(),
@@ -141,6 +147,7 @@ impl<const MAX_LOCAL_CLIENTS: usize> XAssetGeneric<MAX_LOCAL_CLIENTS> {
             Self::GameWorldSp(p) => p.as_ref().map(|p| p.name.as_str()),
             Self::GameWorldMp(p) => p.as_ref().map(|p| p.name.as_str()),
             Self::MapEnts(p) => p.as_ref().map(|p| p.name.as_str()),
+            Self::GfxWorld(p) => p.as_ref().map(|p| p.name.as_str()),
             Self::LightDef(p) => p.as_ref().map(|p| p.name.as_str()),
             Self::Font(p) => p.as_ref().map(|p| p.font_name.as_str()),
             Self::MenuList(p) => p.as_ref().map(|p| p.name.as_str()),
@@ -309,6 +316,11 @@ impl<'a, const MAX_LOCAL_CLIENTS: usize> XFileInto<XAssetGeneric<MAX_LOCAL_CLIEN
             XAssetType::MAP_ENTS => {
                 XAssetGeneric::MapEnts(self.asset_data.cast::<MapEntsRaw>().xfile_into(de, ())?)
             }
+            XAssetType::GFXWORLD => XAssetGeneric::GfxWorld(
+                self.asset_data
+                    .cast::<gfx_world::GfxWorldRaw<MAX_LOCAL_CLIENTS>>()
+                    .xfile_into(de, ())?,
+            ),
             XAssetType::LIGHT_DEF => XAssetGeneric::LightDef(
                 self.asset_data
                     .cast::<light::GfxLightDefRaw>()
