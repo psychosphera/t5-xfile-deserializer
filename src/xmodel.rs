@@ -1,4 +1,3 @@
-#[cfg(feature = "serde")]
 use bitflags::bitflags;
 use num::FromPrimitive;
 
@@ -31,6 +30,7 @@ pub(crate) struct XModelRaw<'a> {
     pub material_handles: Ptr32<'a, Ptr32<'a, techset::MaterialRaw<'a>>>,
     pub lod_info: [XModelLodInfoRaw; MAX_LODS],
     pub load_dist_auto_generated: u8,
+    #[allow(dead_code)]
     pad: [u8; 3],
     pub coll_surfs: FatPointerCountLastU32<'a, XModelCollSurfRaw<'a>>,
     pub contents: i32,
@@ -44,6 +44,7 @@ pub(crate) struct XModelRaw<'a> {
     pub mem_usage: i32,
     pub flags: i32,
     pub bad: bool,
+    #[allow(dead_code)]
     pad_2: [u8; 3],
     pub phys_preset: Ptr32<'a, PhysPresetRaw<'a>>,
     pub collmaps: FatPointerCountFirstU32<'a, CollmapRaw<'a>>,
@@ -166,10 +167,7 @@ impl<'a> XFileInto<XModel, ()> for XModelRaw<'a> {
             .to_vec_into(de)?;
         //dbg!(&base_mat);
         //dbg!(xfile.stream_position()?);
-        let surfs = self
-            .surfs
-            .to_array(self.numsurfs as _)
-            .xfile_into(de, ())?;
+        let surfs = self.surfs.to_array(self.numsurfs as _).xfile_into(de, ())?;
         //dbg!(&surfs);
         //dbg!(xfile.stream_position()?);
         let material_handles = self
@@ -301,8 +299,10 @@ pub(crate) struct XSurfaceRaw<'a> {
     pub tri_indices: Ptr32<'a, u16>,
     pub vert_info: XSurfaceVertexInfoRaw<'a>,
     pub verts0: Ptr32<'a, GfxPackedVertexRaw>,
+    #[allow(dead_code)]
     pub vb0: Ptr32<'a, ()>,
     pub vert_list: Ptr32<'a, XRigidVertListRaw<'a>>,
+    #[allow(dead_code)]
     pub index_buffer: Ptr32<'a, ()>,
     pub part_bits: [i32; 5],
 }
@@ -327,9 +327,9 @@ pub struct XSurface {
     pub tri_indices: Vec<u16>,
     pub vert_info: XSurfaceVertexInfo,
     pub verts0: Vec<GfxPackedVertex>,
-    pub vb0: Option<Box<IDirect3DVertexBuffer9>>,
+    pub vb0: Option<Box<GfxVertexBuffer>>,
     pub vert_list: Vec<XRigidVertList>,
-    pub index_buffer: Option<Box<IDirect3DIndexBuffer9>>,
+    pub index_buffer: Option<Box<GfxIndexBuffer>>,
     pub part_bits: [i32; 5],
 }
 
@@ -587,6 +587,7 @@ pub(crate) struct XModelLodInfoRaw {
     pub lod: u8,
     pub smc_index_plus_one: u8,
     pub smc_alloc_bits: u8,
+    #[allow(dead_code)]
     unused: u8,
 }
 assert_size!(XModelLodInfoRaw, 32);
@@ -1025,6 +1026,7 @@ pub(crate) struct CPlaneRaw {
     pub dist: f32,
     pub type_: u8,
     pub signbits: u8,
+    #[allow(dead_code)]
     pad: [u8; 2],
 }
 assert_size!(CPlaneRaw, 20);
@@ -1161,16 +1163,19 @@ impl<'a> XFileInto<PhysConstraints, ()> for PhysConstraintsRaw<'a> {
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
 pub(crate) struct PhysConstraintRaw<'a> {
     pub targetname: ScriptString,
+    #[allow(dead_code)]
     pad: u16,
     pub type_: i32,
     pub attach_point_type1: i32,
     pub target_index1: i32,
     pub target_ent1: ScriptString,
+    #[allow(dead_code)]
     pad_2: u16,
     pub target_bone1: XString<'a>,
     pub attach_point_type2: i32,
     pub target_index2: i32,
     pub target_ent2: ScriptString,
+    #[allow(dead_code)]
     pad_3: u16,
     pub target_bone2: XString<'a>,
     pub offset: [f32; 3],
@@ -1298,8 +1303,8 @@ impl<'a> XFileInto<PhysConstraint, ()> for PhysConstraintRaw<'a> {
             power: self.power,
             scale: self.scale.into(),
             spin_scale: self.spin_scale,
-            min_angle: self.spin_scale,
-            max_angle: self.spin_scale,
+            min_angle: self.min_angle,
+            max_angle: self.max_angle,
             material: self.material.xfile_into(de, ())?,
             constraint_handle: self.constraint_handle,
             rope_index: self.rope_index as _,

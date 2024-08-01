@@ -64,7 +64,7 @@
 // with XFiles - the assets are essentially just the structs used by the engine
 // serialzed into a file. Any pointers in said structs become offsets in the
 // file. Occasionally the offsets are NULL or a "real" value, but most of the
-// time they're 0xFFFFFFFF, which indicates that, instead of being at a
+// time they're 0xFFFFFFFF or 0xFFFFFFFE, which indicates that, instead of being at a
 // specific offset, they come immediately after the current struct. This means
 // basically nothing in the file is relocatable.
 //
@@ -109,7 +109,7 @@ use std::{
     collections::VecDeque,
     ffi::CString,
     fmt::{Debug, Display},
-    io::{Cursor, Read, Seek, SeekFrom, Write},
+    io::{Cursor, Read, Seek, Write},
     marker::PhantomData,
     path::Path,
 };
@@ -123,6 +123,9 @@ use serde::{de::DeserializeOwned, Deserialize};
 
 #[cfg(feature = "serde")]
 use serde::Serialize;
+
+#[cfg(feature = "d3d9")]
+use windows::Win32::Graphics::Direct3D9::IDirect3DDevice9;
 
 pub use misc::*;
 use util::{StreamLen, *};
@@ -271,6 +274,14 @@ impl XFilePlatform {
     }
 }
 
+#[cfg(feature = "d3d9")]
+pub struct D3D9State<'a> {
+    pub(crate) device: &'a mut IDirect3DDevice9,
+}
+
+#[cfg(not(feature = "d3d9"))]
+struct D3D9State<'a>(PhantomData<&'a ()>);
+
 pub(crate) trait T5XFileDeserializerTypestate {}
 
 pub enum T5XFileDeserializerUninflated {}
@@ -295,10 +306,12 @@ pub struct T5XFileDeserializer<'a, T: T5XFileDeserializerTypestate = T5XFileDese
     deserialized_assets: usize,
     opts: BincodeOptions,
     platform: XFilePlatform,
+    d3d9_state: Option<D3D9State<'a>>,
     _p: PhantomData<T>,
 }
 
 #[derive(Debug)]
+#[non_exhaustive]
 pub enum Error {
     Io(std::io::Error),
     Bincode(Box<bincode::ErrorKind>),
@@ -308,12 +321,17 @@ pub enum Error {
     BadBitflags(u32),
     BadChar(u32),
     BrokenInvariant(String),
-    InvalidSeek { off: u32, max: u32 },
+    InvalidSeek {
+        off: u32,
+        max: u32,
+    },
     BadHeaderMagic(String),
     WrongVersion(u32),
     WrongEndiannessForPlatform(XFilePlatform),
     UnsupportedPlatform(XFilePlatform),
     Todo(String),
+    #[cfg(feature = "d3d9")]
+    Windows(windows::core::Error),
 }
 
 impl From<std::io::Error> for Error {
@@ -331,6 +349,13 @@ impl From<Box<bincode::ErrorKind>> for Error {
 impl From<String> for Error {
     fn from(value: String) -> Self {
         Self::Inflate(value)
+    }
+}
+
+#[cfg(feature = "d3d9")]
+impl From<windows::core::Error> for Error {
+    fn from(value: windows::core::Error) -> Self {
+        Self::Windows(value)
     }
 }
 
@@ -393,11 +418,73 @@ pub enum CacheSuccess {
     CacheOverwritten,
 }
 
+pub struct T5XFileDeserializerBuilder<'a> {
+    silent: bool,
+    file: Option<&'a mut std::fs::File>,
+    cache_file: Option<&'a mut std::fs::File>,
+    platform: XFilePlatform,
+    d3d9_state: Option<D3D9State<'a>>,
+}
+
+impl<'a> T5XFileDeserializerBuilder<'a> {
+    pub fn from_file(file: &'a mut std::fs::File, platform: XFilePlatform) -> Self {
+        Self {
+            file: Some(file),
+            cache_file: None,
+            platform,
+            silent: false,
+            d3d9_state: None,
+        }
+    }
+
+    pub fn from_cache_file(cache_file: &'a mut std::fs::File, platform: XFilePlatform) -> Self {
+        Self {
+            file: None,
+            cache_file: Some(cache_file),
+            platform,
+            silent: false,
+            d3d9_state: None,
+        }
+    }
+
+    pub fn with_silent(mut self, silent: bool) -> Self {
+        self.silent = silent;
+        self
+    }
+
+    #[cfg(feature = "d3d9")]
+    pub fn with_d3d9(mut self, d3d9_state: Option<D3D9State<'a>>) -> Self {
+        self.d3d9_state = d3d9_state;
+        self
+    }
+
+    pub fn build(mut self) -> Result<T5XFileDeserializer<'a, T5XFileDeserializerUninflated>> {
+        if self.file.is_some() {
+            T5XFileDeserializer::from_file(
+                self.file.take().unwrap(),
+                self.silent,
+                self.platform,
+                self.d3d9_state,
+            )
+        } else if self.cache_file.is_some() {
+            T5XFileDeserializer::from_cache_file(
+                self.cache_file.take().unwrap(),
+                self.silent,
+                self.platform,
+                self.d3d9_state,
+            )
+        } else {
+            unreachable!()
+        }
+    }
+}
+
 impl<'a> T5XFileDeserializer<'a, T5XFileDeserializerUninflated> {
-    pub fn from_file(
-        mut file: &'a mut std::fs::File,
+    fn from_file(
+        file: &'a mut std::fs::File,
         silent: bool,
         platform: XFilePlatform,
+        d3d9_state: Option<D3D9State<'a>>,
     ) -> Result<Self> {
         if platform == XFilePlatform::Wii {
             if !silent {
@@ -430,7 +517,7 @@ impl<'a> T5XFileDeserializer<'a, T5XFileDeserializerUninflated> {
 
         let opts = BincodeOptions::from_platform(platform);
 
-        let header = opts.deserialize_from::<XFileHeader>(&mut file)?;
+        let header = opts.deserialize_from::<XFileHeader>(&mut *file)?;
 
         dbg!(&header);
 
@@ -480,16 +567,18 @@ impl<'a> T5XFileDeserializer<'a, T5XFileDeserializerUninflated> {
             deserialized_assets: 0,
             opts,
             platform,
+            d3d9_state,
             _p: PhantomData,
         };
 
         Ok(de)
     }
 
-    pub fn from_cache_file(
+    fn from_cache_file(
         file: &'a mut std::fs::File,
         silent: bool,
         platform: XFilePlatform,
+        d3d9_state: Option<D3D9State<'a>>,
     ) -> Result<Self> {
         if platform == XFilePlatform::Wii {
             if !silent {
@@ -514,6 +603,7 @@ impl<'a> T5XFileDeserializer<'a, T5XFileDeserializerUninflated> {
             deserialized_assets: 0,
             opts: BincodeOptions::from_platform(platform),
             platform,
+            d3d9_state,
             _p: PhantomData,
         })
     }
@@ -579,6 +669,7 @@ impl<'a> T5XFileDeserializer<'a, T5XFileDeserializerUninflated> {
             deserialized_assets: self.deserialized_assets,
             opts: self.opts,
             platform: self.platform,
+            d3d9_state: self.d3d9_state,
             _p: PhantomData,
         };
 
@@ -623,6 +714,7 @@ impl<'a> T5XFileDeserializer<'a, T5XFileDeserializerInflated> {
             deserialized_assets: self.deserialized_assets,
             opts: self.opts,
             platform: self.platform,
+            d3d9_state: self.d3d9_state,
             _p: PhantomData,
         };
 
@@ -648,6 +740,7 @@ impl<'a> T5XFileDeserializer<'a, T5XFileDeserializerInflated> {
             deserialized_assets: self.deserialized_assets,
             opts: self.opts,
             platform: self.platform,
+            d3d9_state: self.d3d9_state,
             _p: PhantomData,
         };
 
@@ -693,59 +786,63 @@ impl<'a> T5XFileDeserializer<'a, T5XFileDeserializerDeserialize> {
         Ok(deserialized_assets)
     }
 
-    pub(crate) fn seek_and<T, F: FnOnce(&mut Self) -> T>(
-        &mut self,
-        from: SeekFrom,
-        predicate: F,
-    ) -> Result<T> {
-        let pos = self.reader.as_mut().unwrap().stream_position()?;
-
-        if let std::io::SeekFrom::Start(p) = from {
-            if p != 0xFFFFFFFF && p != 0xFFFFFFFE {
-                let (_, off) = self.convert_offset_to_ptr(p as _)?;
-                let len = StreamLen::stream_len(self.reader.as_mut().unwrap())?;
-                if off as u64 > len {
-                    return Err(Error::InvalidSeek { off, max: len as _ });
-                }
-                self.reader
-                    .as_mut()
-                    .unwrap()
-                    .seek(std::io::SeekFrom::Start(off as _))?;
-            }
-        } else if let std::io::SeekFrom::Current(p) = from {
-            let len = StreamLen::stream_len(self.reader.as_mut().unwrap())?;
-            let off = pos as i64 + p;
-            if pos as i64 + p > len as i64 {
-                return Err(Error::InvalidSeek {
-                    off: off as _,
-                    max: len as _,
-                });
-            }
-            self.reader.as_mut().unwrap().seek(from)?;
-        } else {
-            unimplemented!()
-        }
-
-        let t = predicate(self);
-
-        if let std::io::SeekFrom::Start(p) = from {
-            if p != 0xFFFFFFFF && p != 0xFFFFFFFE {
-                self.reader
-                    .as_mut()
-                    .unwrap()
-                    .seek(std::io::SeekFrom::Start(pos))?;
-            }
-        } else if let std::io::SeekFrom::Current(p) = from {
-            self.reader
-                .as_mut()
-                .unwrap()
-                .seek(std::io::SeekFrom::Current(-p))?;
-        } else {
-            unimplemented!()
-        }
-
-        Ok(t)
-    }
+    // pub(crate) fn seek_and<T, F: FnOnce(&mut Self) -> T>(
+    //     &mut self,
+    //     from: SeekFrom,
+    //     predicate: F,
+    // ) -> Result<T> {
+    //     let pos = self.reader.as_mut().unwrap().stream_position()?;
+    //
+    //     if let std::io::SeekFrom::Start(p) = from {
+    //         if p != 0xFFFFFFFF && p != 0xFFFFFFFE {
+    //             let (_, off) = self.convert_offset_to_ptr(p as _)?;
+    //             let len = StreamLen::stream_len(self.reader.as_mut().unwrap())?;
+    //             if off as u64 > len {
+    //                 return Err(Error::InvalidSeek { off, max: len as _ });
+    //             }
+    //             self.reader
+    //                 .as_mut()
+    //                 .unwrap()
+    //                 .seek(std::io::SeekFrom::Start(off as _))?;
+    //         }
+    //     } else if let std::io::SeekFrom::Current(p) = from {
+    //         if p != 0 {
+    //             let len = StreamLen::stream_len(self.reader.as_mut().unwrap())?;
+    //             let off = pos as i64 + p;
+    //             if pos as i64 + p > len as i64 {
+    //                 return Err(Error::InvalidSeek {
+    //                     off: off as _,
+    //                     max: len as _,
+    //                 });
+    //             }
+    //             self.reader.as_mut().unwrap().seek(from)?;
+    //         }
+    //     } else {
+    //         unimplemented!()
+    //     }
+    //
+    //     let t = predicate(self);
+    //
+    //     if let std::io::SeekFrom::Start(p) = from {
+    //         if p != 0xFFFFFFFF && p != 0xFFFFFFFE {
+    //             self.reader
+    //                 .as_mut()
+    //                 .unwrap()
+    //                 .seek(std::io::SeekFrom::Start(pos))?;
+    //         }
+    //     } else if let std::io::SeekFrom::Current(p) = from {
+    //         if p != 0 {
+    //             self.reader
+    //                 .as_mut()
+    //                 .unwrap()
+    //                 .seek(std::io::SeekFrom::Current(-p))?;
+    //         }
+    //     } else {
+    //         unimplemented!()
+    //     }
+    //
+    //     Ok(t)
+    // }
 
     pub(crate) fn load_from_xfile<T: DeserializeOwned>(&mut self) -> Result<T> {
         self.opts
@@ -753,17 +850,17 @@ impl<'a> T5XFileDeserializer<'a, T5XFileDeserializerDeserialize> {
             .map_err(Error::Bincode)
     }
 
-    pub(crate) fn convert_offset_to_ptr(&self, offset: u32) -> Result<(u8, u32)> {
-        let block = ((offset - 1) >> 29) as u8;
-        let off = (offset - 1) & 0x1FFFFFFF;
-
-        let start = self.xfile.block_size[0..block as usize].iter().sum::<u32>();
-        let p = start + off;
-
-        //dbg!(block_sizes, block, off, start, p);
-
-        Ok((block, p))
-    }
+    // pub(crate) fn convert_offset_to_ptr(&self, offset: u32) -> Result<(u8, u32)> {
+    //     let block = ((offset - 1) >> 29) as u8;
+    //     let off = (offset - 1) & 0x1FFFFFFF;
+    //
+    //     let start = self.xfile.block_size[0..block as usize].iter().sum::<u32>();
+    //     let p = start + off;
+    //
+    //     //dbg!(block_sizes, block, off, start, p);
+    //
+    //     Ok((block, p))
+    // }
 
     fn get_script_strings_and_assets(&mut self) -> Result<()> {
         let xasset_list = self.xasset_list;
@@ -779,5 +876,15 @@ impl<'a> T5XFileDeserializer<'a, T5XFileDeserializerDeserialize> {
         //dbg!(&strings);
 
         Ok(())
+    }
+
+    #[allow(dead_code)]
+    pub(crate) const fn create_d3d9(&self) -> bool {
+        self.d3d9_state.is_some()
+    }
+
+    #[allow(dead_code)]
+    pub(crate) fn d3d9_state(&mut self) -> Option<&mut D3D9State<'a>> {
+        self.d3d9_state.as_mut()
     }
 }

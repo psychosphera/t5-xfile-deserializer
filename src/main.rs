@@ -1,6 +1,6 @@
 use std::{ffi::OsString, path::Path, str::FromStr};
 
-use t5_xfile_deserializer::{T5XFileDeserializer, XFilePlatform};
+use t5_xfile_deserializer::{T5XFileDeserializerBuilder, XFilePlatform};
 fn main() {
     let filename = std::env::args_os()
         .nth(1)
@@ -16,12 +16,16 @@ fn main() {
 
     let de = if cache_exists {
         println!("Found inflated cache file, reading...");
-        T5XFileDeserializer::from_cache_file(&mut file, false, XFilePlatform::Windows).unwrap()
+        T5XFileDeserializerBuilder::from_cache_file(&mut file, XFilePlatform::Windows)
     } else {
-        T5XFileDeserializer::from_file(&mut file, false, XFilePlatform::Windows).unwrap()
+        T5XFileDeserializerBuilder::from_file(&mut file, XFilePlatform::Windows)
     }
-    .inflate()
-    .unwrap();
+    .with_silent(false);
+
+    #[cfg(feature = "d3d9")]
+    let de = de.with_d3d9(None);
+
+    let de = de.build().unwrap().inflate().unwrap();
 
     let de = if !cache_exists {
         de.cache(cached_filename).unwrap().0

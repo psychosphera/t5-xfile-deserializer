@@ -227,7 +227,8 @@ pub(crate) struct WeaponDefRaw<'a> {
     pub overheat_end_val: f32,
     pub cool_while_firing: bool,
     pub fuel_tank_weapon: bool,
-    pub pad: [u8; 3],
+    #[allow(dead_code)]
+    pad: [u8; 3],
     pub tank_life_time: i32,
     pub offhand_class: u32,
     pub offhand_slot: u32,
@@ -372,7 +373,8 @@ pub(crate) struct WeaponDefRaw<'a> {
     pub shared_ammo_cap: i32,
     pub unlimited_ammo: bool,
     pub ammo_count_clip_relative: bool,
-    pub pad2: [u8; 2],
+    #[allow(dead_code)]
+    pad2: [u8; 2],
     pub damage: i32,
     pub damage_duration: f32,
     pub damage_interval: f32,
@@ -448,7 +450,8 @@ pub(crate) struct WeaponDefRaw<'a> {
     pub require_lockon_to_fire: bool,
     pub no_ads_when_mag_empty: bool,
     pub avoid_drop_cleanup: bool,
-    pub pad3: [u8; 1],
+    #[allow(dead_code)]
+    pad3: [u8; 1],
     pub stack_fire: u32,
     pub stack_fire_spread: f32,
     pub stack_fire_accuracy_decay: f32,
@@ -456,7 +459,8 @@ pub(crate) struct WeaponDefRaw<'a> {
     pub auto_aim_range: f32,
     pub aim_assist_range: f32,
     pub mountable_weapon: bool,
-    pub pad4: [u8; 3],
+    #[allow(dead_code)]
+    pad4: [u8; 3],
     pub aim_padding: f32,
     pub enemy_crosshair_range: f32,
     pub crosshair_color_change: bool,
@@ -511,7 +515,8 @@ pub(crate) struct WeaponDefRaw<'a> {
     pub aim_down_sight: bool,
     pub rechamber_while_ads: bool,
     pub reload_while_ads: bool,
-    pub pad5: [u8; 2],
+    #[allow(dead_code)]
+    pad5: [u8; 2],
     pub ads_view_error_min: f32,
     pub ads_view_error_max: f32,
     pub cook_off_hold: bool,
@@ -537,7 +542,8 @@ pub(crate) struct WeaponDefRaw<'a> {
     pub no_quick_drop_when_empty: bool,
     pub keep_crosshair_when_ads: bool,
     pub use_only_alt_weaopon_hide_tags_in_alt_mode: bool,
-    pub pad6: [u8; 2],
+    #[allow(dead_code)]
+    pad6: [u8; 2],
     pub kill_icon: Ptr32<'a, techset::MaterialRaw<'a>>,
     pub kill_icon_ratio: u32,
     pub flip_kill_icon: bool,
@@ -555,7 +561,8 @@ pub(crate) struct WeaponDefRaw<'a> {
     pub drop_clip_ammo_max: i32,
     pub blocks_prone: bool,
     pub show_indicator: bool,
-    pub pad7: [u8; 2],
+    #[allow(dead_code)]
+    pad7: [u8; 2],
     pub is_rolling_grenade: i32,
     pub explosion_radius: i32,
     pub explosion_radius_min: i32,
@@ -575,19 +582,24 @@ pub(crate) struct WeaponDefRaw<'a> {
     pub proj_explosion: u32,
     pub proj_explosion_effect: Ptr32<'a, fx::FxEffectDefRaw<'a>>,
     pub proj_explosion_effect_force_normal_up: bool,
-    pub pad8: [u8; 3],
+    #[allow(dead_code)]
+    pad8: [u8; 3],
     pub proj_explosion_effect_2: Ptr32<'a, fx::FxEffectDefRaw<'a>>,
     pub proj_explosion_effect_2_force_normal_up: bool,
-    pub pad9: [u8; 3],
+    #[allow(dead_code)]
+    pad9: [u8; 3],
     pub proj_explosion_effect_3: Ptr32<'a, fx::FxEffectDefRaw<'a>>,
     pub proj_explosion_effect_3_force_normal_up: bool,
-    pub pad10: [u8; 3],
+    #[allow(dead_code)]
+    pad10: [u8; 3],
     pub proj_explosion_effect_4: Ptr32<'a, fx::FxEffectDefRaw<'a>>,
     pub proj_explosion_effect_4_force_normal_up: bool,
-    pub pad11: [u8; 3],
+    #[allow(dead_code)]
+    pad11: [u8; 3],
     pub proj_explosion_effect_5: Ptr32<'a, fx::FxEffectDefRaw<'a>>,
     pub proj_explosion_effect_5_force_normal_up: bool,
-    pub pad12: [u8; 3],
+    #[allow(dead_code)]
+    pad12: [u8; 3],
     pub proj_dud_effect: Ptr32<'a, fx::FxEffectDefRaw<'a>>,
     pub proj_explosion_sound: XString<'a>,
     pub proj_dud_sound: XString<'a>,
@@ -595,7 +607,8 @@ pub(crate) struct WeaponDefRaw<'a> {
     pub tank_shell_sound: XString<'a>,
     pub proj_impact_explode: bool,
     pub bullet_impact_explode: bool,
-    pub pad13: [u8; 2],
+    #[allow(dead_code)]
+    pad13: [u8; 2],
     pub stickiness: u32,
     pub rotate_type: u32,
     pub plantable: bool,
@@ -607,13 +620,15 @@ pub(crate) struct WeaponDefRaw<'a> {
     pub hold_button_to_throw: bool,
     pub offhand_hold_is_cancelable: bool,
     pub freeze_movement_when_firing: bool,
-    pub pad14: [u8; 3],
+    #[allow(dead_code)]
+    pad14: [u8; 3],
     pub low_ammo_warning_threshold: f32,
     pub melee_charge_range: f32,
     pub use_as_melee: bool,
     pub is_camera_sensor: bool,
     pub is_acoustic_sensor: bool,
-    pub pad15: [u8; 1],
+    #[allow(dead_code)]
+    pad15: [u8; 1],
     pub parallel_bounce: Ptr32ArrayConst<'a, f32, 31>,
     pub perpendicular_bounce: Ptr32ArrayConst<'a, f32, 31>,
     pub proj_tail_effect: Ptr32<'a, fx::FxEffectDefRaw<'a>>,
@@ -714,7 +729,8 @@ pub(crate) struct WeaponDefRaw<'a> {
     pub tag_fx_preparation_effect: Ptr32<'a, fx::FxEffectDefRaw<'a>>,
     pub tag_flash_preparation_effect: Ptr32<'a, fx::FxEffectDefRaw<'a>>,
     pub do_gibbing: bool,
-    pub pad16: [u8; 3],
+    #[allow(dead_code)]
+    pad16: [u8; 3],
     pub max_gib_distance: f32,
 }
 assert_size!(WeaponDefRaw, 2056);
@@ -1648,10 +1664,10 @@ impl<'a> XFileInto<WeaponDef, ()> for WeaponDefRaw<'a> {
         let proj_explosion = FromPrimitive::from_u32(self.proj_explosion)
             .ok_or(Error::BadFromPrimitive(self.proj_explosion as _))?;
         let proj_explosion_effect = self.proj_explosion_effect.xfile_into(de, ())?;
-        let proj_explosion_effect_2 = self.proj_explosion_effect.xfile_into(de, ())?;
-        let proj_explosion_effect_3 = self.proj_explosion_effect.xfile_into(de, ())?;
-        let proj_explosion_effect_4 = self.proj_explosion_effect.xfile_into(de, ())?;
-        let proj_explosion_effect_5 = self.proj_explosion_effect.xfile_into(de, ())?;
+        let proj_explosion_effect_2 = self.proj_explosion_effect_2.xfile_into(de, ())?;
+        let proj_explosion_effect_3 = self.proj_explosion_effect_3.xfile_into(de, ())?;
+        let proj_explosion_effect_4 = self.proj_explosion_effect_4.xfile_into(de, ())?;
+        let proj_explosion_effect_5 = self.proj_explosion_effect_5.xfile_into(de, ())?;
         let proj_dud_effect = self.proj_dud_effect.xfile_into(de, ())?;
         let proj_explosion_sound = self.proj_explosion_sound.xfile_into(de, ())?;
         let proj_dud_sound = self.proj_dud_sound.xfile_into(de, ())?;
@@ -1714,7 +1730,7 @@ impl<'a> XFileInto<WeaponDef, ()> for WeaponDefRaw<'a> {
         let flame_table_third_person = self.flame_table_third_person.xfile_into(de, ())?;
         let flame_table_first_person_ptr = self.flame_table_first_person_ptr.xfile_into(de, ())?;
         let flame_table_third_person_ptr = self.flame_table_third_person_ptr.xfile_into(de, ())?;
-        let tag_fx_preparation_effect = self.tag_flash_preparation_effect.xfile_into(de, ())?;
+        let tag_fx_preparation_effect = self.tag_fx_preparation_effect.xfile_into(de, ())?;
         let tag_flash_preparation_effect = self.tag_flash_preparation_effect.xfile_into(de, ())?;
 
         Ok(WeaponDef {

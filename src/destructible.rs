@@ -38,6 +38,7 @@ impl<'a> XFileInto<DestructibleDef, ()> for DestructibleDefRaw<'a> {
 pub(crate) struct DestructiblePieceRaw<'a> {
     pub stages: [DestructibleStageRaw<'a>; 5],
     pub parent_piece: u8,
+    #[allow(dead_code)]
     unused: [u8; 3],
     pub parent_damage_percent: f32,
     pub bullet_damage_scale: f32,
@@ -51,6 +52,7 @@ pub(crate) struct DestructiblePieceRaw<'a> {
     pub burn_effect: Ptr32<'a, FxEffectDefRaw<'a>>,
     pub burn_sound: XString<'a>,
     pub enable_label: u16,
+    #[allow(dead_code)]
     unused_2: [u8; 2],
     pub hide_bones: [i32; 5],
 }

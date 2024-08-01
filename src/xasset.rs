@@ -13,15 +13,14 @@ impl XAsset {
         xasset_raw: XAssetRaw,
         platform: XFilePlatform,
     ) -> Result<Self> {
-        Ok(match platform {
-            XFilePlatform::Windows | XFilePlatform::macOS => {
-                Self::PC(xasset_raw.xfile_into(de, ())?)
-            }
-            XFilePlatform::Xbox360 | XFilePlatform::PS3 => {
-                Self::Console(xasset_raw.xfile_into(de, ())?)
-            }
-            XFilePlatform::Wii => unreachable!(),
-        })
+        let asset = if platform.is_pc() {
+            Self::PC(xasset_raw.xfile_into(de, ())?)
+        } else if platform.is_console() {
+            Self::Console(xasset_raw.xfile_into(de, ())?)
+        } else {
+            unreachable!()
+        };
+        Ok(asset)
     }
 
     pub fn name(&self) -> Option<&str> {
@@ -56,7 +55,7 @@ impl XAsset {
 
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug)]
-pub enum XAssetGeneric<const MAX_LOCAL_CLIENTS: usize> {
+pub enum XAssetGeneric<const MAX_LOCAL_CLIENTS: usize = 1> {
     PhysPreset(Option<Box<xmodel::PhysPreset>>),
     PhysConstraints(Option<Box<xmodel::PhysConstraints>>),
     DestructibleDef(Option<Box<destructible::DestructibleDef>>),

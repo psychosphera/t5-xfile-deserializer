@@ -346,8 +346,11 @@ impl Into<SentientHandle> for SentientHandleRaw {
 #[derive(Copy, Clone, Debug, Deserialize)]
 pub(crate) struct PathNodeTransientRaw<'a> {
     pub search_frame: i32,
+    #[allow(dead_code)]
     pub next_open: Ptr32<'a, PathNodeRaw<'a>>,
+    #[allow(dead_code)]
     pub prev_open: Ptr32<'a, PathNodeRaw<'a>>,
+    #[allow(dead_code)]
     pub parent: Ptr32<'a, PathNodeRaw<'a>>,
     pub cost: f32,
     pub heuristic: f32,

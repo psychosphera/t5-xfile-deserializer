@@ -10,6 +10,7 @@ const MAX_TECHNIQUES: usize = 130;
 pub(crate) struct MaterialTechniqueSetRaw<'a> {
     pub name: XString<'a>,
     pub world_vert_format: u8,
+    #[allow(dead_code)]
     unused: u8,
     pub techset_flags: u16,
     #[serde(with = "serde_arrays")]
@@ -185,6 +186,7 @@ pub struct MaterialVertexDeclaration {
     pub stream_count: u8,
     pub has_optional_source: bool,
     pub is_loaded: bool,
+    #[allow(dead_code)]
     unused: u8,
     pub routing: MaterialVertexStreamRouting,
 }
@@ -240,6 +242,7 @@ impl<'a> XFileInto<MaterialVertexShader, ()> for MaterialVertexShaderRaw<'a> {
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
 pub(crate) struct MaterialVertexShaderProgramRaw<'a> {
+    #[cfg_attr(not(feature = "d3d9"), allow(dead_code))]
     pub vs: Ptr32<'a, ()>,
     pub load_def: GfxVertexShaderLoadDefRaw<'a>,
 }
@@ -248,11 +251,12 @@ assert_size!(MaterialVertexShaderProgramRaw, 12);
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug)]
 pub struct MaterialVertexShaderProgram {
-    pub vs: Option<Box<IDirect3DVertexShader9>>,
+    pub vs: Option<Box<GfxVertexShader>>,
     pub load_def: GfxVertexShaderLoadDef,
 }
 
 impl<'a> XFileInto<MaterialVertexShaderProgram, ()> for MaterialVertexShaderProgramRaw<'a> {
+    #[cfg(feature = "d3d9")]
     fn xfile_into(
         &self,
         de: &mut T5XFileDeserializer,
@@ -260,10 +264,34 @@ impl<'a> XFileInto<MaterialVertexShaderProgram, ()> for MaterialVertexShaderProg
     ) -> Result<MaterialVertexShaderProgram> {
         //dbg!(*self);
 
-        Ok(MaterialVertexShaderProgram {
-            vs: None,
-            load_def: self.load_def.xfile_into(de, ())?,
-        })
+        let load_def = self.load_def.xfile_into(de, ())?;
+
+        let vs = if de.create_d3d9() {
+            let vs = unsafe {
+                de.d3d9_state()
+                    .unwrap()
+                    .device
+                    .CreateVertexShader(load_def.program.as_ptr())
+            }?;
+            Some(Box::new(GfxVertexShader(vs)))
+        } else {
+            None
+        };
+
+        Ok(MaterialVertexShaderProgram { vs, load_def })
+    }
+
+    #[cfg(not(feature = "d3d9"))]
+    fn xfile_into(
+        &self,
+        de: &mut T5XFileDeserializer,
+        _data: (),
+    ) -> Result<MaterialVertexShaderProgram> {
+        //dbg!(*self);
+
+        let load_def = self.load_def.xfile_into(de, ())?;
+
+        Ok(MaterialVertexShaderProgram { vs: None, load_def })
     }
 }
 
@@ -320,21 +348,17 @@ pub struct MaterialPixelShader {
 
 impl<'a> XFileInto<MaterialPixelShader, ()> for MaterialPixelShaderRaw<'a> {
     fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<MaterialPixelShader> {
-        //dbg!(*self);
-
         let name = self.name.xfile_into(de, ())?;
-        dbg!(&name);
+        let prog = self.prog.xfile_into(de, ())?;
 
-        Ok(MaterialPixelShader {
-            name,
-            prog: self.prog.xfile_into(de, ())?,
-        })
+        Ok(MaterialPixelShader { name, prog })
     }
 }
 
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
 pub(crate) struct MaterialPixelShaderProgramRaw<'a> {
+    #[cfg_attr(not(feature = "d3d9"), allow(dead_code))]
     pub ps: Ptr32<'a, ()>,
     pub load_def: GfxPixelShaderLoadDefRaw<'a>,
 }
@@ -343,11 +367,12 @@ assert_size!(MaterialPixelShaderProgramRaw, 12);
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug)]
 pub struct MaterialPixelShaderProgram {
-    pub ps: Option<Box<IDirect3DPixelShader9>>,
+    pub ps: Option<Box<GfxPixelShader>>,
     pub load_def: GfxPixelShaderLoadDef,
 }
 
 impl<'a> XFileInto<MaterialPixelShaderProgram, ()> for MaterialPixelShaderProgramRaw<'a> {
+    #[cfg(feature = "d3d9")]
     fn xfile_into(
         &self,
         de: &mut T5XFileDeserializer,
@@ -355,10 +380,34 @@ impl<'a> XFileInto<MaterialPixelShaderProgram, ()> for MaterialPixelShaderProgra
     ) -> Result<MaterialPixelShaderProgram> {
         //dbg!(*self);
 
-        Ok(MaterialPixelShaderProgram {
-            ps: None,
-            load_def: self.load_def.xfile_into(de, ())?,
-        })
+        let load_def = self.load_def.xfile_into(de, ())?;
+
+        let ps = if de.create_d3d9() {
+            let ps = unsafe {
+                de.d3d9_state()
+                    .unwrap()
+                    .device
+                    .CreatePixelShader(load_def.program.as_ptr())
+            }?;
+            Some(Box::new(GfxPixelShader(ps)))
+        } else {
+            None
+        };
+
+        Ok(MaterialPixelShaderProgram { ps, load_def })
+    }
+
+    #[cfg(not(feature = "d3d9"))]
+    fn xfile_into(
+        &self,
+        de: &mut T5XFileDeserializer,
+        _data: (),
+    ) -> Result<MaterialPixelShaderProgram> {
+        //dbg!(*self);
+
+        let load_def = self.load_def.xfile_into(de, ())?;
+
+        Ok(MaterialPixelShaderProgram { ps: None, load_def })
     }
 }
 
@@ -555,7 +604,7 @@ impl<'a> Default for MaterialRaw<'a> {
 #[derive(Clone, Debug)]
 pub struct Material {
     pub info: MaterialInfo,
-    #[serde(with = "serde_arrays")]
+    #[cfg_attr(feature = "serde", serde(with = "serde_arrays"))]
     pub state_bits_entry: [u8; MAX_TECHNIQUES],
     pub textures: Vec<MaterialTextureDef>,
     pub constants: Vec<MaterialConstantDef>,
@@ -619,6 +668,7 @@ impl<'a> XFileInto<Material, ()> for MaterialRaw<'a> {
 pub(crate) struct MaterialInfoRaw<'a> {
     pub name: XString<'a>,
     pub game_flags: u32,
+    #[allow(dead_code)]
     pad: u8,
     pub sort_key: u8,
     pub texture_atlas_row_count: u8,
@@ -627,6 +677,7 @@ pub(crate) struct MaterialInfoRaw<'a> {
     pub surface_type_bits: u32,
     pub layered_surface_types: u32,
     pub hash_index: u16,
+    #[allow(dead_code)]
     unused: [u8; 6],
 }
 assert_size!(MaterialInfoRaw, 40);
@@ -667,7 +718,7 @@ impl<'a> XFileInto<MaterialInfo, ()> for MaterialInfoRaw<'a> {
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Debug, Default, Deserialize)]
 pub struct GfxDrawSurf {
-    fields: u64,
+    pub fields: u64,
 }
 assert_size!(GfxDrawSurf, 8);
 
@@ -680,6 +731,7 @@ pub(crate) struct MaterialTextureDefRaw<'a> {
     pub sampler_state: u8,
     pub semantic: u8,
     pub is_mature_content: bool,
+    #[allow(dead_code)]
     pad: [u8; 3],
     pub u: MaterialTextureDefInfoRaw<'a>,
 }
@@ -790,6 +842,7 @@ pub struct Water {
     pub lx: f32,
     pub ly: f32,
     pub gravity: f32,
+    pub windvel: f32,
     pub winddir: Vec2,
     pub amplitude: f32,
     pub code_constant: Vec4,
@@ -827,6 +880,7 @@ impl<'a> XFileInto<Water, ()> for WaterRaw<'a> {
             lx: self.lx,
             ly: self.ly,
             gravity: self.gravity,
+            windvel: self.windvel,
             winddir: self.winddir.into(),
             amplitude: self.amplitude,
             code_constant: self.code_constant.into(),
@@ -868,7 +922,8 @@ pub(crate) struct GfxImageRaw<'a> {
     pub level_count: u8,
     pub streaming: bool,
     pub base_size: u32,
-    pub pixels: Ptr32<'a, u8>,
+    #[allow(dead_code)]
+    pixels: Ptr32<'a, u8>,
     pub loaded_size: u32,
     pub skipped_mip_levels: u8,
     pub name: XString<'a>,
@@ -893,7 +948,6 @@ pub struct GfxImage {
     pub level_count: u8,
     pub streaming: bool,
     pub base_size: u32,
-    pub pixels: Vec<u8>,
     pub loaded_size: u32,
     pub skipped_mip_levels: u8,
     pub name: String,
@@ -904,6 +958,8 @@ impl<'a> XFileInto<GfxImage, ()> for GfxImageRaw<'a> {
     fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<GfxImage> {
         let name = self.name.xfile_into(de, ())?;
         dbg!(&name);
+
+        let texture = self.texture.xfile_into(de, ())?;
 
         let map_type = num::FromPrimitive::from_u8(self.map_type)
             .ok_or(Error::BadFromPrimitive(self.map_type as _))?;
@@ -918,13 +974,8 @@ impl<'a> XFileInto<GfxImage, ()> for GfxImageRaw<'a> {
             Some(self.picmip)
         };
 
-        let texture = self
-            .texture
-            .p
-            .cast::<GfxImageLoadDefRaw>()
-            .xfile_into(de, ())?;
         Ok(GfxImage {
-            texture: GfxTexture::LoadDef(texture),
+            texture,
             map_type,
             semantic,
             category,
@@ -938,7 +989,6 @@ impl<'a> XFileInto<GfxImage, ()> for GfxImageRaw<'a> {
             level_count: self.level_count,
             streaming: self.streaming,
             base_size: self.base_size,
-            pixels: Vec::new(),
             loaded_size: self.loaded_size,
             skipped_mip_levels: self.skipped_mip_levels,
             name,
@@ -961,15 +1011,23 @@ assert_size!(GfxTextureRaw, 4);
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug)]
 pub enum GfxTexture {
-    Map(Option<Box<IDirect3DTexture9>>),
-    Volmap(Option<Box<IDirect3DVolumeTexture9>>),
-    Cubemap(Option<Box<IDirect3DCubeTexture9>>),
+    Map(Option<Box<common::GfxTexture>>),
+    Volmap(Option<Box<GfxVolumeTexture>>),
+    Cubemap(Option<Box<GfxCubeTexture>>),
     LoadDef(Option<Box<GfxImageLoadDef>>),
 }
 
 impl Default for GfxTexture {
     fn default() -> Self {
         Self::LoadDef(None)
+    }
+}
+
+impl<'a> XFileInto<GfxTexture, ()> for GfxTextureRaw<'a> {
+    fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<GfxTexture> {
+        let load_def = self.p.cast::<GfxImageLoadDefRaw>().xfile_into(de, ())?;
+
+        Ok(GfxTexture::LoadDef(load_def))
     }
 }
 
@@ -1027,20 +1085,20 @@ assert_size!(GfxStateBits, 8);
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
 pub(crate) struct GfxImageLoadDefRaw {
-    level_count: u8,
-    flags: u8,
-    format: D3DFORMAT,
-    resource: FlexibleArrayU32<u8>,
+    pub level_count: u8,
+    pub flags: u8,
+    pub format: D3DFORMAT,
+    pub resource: FlexibleArrayU32<u8>,
 }
 assert_size!(GfxImageLoadDefRaw, 12);
 
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Default, Debug)]
 pub struct GfxImageLoadDef {
-    level_count: u8,
-    flags: u8,
-    format: D3DFORMAT,
-    resource: Vec<u8>,
+    pub level_count: u8,
+    pub flags: u8,
+    pub format: D3DFORMAT,
+    pub resource: Vec<u8>,
 }
 
 type D3DFORMAT = i32;

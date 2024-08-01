@@ -78,7 +78,7 @@ impl<'de, T: Default + Copy + Deserialize<'de>, const N: usize> Visitor<'de>
 // ============================================================================
 
 // ============================================================================
-/// [`Seek::stream_len`]` isn't stable yet, so we implement it manually here
+/// [`Seek::stream_len`] isn't stable yet, so we implement it manually here
 pub(crate) trait StreamLen: Seek {
     fn stream_len(&mut self) -> std::io::Result<u64> {
         let pos = self.stream_position()?;
@@ -109,20 +109,21 @@ impl<'a> XString<'a> {
 
 impl<'a> XFileInto<String, ()> for XString<'a> {
     fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<String> {
-        //dbg!(*self);
-
         if self.0.is_null() {
             return Ok(String::new());
         }
 
-        if self.as_u32() != 0xFFFFFFFF {
-            eprintln!("ignoring offset");
-            return Ok(String::new());
-        }
-
-        de.seek_and(std::io::SeekFrom::Start(self.as_u32() as _), |de| {
+        if self.0.is_real() {
+            eprintln!("ignoring offset {:#010X}", self.as_u32());
+            Ok(String::new())
+            // TODO: SeekFrom::Start(off) once offsets are fixed
+            // de.seek_and(std::io::SeekFrom::Start(self.as_u32() as _), |de| {
+            //     xfile_read_string(de)
+            // })
+        } else {
+            // no need to seek for 0xFFFFFFFF / 0xFFFFFFFE
             xfile_read_string(de)
-        })?
+        }
     }
 }
 
@@ -228,6 +229,20 @@ impl<'a, T> Ptr32<'a, T> {
         self.as_u32() == 0x00000000
     }
 
+    /// Checks whether the pointer is a "real" offset.
+    ///
+    /// "Real" offsets are offsets that are valid (i.e. not beyond the bounds
+    /// of the file) and point to valid data.
+    ///
+    /// Non-"real" offsets (`0xFFFFFFFF` or `0xFFFFFFFE`) mean that the data lies
+    /// directly after the `struct` containing them, rather than somewhere
+    /// independent.
+    ///
+    /// (The name of this function could probably be better.)
+    pub fn is_real(&self) -> bool {
+        self.as_u32() != 0xFFFFFFFF && self.as_u32() != 0xFFFFFFFE
+    }
+
     pub fn cast<U>(self) -> Ptr32<'a, U> {
         Ptr32::<'a, U>(self.0, PhantomData)
     }
@@ -245,18 +260,20 @@ impl<'a, T: DeserializeOwned + Clone + Debug + XFileInto<U, V>, U, V: Copy>
             return Ok(None);
         }
 
-        if self.as_u32() != 0xFFFFFFFF {
-            eprintln!("ignoring offset");
+        let t = if self.is_real() {
+            eprintln!("ignoring offset {:#010X}", self.as_u32());
             return Ok(None);
-        }
+            // TODO: SeekFrom::Start(off) once offsets are fixed
+            // de.seek_and(from, |de| de.load_from_xfile::<T>())??
+            //     .xfile_into(de, data)
+            //     .map(Box::new)
+            //     .map(Some)
+        } else {
+            // no need to seek for 0xFFFFFFFF / 0xFFFFFFFE
+            de.load_from_xfile::<T>()?
+        };
 
-        de.seek_and(
-            std::io::SeekFrom::Start(self.as_u32() as _),
-            |de| -> Result<T> { de.load_from_xfile() },
-        )??
-        .xfile_into(de, data)
-        .map(Box::new)
-        .map(Some)
+        t.xfile_into(de, data).map(Box::new).map(Some)
     }
 }
 
@@ -269,14 +286,17 @@ impl<'a, T: DeserializeOwned + Debug> Ptr32<'a, T> {
             return Ok(None);
         }
 
-        if self.as_u32() != 0xFFFFFFFF {
-            eprintln!("ignoring offset");
+        let t = if self.is_real() {
+            eprintln!("ignoring offset {:#010X}", self.as_u32());
             return Ok(None);
-        }
+            // TODO: SeekFrom::Start(off) once offsets are fixed
+            // de.seek_and(from, |de| de.load_from_xfile::<T>())??
+        } else {
+            // no need to seek for 0xFFFFFFFF / 0xFFFFFFFE
+            de.load_from_xfile::<T>()
+        };
 
-        de.seek_and(std::io::SeekFrom::Start(self.as_u32() as _), |de| {
-            de.load_from_xfile()
-        })?
+        t.map(Some)
     }
 }
 
@@ -367,26 +387,24 @@ pub(crate) trait FatPointer<'a, T: DeserializeOwned + 'a> {
     }
 
     fn to_vec(&self, de: &mut T5XFileDeserializer) -> Result<Vec<T>> {
-        if self.p().is_null() {
+        if self.is_null() {
             return Ok(Vec::new());
         }
 
-        if self.p().as_u32() != 0xFFFFFFFF {
-            eprintln!("ignoring offset");
+        let v = if self.p().is_real() {
+            eprintln!("ignoring offset {:#010X}", self.p().as_u32());
             return Ok(Vec::new());
-        }
-
-        de.seek_and(std::io::SeekFrom::Start(self.p().as_u32() as _), |de| {
-            let mut vt = Vec::new();
-
+            // TODO: SeekFrom::Start(off) once offsets are fixed
+        } else {
+            // no need to seek for 0xFFFFFFFF / 0xFFFFFFFE
+            let mut v = Vec::new();
             for _ in 0..self.size() {
-                vt.push(de.load_from_xfile());
+                v.push(de.load_from_xfile::<T>()?);
             }
+            v
+        };
 
-            vt
-        })?
-        .into_iter()
-        .collect::<Result<Vec<_>>>()
+        Ok(v)
     }
 
     fn to_vec_into<U: From<T>>(&self, de: &mut T5XFileDeserializer) -> Result<Vec<U>> {

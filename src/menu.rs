@@ -75,6 +75,7 @@ pub(crate) struct MenuDefRaw<'a, const MAX_LOCAL_CLIENTS: usize> {
     pub rect_x_exp: ExpressionStatementRaw<'a>,
     pub rect_y_exp: ExpressionStatementRaw<'a>,
     pub items: Ptr32<'a, Ptr32<'a, ItemDefRaw<'a, MAX_LOCAL_CLIENTS>>>,
+    #[allow(dead_code)]
     pub pad: [u8; 4],
 }
 assert_size!(MenuDefRaw<1>, 400);
@@ -131,7 +132,7 @@ pub struct MenuDef<const MAX_LOCAL_CLIENTS: usize> {
     pub full_screen: bool,
     pub ui_3d_window_id: i32,
     pub font_index: i32,
-    #[serde(with = "serde_arrays")]
+    #[cfg_attr(feature = "serde", serde(with = "serde_arrays"))]
     pub cursor_item: [i32; MAX_LOCAL_CLIENTS],
     pub fade_cycle: i32,
     pub priority: i32,
@@ -308,7 +309,7 @@ pub struct WindowDef<const MAX_LOCAL_CLIENTS: usize> {
     pub owner_draw_flags: i32,
     pub border_size: f32,
     pub static_flags: i32,
-    #[serde(with = "serde_arrays")]
+    #[cfg_attr(feature = "serde", serde(with = "serde_arrays"))]
     pub dynamic_flags: [i32; MAX_LOCAL_CLIENTS],
     pub next_time: i32,
     pub fore_color: Vec4,
@@ -719,6 +720,7 @@ pub(crate) struct ItemDefRaw<'a, const MAX_LOCAL_CLIENTS: usize> {
     pub ui_3d_window_id: i32,
     pub on_event: Ptr32<'a, GenericEventHandlerRaw<'a>>,
     pub anim_info: Ptr32<'a, UIAnimInfoRaw<'a>>,
+    #[allow(dead_code)]
     pad: [u8; 8],
 }
 assert_size!(ItemDefRaw<1>, 272);
@@ -759,7 +761,7 @@ impl<'a, const MAX_LOCAL_CLIENTS: usize> XFileInto<ItemDef<MAX_LOCAL_CLIENTS>, (
         let dvar_text = self.dvar_text.xfile_into(de, ())?;
         let enable_dvar = self.enable_dvar.xfile_into(de, ())?;
         let type_data = self.type_data.xfile_into(de, self.type_)?;
-        let parent = if self.parent.is_null() || self.parent.as_u32() != 0xFFFFFFFF {
+        let parent = if self.parent.is_null() || self.parent.is_real() {
             None
         } else {
             return Err(Error::Todo(format!(
@@ -888,7 +890,7 @@ impl<'a, const MAX_LOCAL_CLIENTS: usize> Default for TextDefRaw<'a, MAX_LOCAL_CL
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug)]
 pub struct TextDef<const MAX_LOCAL_CLIENTS: usize> {
-    #[serde(with = "serde_arrays")]
+    #[cfg_attr(feature = "serde", serde(with = "serde_arrays"))]
     pub text_rect: [RectDef; MAX_LOCAL_CLIENTS],
     pub alignment: i32,
     pub font_enum: i32,
@@ -1140,6 +1142,7 @@ pub(crate) struct ListBoxDefRaw<'a, const MAX_LOCAL_CLIENTS: usize> {
     pub highlight_texture: Ptr32<'a, techset::MaterialRaw<'a>>,
     pub no_blinking_highlight: i32,
     pub rows: FatPointerCountLastU32<'a, MenuRowRaw<'a>>,
+    #[allow(dead_code)]
     pub row_count: i32,
 }
 assert_size!(ListBoxDefRaw<1>, 668);
@@ -1179,11 +1182,11 @@ impl<'a, const MAX_LOCAL_CLIENTS: usize> Default for ListBoxDefRaw<'a, MAX_LOCAL
 #[derive(Clone, Debug)]
 pub struct ListBoxDef<const MAX_LOCAL_CLIENTS: usize> {
     pub mouse_pos: i32,
-    #[serde(with = "serde_arrays")]
+    #[cfg_attr(feature = "serde", serde(with = "serde_arrays"))]
     pub cursor_pos: [i32; MAX_LOCAL_CLIENTS],
-    #[serde(with = "serde_arrays")]
+    #[cfg_attr(feature = "serde", serde(with = "serde_arrays"))]
     pub start_pos: [i32; MAX_LOCAL_CLIENTS],
-    #[serde(with = "serde_arrays")]
+    #[cfg_attr(feature = "serde", serde(with = "serde_arrays"))]
     pub end_pos: [i32; MAX_LOCAL_CLIENTS],
     pub draw_padding: bool,
     pub element_width: f32,

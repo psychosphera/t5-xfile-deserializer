@@ -221,6 +221,7 @@ pub(crate) struct XAnimPartTransRaw<'a> {
     pub size: u16,
     pub small_trans: u8,
     pub u: XAnimPartTransDataRaw<'a>,
+    #[allow(dead_code)]
     pad: [u8; 28],
 }
 assert_size!(XAnimPartTransRaw, 36);
@@ -399,6 +400,7 @@ impl<'a> XFileInto<XAnimDynamicIndices, (u16, u16)> for XAnimDynamicIndicesRaw<'
 pub(crate) struct XAnimDeltaPartQuatRaw<'a> {
     pub size: u16,
     pub u: XAnimDeltaPartQuatDataRaw<'a>,
+    #[allow(dead_code)]
     pad: [u8; 4],
 }
 assert_size!(XAnimDeltaPartQuatRaw, 12);
@@ -408,6 +410,7 @@ assert_size!(XAnimDeltaPartQuatRaw, 12);
 pub struct XAnimDeltaPartQuat {
     pub size: u16,
     pub u: Option<XAnimDeltaPartQuatData>,
+    #[allow(dead_code)]
     pad: [u8; 4],
 }
 

@@ -3,8 +3,9 @@
 
 use crate::*;
 
+#[cfg(feature = "serde")]
 use core::mem::transmute;
-
+#[cfg(feature = "serde")]
 use serde::de::Visitor;
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -336,6 +337,18 @@ impl Default for Mat4 {
         })
     }
 }
+#[cfg(feature = "cgmath")]
+impl From<[[f32; 4]; 4]> for Mat4 {
+    fn from(value: [[f32; 4]; 4]) -> Self {
+        Self(cgmath::Matrix4 {
+            x: value[0].into(),
+            y: value[1].into(),
+            z: value[2].into(),
+            w: value[3].into(),
+        })
+    }
+}
+
 #[cfg(all(feature = "cgmath", feature = "serde"))]
 impl Serialize for Mat4 {
     fn serialize<S: Serializer>(&self, serializer: S) -> core::result::Result<S::Ok, S::Error> {
@@ -384,6 +397,17 @@ impl<'de> Deserialize<'de> for Mat4 {
 #[derive(Copy, Clone, Default, Debug)]
 #[repr(transparent)]
 pub struct Mat4(pub [Vec4; 4]);
+#[cfg(not(feature = "cgmath"))]
+impl From<[[f32; 4]; 4]> for Mat4 {
+    fn from(value: [[f32; 4]; 4]) -> Self {
+        Self([
+            value[0].into(),
+            value[1].into(),
+            value[2].into(),
+            value[3].into(),
+        ])
+    }
+}
 
 #[cfg(feature = "serde")]
 struct D3D9Visitor {}
@@ -400,12 +424,19 @@ impl D3D9Visitor {
     const LEN: usize = 0;
 }
 
+#[cfg(feature = "serde")]
 assert_size!(D3D9VS, D3D9Visitor::LEN);
+#[cfg(feature = "serde")]
 assert_size!(D3D9PS, D3D9Visitor::LEN);
+#[cfg(feature = "serde")]
 assert_size!(D3D9Tex, D3D9Visitor::LEN);
+#[cfg(feature = "serde")]
 assert_size!(D3D9VolTex, D3D9Visitor::LEN);
+#[cfg(feature = "serde")]
 assert_size!(D3D9CubeTex, D3D9Visitor::LEN);
+#[cfg(feature = "serde")]
 assert_size!(D3D9VB, D3D9Visitor::LEN);
+#[cfg(feature = "serde")]
 assert_size!(D3D9IB, D3D9Visitor::LEN);
 
 #[cfg(all(feature = "serde", feature = "d3d9"))]
@@ -441,21 +472,21 @@ type D3D9VS = ();
 
 #[derive(Clone, Debug)]
 #[repr(transparent)]
-pub struct IDirect3DVertexShader9(D3D9VS);
+pub struct GfxVertexShader(pub D3D9VS);
 #[cfg(feature = "serde")]
-impl Serialize for IDirect3DVertexShader9 {
+impl Serialize for GfxVertexShader {
     fn serialize<S: Serializer>(&self, serializer: S) -> core::result::Result<S::Ok, S::Error> {
         unsafe { transmute::<_, [u8; sizeof!(D3D9VS)]>(self.0.clone()) }.serialize(serializer)
     }
 }
 #[cfg(all(feature = "serde", feature = "d3d9"))]
-impl<'de> Deserialize<'de> for IDirect3DVertexShader9 {
+impl<'de> Deserialize<'de> for GfxVertexShader {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> core::result::Result<Self, D::Error> {
         Ok(unsafe { transmute::<_, Self>(deserializer.deserialize_bytes(D3D9Visitor {})?) })
     }
 }
 #[cfg(all(feature = "serde", not(feature = "d3d9")))]
-impl<'de> Deserialize<'de> for IDirect3DVertexShader9 {
+impl<'de> Deserialize<'de> for GfxVertexShader {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> core::result::Result<Self, D::Error> {
         Ok(Self(deserializer.deserialize_unit(D3D9Visitor {})?))
     }
@@ -468,21 +499,21 @@ type D3D9PS = ();
 
 #[derive(Clone, Debug)]
 #[repr(transparent)]
-pub struct IDirect3DPixelShader9(D3D9PS);
+pub struct GfxPixelShader(pub D3D9PS);
 #[cfg(feature = "serde")]
-impl Serialize for IDirect3DPixelShader9 {
+impl Serialize for GfxPixelShader {
     fn serialize<S: Serializer>(&self, serializer: S) -> core::result::Result<S::Ok, S::Error> {
         unsafe { transmute::<_, [u8; sizeof!(D3D9PS)]>(self.0.clone()) }.serialize(serializer)
     }
 }
 #[cfg(all(feature = "serde", feature = "d3d9"))]
-impl<'de> Deserialize<'de> for IDirect3DPixelShader9 {
+impl<'de> Deserialize<'de> for GfxPixelShader {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> core::result::Result<Self, D::Error> {
         Ok(unsafe { transmute::<_, Self>(deserializer.deserialize_bytes(D3D9Visitor {})?) })
     }
 }
 #[cfg(all(feature = "serde", not(feature = "d3d9")))]
-impl<'de> Deserialize<'de> for IDirect3DPixelShader9 {
+impl<'de> Deserialize<'de> for GfxPixelShader {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> core::result::Result<Self, D::Error> {
         Ok(Self(deserializer.deserialize_unit(D3D9Visitor {})?))
     }
@@ -500,21 +531,21 @@ type D3D9Tex = ();
 
 #[derive(Clone, Debug)]
 #[repr(transparent)]
-pub struct IDirect3DTexture9(D3D9Tex);
+pub struct GfxTexture(D3D9Tex);
 #[cfg(feature = "serde")]
-impl Serialize for IDirect3DTexture9 {
+impl Serialize for GfxTexture {
     fn serialize<S: Serializer>(&self, serializer: S) -> core::result::Result<S::Ok, S::Error> {
         unsafe { transmute::<_, [u8; sizeof!(D3D9Tex)]>(self.0.clone()) }.serialize(serializer)
     }
 }
 #[cfg(all(feature = "serde", feature = "d3d9"))]
-impl<'de> Deserialize<'de> for IDirect3DTexture9 {
+impl<'de> Deserialize<'de> for GfxTexture {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> core::result::Result<Self, D::Error> {
         Ok(unsafe { transmute::<_, Self>(deserializer.deserialize_bytes(D3D9Visitor {})?) })
     }
 }
 #[cfg(all(feature = "serde", not(feature = "d3d9")))]
-impl<'de> Deserialize<'de> for IDirect3DTexture9 {
+impl<'de> Deserialize<'de> for GfxTexture {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> core::result::Result<Self, D::Error> {
         Ok(Self(deserializer.deserialize_unit(D3D9Visitor {})?))
     }
@@ -527,21 +558,21 @@ type D3D9VolTex = ();
 
 #[derive(Clone, Debug)]
 #[repr(transparent)]
-pub struct IDirect3DVolumeTexture9(D3D9VolTex);
+pub struct GfxVolumeTexture(D3D9VolTex);
 #[cfg(feature = "serde")]
-impl Serialize for IDirect3DVolumeTexture9 {
+impl Serialize for GfxVolumeTexture {
     fn serialize<S: Serializer>(&self, serializer: S) -> core::result::Result<S::Ok, S::Error> {
         unsafe { transmute::<_, [u8; sizeof!(D3D9VolTex)]>(self.0.clone()) }.serialize(serializer)
     }
 }
 #[cfg(all(feature = "serde", feature = "d3d9"))]
-impl<'de> Deserialize<'de> for IDirect3DVolumeTexture9 {
+impl<'de> Deserialize<'de> for GfxVolumeTexture {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> core::result::Result<Self, D::Error> {
         Ok(unsafe { transmute::<_, Self>(deserializer.deserialize_bytes(D3D9Visitor {})?) })
     }
 }
 #[cfg(all(feature = "serde", not(feature = "d3d9")))]
-impl<'de> Deserialize<'de> for IDirect3DVolumeTexture9 {
+impl<'de> Deserialize<'de> for GfxVolumeTexture {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> core::result::Result<Self, D::Error> {
         Ok(Self(deserializer.deserialize_unit(D3D9Visitor {})?))
     }
@@ -550,25 +581,26 @@ impl<'de> Deserialize<'de> for IDirect3DVolumeTexture9 {
 #[cfg(feature = "d3d9")]
 type D3D9CubeTex = windows::Win32::Graphics::Direct3D9::IDirect3DCubeTexture9;
 #[cfg(not(feature = "d3d9"))]
+#[allow(dead_code)]
 type D3D9CubeTex = ();
 
 #[derive(Clone, Debug)]
 #[repr(transparent)]
-pub struct IDirect3DCubeTexture9(D3D9Tex);
+pub struct GfxCubeTexture(D3D9Tex);
 #[cfg(feature = "serde")]
-impl Serialize for IDirect3DCubeTexture9 {
+impl Serialize for GfxCubeTexture {
     fn serialize<S: Serializer>(&self, serializer: S) -> core::result::Result<S::Ok, S::Error> {
         unsafe { transmute::<_, [u8; sizeof!(D3D9CubeTex)]>(self.0.clone()) }.serialize(serializer)
     }
 }
 #[cfg(all(feature = "serde", feature = "d3d9"))]
-impl<'de> Deserialize<'de> for IDirect3DCubeTexture9 {
+impl<'de> Deserialize<'de> for GfxCubeTexture {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> core::result::Result<Self, D::Error> {
         Ok(unsafe { transmute::<_, Self>(deserializer.deserialize_bytes(D3D9Visitor {})?) })
     }
 }
 #[cfg(all(feature = "serde", not(feature = "d3d9")))]
-impl<'de> Deserialize<'de> for IDirect3DCubeTexture9 {
+impl<'de> Deserialize<'de> for GfxCubeTexture {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> core::result::Result<Self, D::Error> {
         Ok(Self(deserializer.deserialize_unit(D3D9Visitor {})?))
     }
@@ -581,21 +613,21 @@ type D3D9VB = ();
 
 #[derive(Clone, Debug)]
 #[repr(transparent)]
-pub struct IDirect3DVertexBuffer9(D3D9VB);
+pub struct GfxVertexBuffer(pub D3D9VB);
 #[cfg(feature = "serde")]
-impl Serialize for IDirect3DVertexBuffer9 {
+impl Serialize for GfxVertexBuffer {
     fn serialize<S: Serializer>(&self, serializer: S) -> core::result::Result<S::Ok, S::Error> {
         unsafe { transmute::<_, [u8; sizeof!(D3D9VB)]>(self.0.clone()) }.serialize(serializer)
     }
 }
 #[cfg(all(feature = "serde", feature = "d3d9"))]
-impl<'de> Deserialize<'de> for IDirect3DVertexBuffer9 {
+impl<'de> Deserialize<'de> for GfxVertexBuffer {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> core::result::Result<Self, D::Error> {
         Ok(unsafe { transmute::<_, Self>(deserializer.deserialize_bytes(D3D9Visitor {})?) })
     }
 }
 #[cfg(all(feature = "serde", not(feature = "d3d9")))]
-impl<'de> Deserialize<'de> for IDirect3DVertexBuffer9 {
+impl<'de> Deserialize<'de> for GfxVertexBuffer {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> core::result::Result<Self, D::Error> {
         Ok(Self(deserializer.deserialize_unit(D3D9Visitor {})?))
     }
@@ -608,21 +640,21 @@ type D3D9IB = ();
 
 #[derive(Clone, Debug)]
 #[repr(transparent)]
-pub struct IDirect3DIndexBuffer9(D3D9IB);
+pub struct GfxIndexBuffer(D3D9IB);
 #[cfg(feature = "serde")]
-impl Serialize for IDirect3DIndexBuffer9 {
+impl Serialize for GfxIndexBuffer {
     fn serialize<S: Serializer>(&self, serializer: S) -> core::result::Result<S::Ok, S::Error> {
         unsafe { transmute::<_, [u8; sizeof!(D3D9IB)]>(self.0.clone()) }.serialize(serializer)
     }
 }
 #[cfg(all(feature = "serde", feature = "d3d9"))]
-impl<'de> Deserialize<'de> for IDirect3DIndexBuffer9 {
+impl<'de> Deserialize<'de> for GfxIndexBuffer {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> core::result::Result<Self, D::Error> {
         Ok(unsafe { transmute::<_, Self>(deserializer.deserialize_bytes(D3D9Visitor {})?) })
     }
 }
 #[cfg(all(feature = "serde", not(feature = "d3d9")))]
-impl<'de> Deserialize<'de> for IDirect3DIndexBuffer9 {
+impl<'de> Deserialize<'de> for GfxIndexBuffer {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> core::result::Result<Self, D::Error> {
         Ok(Self(deserializer.deserialize_unit(D3D9Visitor {})?))
     }

@@ -53,7 +53,8 @@ pub(crate) struct ComPrimaryLightRaw<'a> {
     pub exponent: u8,
     pub priority: u8,
     pub cull_dist: i16,
-    pub pad: [u8; 2],
+    #[allow(dead_code)]
+    pad: [u8; 2],
     pub color: [f32; 3],
     pub dir: [f32; 3],
     pub origin: [f32; 3],
@@ -119,8 +120,8 @@ impl<'a> XFileInto<ComPrimaryLight, ()> for ComPrimaryLightRaw<'a> {
         let angle = self.angle.into();
         let aabb = self.aabb.into();
         let cookie_control_0 = self.cookie_control_0.into();
-        let cookie_control_1 = self.cookie_control_0.into();
-        let cookie_control_2 = self.cookie_control_0.into();
+        let cookie_control_1 = self.cookie_control_1.into();
+        let cookie_control_2 = self.cookie_control_2.into();
         let def_name = self.def_name.xfile_into(de, ())?;
 
         Ok(ComPrimaryLight {

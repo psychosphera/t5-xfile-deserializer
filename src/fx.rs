@@ -12,6 +12,7 @@ pub(crate) struct FxEffectDefRaw<'a> {
     pub name: XString<'a>,
     pub flags: u8,
     pub ef_priority: u8,
+    #[allow(dead_code)]
     reserved: [u8; 2],
     pub total_size: i32,
     pub msec_looping_life: i32,
@@ -115,11 +116,13 @@ pub(crate) struct FxElemDefRaw<'a> {
     pub trail_def: Ptr32<'a, FxTrailDefRaw<'a>>,
     pub sort_order: u8,
     pub lighting_frac: u8,
+    #[allow(dead_code)]
     unused: [u8; 2],
     pub alpha_fade_time_msec: u16,
     pub max_wind_strength: u16,
     pub spawn_interval_at_max_wind: u16,
     pub lifespan_at_max_wind: u16,
+    #[allow(dead_code)]
     pub u: [u8; 8],
     pub spawn_sound: FxElemSpawnSoundRaw<'a>,
     pub billboard_pivot: [f32; 2],
@@ -318,7 +321,7 @@ impl<'a> XFileInto<FxElemDef, ()> for FxElemDefRaw<'a> {
                 ),
                 FxElemType::RUNNER => {
                     FxElemVisuals::EffectDef(FxEffectDefRef::Handle(
-                        if self.visuals.is_null() || self.visuals.as_u32() != 0xFFFFFFFF {
+                        if self.visuals.is_null() || self.visuals.is_real() {
                             None
                         } else {
                             return Err(Error::Todo(format!(

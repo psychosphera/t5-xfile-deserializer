@@ -37,10 +37,10 @@ Data stored by `XFiles` includes shaders, the clipmap/PVS, scripts, animations, 
 17. Menus
 18. Weapon Variants
 19. ComWorld
+20. GfxWorld
 
 ### What hasn't yet been implemented
 1. Clipmap/PVS
-2. GfxWorld
 
 ## Building
 ```bash
@@ -61,7 +61,7 @@ I primarily created this to integrate into OpenT5 once it's done, but I figured 
 4. Relatedly, account for linked lists.
 5. Tidy up the deserializer's API (typestated now, but still a little janky).
 6. Better CLI for the binary.
-7. Implement the remaining unimplemented `XAssets` (Only two left!).
+7. Implement the remaining unimplemented `XAssets` (Only one left!).
 8. Then debug them (yay...).
 9. Make sure all the arrays sized by `MAX_LOCAL_CLIENTS` were caught (pretty sure a couple in `techset.rs` slipped through).
 10. Verify whether macOS `XFiles` are identical to Windows.

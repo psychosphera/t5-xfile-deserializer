@@ -443,10 +443,7 @@ impl Display for SndName {
             .find(|(_, c)| *c == 0)
             .map(|(i, _)| i)
             .unwrap_or(32);
-        let s = self.0[..len]
-            .iter()
-            .map(|c| *c as char)
-            .collect::<String>();
+        let s = self.0[..len].iter().map(|c| *c as char).collect::<String>();
         write!(f, "{}", s)
     }
 }
@@ -544,12 +541,13 @@ pub struct SndSnapshot {
     pub name: String,
     pub id: u32,
     pub occlusion_name: String,
+    pub occlusion_id: u32,
     pub fade_in: f32,
     pub fade_out: f32,
     pub distance: f32,
     pub fade_in_curve: u32,
     pub fade_out_curve: u32,
-    #[serde(with = "serde_arrays")]
+    #[cfg_attr(feature = "serde", serde(with = "serde_arrays"))]
     pub attenuation: [f32; 64],
 }
 
@@ -562,6 +560,7 @@ impl From<SndSnapshotRaw> for SndSnapshot {
             name,
             id: value.id,
             occlusion_name,
+            occlusion_id: value.occlusion_id,
             fade_in: value.fade_in,
             fade_out: value.fade_out,
             distance: value.distance,
