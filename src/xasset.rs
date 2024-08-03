@@ -15,10 +15,8 @@ impl XAsset {
     ) -> Result<Self> {
         let asset = if platform.is_pc() {
             Self::PC(xasset_raw.xfile_into(de, ())?)
-        } else if platform.is_console() {
-            Self::Console(xasset_raw.xfile_into(de, ())?)
         } else {
-            unreachable!()
+            Self::Console(xasset_raw.xfile_into(de, ())?)
         };
         Ok(asset)
     }

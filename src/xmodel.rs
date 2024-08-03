@@ -1320,3 +1320,19 @@ pub struct XModelDrawInfo {
     pub surf_id: u16,
 }
 assert_size!(XModelDrawInfo, 4);
+
+#[cfg_attr(feature = "serde", derive(Serialize))]
+#[derive(Copy, Clone, Default, Debug, Deserialize)]
+pub(crate) struct XModelPiecesRaw<'a> {
+    pub name: XString<'a>,
+    pub pieces: FatPointerCountFirstU32<'a, XModelPieceRaw<'a>>,
+}
+assert_size!(XModelPiecesRaw, 12);
+
+#[cfg_attr(feature = "serde", derive(Serialize))]
+#[derive(Copy, Clone, Default, Debug, Deserialize)]
+pub(crate) struct XModelPieceRaw<'a> {
+    pub model: Ptr32<'a, XModelRaw<'a>>,
+    pub offset: [f32; 3],
+}
+assert_size!(XModelPieceRaw, 16);

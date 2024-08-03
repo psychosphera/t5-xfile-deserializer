@@ -86,6 +86,7 @@
 #![allow(clippy::from_over_into)]
 #![allow(clippy::needless_borrows_for_generic_args)]
 
+pub mod clipmap;
 pub mod com_world;
 pub mod common;
 pub mod ddl;
