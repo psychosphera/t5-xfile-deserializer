@@ -1330,9 +1330,23 @@ pub(crate) struct XModelPiecesRaw<'a> {
 assert_size!(XModelPiecesRaw, 12);
 
 #[cfg_attr(feature = "serde", derive(Serialize))]
+#[derive(Clone, Default, Debug, Deserialize)]
+pub struct XModelPieces {
+    pub name: String,
+    pub pieces: Vec<XModelPiece>,
+}
+
+#[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
 pub(crate) struct XModelPieceRaw<'a> {
     pub model: Ptr32<'a, XModelRaw<'a>>,
     pub offset: [f32; 3],
 }
 assert_size!(XModelPieceRaw, 16);
+
+#[cfg_attr(feature = "serde", derive(Serialize))]
+#[derive(Clone, Default, Debug, Deserialize)]
+pub struct XModelPiece {
+    pub model: Option<Box<XModel>>,
+    pub offset: Vec3,
+}

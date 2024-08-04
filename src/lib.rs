@@ -26,8 +26,8 @@
 // |           |      |             | purposes. It is **imperative** that the |
 // |           |      |             | XFile version match the version the     |
 // |           |      |             | deserializer is expecting. For all      |
-// |           |      |             | release builds of T5, the value is      |
-// |           |      |             | 0x000001D9                              |
+// |           |      |             | release builds of T5, that value is     |
+// |           |      |             | 0x000001D9.                             |
 // ----------------------------------------------------------------------------
 // | 0x000000C | *    | Blob        | The rest of the file is a DEFLATE-      |
 // |           |      |             | compressed blob. To get the "real"      |
@@ -305,6 +305,7 @@ pub struct T5XFileDeserializer<'a, T: T5XFileDeserializerTypestate = T5XFileDese
     xasset_list: XAssetList<'a>,
     xassets_raw: VecDeque<XAssetRaw<'a>>,
     deserialized_assets: usize,
+    non_null_assets: usize,
     opts: BincodeOptions,
     platform: XFilePlatform,
     d3d9_state: Option<D3D9State<'a>>,
@@ -513,14 +514,14 @@ impl<'a> T5XFileDeserializer<'a, T5XFileDeserializerUninflated> {
         }
 
         if !silent {
-            println!("Found file, reading header...",);
+            println!("Found file, reading header...");
         }
 
         let opts = BincodeOptions::from_platform(platform);
 
         let header = opts.deserialize_from::<XFileHeader>(&mut *file)?;
 
-        dbg!(&header);
+        // dbg!(&header);
 
         if !header.magic_is_valid() {
             if !silent {
@@ -566,6 +567,7 @@ impl<'a> T5XFileDeserializer<'a, T5XFileDeserializerUninflated> {
             xasset_list: XAssetList::default(),
             xassets_raw: VecDeque::new(),
             deserialized_assets: 0,
+            non_null_assets: 0,
             opts,
             platform,
             d3d9_state,
@@ -602,6 +604,7 @@ impl<'a> T5XFileDeserializer<'a, T5XFileDeserializerUninflated> {
             xasset_list: XAssetList::default(),
             xassets_raw: VecDeque::new(),
             deserialized_assets: 0,
+            non_null_assets: 0,
             opts: BincodeOptions::from_platform(platform),
             platform,
             d3d9_state,
@@ -668,6 +671,7 @@ impl<'a> T5XFileDeserializer<'a, T5XFileDeserializerUninflated> {
             xasset_list,
             xassets_raw: VecDeque::new(),
             deserialized_assets: self.deserialized_assets,
+            non_null_assets: self.non_null_assets,
             opts: self.opts,
             platform: self.platform,
             d3d9_state: self.d3d9_state,
@@ -713,6 +717,7 @@ impl<'a> T5XFileDeserializer<'a, T5XFileDeserializerInflated> {
             xasset_list: self.xasset_list,
             xassets_raw: self.xassets_raw,
             deserialized_assets: self.deserialized_assets,
+            non_null_assets: self.non_null_assets,
             opts: self.opts,
             platform: self.platform,
             d3d9_state: self.d3d9_state,
@@ -739,6 +744,7 @@ impl<'a> T5XFileDeserializer<'a, T5XFileDeserializerInflated> {
             xasset_list: self.xasset_list,
             xassets_raw: self.xassets_raw,
             deserialized_assets: self.deserialized_assets,
+            non_null_assets: self.non_null_assets,
             opts: self.opts,
             platform: self.platform,
             d3d9_state: self.d3d9_state,
@@ -757,24 +763,28 @@ impl<'a> T5XFileDeserializer<'a, T5XFileDeserializerDeserialize> {
             return Ok(None);
         };
 
-        let a = XAsset::try_get(self, asset, self.platform);
-        if a.is_ok() {
+        let asset = XAsset::try_get(self, asset, self.platform);
+        if let Ok(ref a) = asset {
             self.deserialized_assets += 1;
+            if a.is_some() {
+                self.non_null_assets += 1;
+            }
 
             if !self.silent {
                 println!(
-                    "Successfully deserialized {} asset{}.",
+                    "Successfully deserialized {} asset{} ({} non-null).",
                     self.deserialized_assets,
                     if self.deserialized_assets > 1 {
                         "s"
                     } else {
                         ""
-                    }
+                    },
+                    self.non_null_assets,
                 );
             }
         }
 
-        a.map(Some)
+        asset.map(Some)
     }
 
     pub fn deserialize_remaining(mut self) -> Result<Vec<XAsset>> {

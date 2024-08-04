@@ -1,7 +1,9 @@
-use fx::FxEffectDefRaw;
-use techset::MaterialRaw;
+use common::{Mat3, Vec3, Vec4};
+use fx::{FxEffectDef, FxEffectDefRaw};
+use techset::{Material, MaterialRaw};
 use xmodel::{
-    CBrushSideRaw, CPlaneRaw, PhysConstraintRaw, PhysPresetRaw, XModelPiecesRaw, XModelRaw,
+    CBrushSide, CBrushSideRaw, CPlane, CPlaneRaw, PhysConstraint, PhysConstraintRaw, PhysPreset,
+    PhysPresetRaw, XModel, XModelPieces, XModelPiecesRaw, XModelRaw,
 };
 
 use crate::*;
@@ -52,6 +54,51 @@ pub(crate) struct ClipMapRaw<'a> {
 }
 assert_size!(ClipMapRaw, 332);
 
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Clone, Debug)]
+pub struct ClipMap {
+    pub name: String,
+    pub is_in_use: i32,
+    pub planes: Vec<CPlane>,
+    pub static_model_list: Vec<CStaticModel>,
+    pub materials: Vec<DMaterial>,
+    pub brushsides: Vec<CBrushSide>,
+    pub nodes: Vec<CNode>,
+    pub leafs: Vec<CLeaf>,
+    pub leafbrush_nodes: Vec<CLeafBrushNode>,
+    pub leafbrushes: Vec<u16>,
+    pub leafsurfaces: Vec<u32>,
+    pub verts: Vec<Vec3>,
+    pub brush_verts: Vec<Vec3>,
+    pub uinds: Vec<u16>,
+    pub tri_count: i32,
+    pub tri_indices: Vec<u16>,
+    pub tri_edge_is_walkable: Vec<u8>,
+    pub borders: Vec<CollisionBorder>,
+    pub partitions: Vec<CollisionPartition>,
+    pub aabb_trees: Vec<CollisionAabbTree>,
+    pub cmodels: Vec<CModel>,
+    pub brushes: Vec<CBrush>,
+    pub num_clusters: i32,
+    pub cluster_bytes: i32,
+    pub visibility: Vec<u8>,
+    pub vised: i32,
+    pub map_ents: Option<Box<MapEnts>>,
+    pub box_brush: Option<Box<CBrush>>,
+    pub box_model: CModel,
+    pub original_dyn_ent_count: u16,
+    pub dyn_ent_count: [u16; 4],
+    pad: [u8; 2],
+    pub dyn_ent_def_list: [Vec<DynEntityDef>; 2],
+    pub dyn_ent_pose_list: [Vec<DynEntityPose>; 2],
+    pub dyn_ent_client_list: [Vec<DynEntityClient>; 2],
+    pub dyn_ent_server_list: [Vec<DynEntityServer>; 2],
+    pub dyn_ent_coll_list: [Vec<DynEntityColl>; 4],
+    pub constraints: Vec<PhysConstraint>,
+    pub ropes: Vec<Rope>,
+    pub checksum: u32,
+}
+
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
 pub(crate) struct CStaticModelRaw<'a> {
@@ -63,6 +110,17 @@ pub(crate) struct CStaticModelRaw<'a> {
     pub absmax: [f32; 3],
 }
 assert_size!(CStaticModelRaw, 80);
+
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Clone, Debug)]
+pub struct CStaticModel {
+    pub writable: CStaticModelWritable,
+    pub xmodel: Option<Box<XModel>>,
+    pub origin: Vec3,
+    pub inv_scaled_axis: Mat3,
+    pub absmin: Vec3,
+    pub absmax: Vec3,
+}
 
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
@@ -104,10 +162,25 @@ pub(crate) struct DMaterialRaw {
 }
 assert_size!(DMaterialRaw, 72);
 
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Clone, Debug)]
+pub struct DMaterial {
+    pub material: String,
+    pub surface_flags: i32,
+    pub content_flags: i32,
+}
+
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
 pub(crate) struct CNodeRaw<'a> {
     pub plane: Ptr32<'a, CPlaneRaw>,
+    pub children: [i16; 2],
+}
+
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Clone, Debug)]
+pub struct CNode {
+    pub plane: Option<Box<CPlane>>,
     pub children: [i16; 2],
 }
 
@@ -125,6 +198,19 @@ pub(crate) struct CLeafRaw {
 }
 assert_size!(CLeafRaw, 44);
 
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Clone, Debug)]
+pub struct CLeaf {
+    pub first_coll_aabb_index: usize,
+    pub coll_aabb_count: usize,
+    pub brush_contents: i32,
+    pub terrain_contents: i32,
+    pub mins: Vec3,
+    pub maxs: Vec3,
+    pub leaf_brush_node: i32,
+    pub cluster: u16,
+}
+
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
 pub(crate) struct CLeafBrushNodeRaw<'a> {
@@ -132,6 +218,15 @@ pub(crate) struct CLeafBrushNodeRaw<'a> {
     pub leaf_brush_count: u16,
     pub contents: i32,
     pub data: CLeafBrushNodeDataRaw<'a>,
+}
+
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Clone, Debug)]
+pub struct CLeafBrushNode {
+    pub axis: u8,
+    pub leaf_brush_count: usize,
+    pub contents: i32,
+    pub data: CLeafBrushNodeData,
 }
 
 #[cfg_attr(feature = "serde", derive(Serialize))]
@@ -185,6 +280,16 @@ pub(crate) struct CollisionBorderRaw {
 }
 assert_size!(CollisionBorderRaw, 28);
 
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Clone, Debug)]
+pub struct CollisionBorder {
+    pub dist_eq: Vec3,
+    pub z_slope: f32,
+    pub z_base: f32,
+    pub start: f32,
+    pub length: f32,
+}
+
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
 pub(crate) struct CollisionPartitionRaw<'a> {
@@ -197,6 +302,17 @@ pub(crate) struct CollisionPartitionRaw<'a> {
 }
 assert_size!(CollisionPartitionRaw, 20);
 
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Clone, Debug)]
+pub struct CollisionPartition {
+    pub tri_count: u8,
+    pub border_count: u8,
+    pub first_tri: i32,
+    pub nuinds: i32,
+    pub fuind: i32,
+    pub borders: Option<Box<CollisionBorder>>,
+}
+
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
 pub(crate) struct CollisionAabbTreeRaw {
@@ -208,6 +324,16 @@ pub(crate) struct CollisionAabbTreeRaw {
 }
 assert_size!(CollisionAabbTreeRaw, 32);
 
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Clone, Debug)]
+pub struct CollisionAabbTree {
+    pub origin: Vec3,
+    pub material_index: usize,
+    pub child_count: usize,
+    pub half_size: Vec3,
+    pub index: usize,
+}
+
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
 pub(crate) struct CModelRaw {
@@ -217,6 +343,15 @@ pub(crate) struct CModelRaw {
     pub leaf: CLeafRaw,
 }
 assert_size!(CModelRaw, 72);
+
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Clone, Debug)]
+pub struct CModel {
+    pub mins: Vec3,
+    pub maxs: Vec3,
+    pub radius: f32,
+    pub leaf: CLeaf,
+}
 
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
@@ -231,6 +366,18 @@ pub(crate) struct CBrushRaw<'a> {
     pad: [u8; 4],
 }
 assert_size!(CBrushRaw, 96);
+
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Clone, Debug)]
+pub struct CBrush {
+    pub mins: Vec3,
+    pub contents: i32,
+    pub maxs: Vec3,
+    pub sides: Vec<CBrushSide>,
+    pub axial_cflags: [[i32; 3]; 2],
+    pub axial_sflags: [[i32; 3]; 2],
+    pub verts: Vec<Vec3>,
+}
 
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
@@ -254,8 +401,29 @@ pub(crate) struct DynEntityDefRaw<'a> {
 }
 assert_size!(DynEntityDefRaw, 84);
 
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Clone, Debug)]
+pub struct DynEntityDef {
+    pub type_: DynEntityType,
+    pub pose: GfxPlacement,
+    pub xmodel: Option<Box<XModel>>,
+    pub destroyed_xmodel: Option<Box<XModel>>,
+    pub brush_model: u16,
+    pub physics_brush_model: u16,
+    pub destroy_fx: Option<Box<FxEffectDef>>,
+    pub destroy_sound: u32,
+    pub destroy_pieces: Option<Box<XModelPieces>>,
+    pub phys_preset: Option<Box<PhysPreset>>,
+    pub phys_constraints: [i16; 4],
+    pub health: i32,
+    pub flags: i32,
+    pub contents: i32,
+    pub targetname: String,
+    pub target: String,
+}
+
 #[cfg_attr(feature = "serde", derive(Serialize))]
-#[derive(Copy, Clone, Default, Debug, PartialEq, Eq, FromPrimitive)]
+#[derive(Copy, Clone, Default, Debug, Deserialize, PartialEq, Eq, FromPrimitive)]
 pub enum DynEntityType {
     #[default]
     INVALID = 0,
@@ -272,6 +440,13 @@ pub(crate) struct GfxPlacementRaw {
 }
 assert_size!(GfxPlacementRaw, 28);
 
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Clone, Debug)]
+pub struct GfxPlacement {
+    pub quat: Vec4,
+    pub origin: Vec3,
+}
+
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
 pub(crate) struct DynEntityPoseRaw {
@@ -279,6 +454,13 @@ pub(crate) struct DynEntityPoseRaw {
     pub radius: f32,
 }
 assert_size!(DynEntityPoseRaw, 32);
+
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Clone, Debug)]
+pub struct DynEntityPose {
+    pub pose: GfxPlacement,
+    pub radius: f32,
+}
 
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
@@ -311,6 +493,16 @@ pub(crate) struct DynEntityCollRaw {
     pub contents: i32,
 }
 assert_size!(DynEntityCollRaw, 32);
+
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Clone, Debug)]
+pub struct DynEntityColl {
+    pub sector: u16,
+    pub next_ent_in_sector: u16,
+    pub link_mins: Vec3,
+    pub link_maxs: Vec3,
+    pub contents: i32,
+}
 
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
@@ -346,6 +538,38 @@ pub(crate) struct RopeRaw<'a> {
 }
 assert_size!(RopeRaw, 3188);
 
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Clone, Debug)]
+pub struct Rope {
+    pub m_particles: [Par; 25],
+    pub m_constraints: [Constraint; 30],
+    pub m_entity_anchors: [i32; 3],
+    pub m_num_particles: i32,
+    pub m_num_constraints: i32,
+    pub m_num_entity_anchors: i32,
+    pub m_num_draw_verts: i32,
+    pub m_client_verts: RopeClientVerts,
+    pub m_min: Vec3,
+    pub m_max: Vec3,
+    pub m_start: Vec3,
+    pub m_end: Vec3,
+    pub m_in_use: bool,
+    pub m_visible: bool,
+    pub m_dist_constraint: i32,
+    pub m_flags: i32,
+    pub m_material: Option<Box<Material>>,
+    pub m_seglen: f32,
+    pub m_length: f32,
+    pub m_width: f32,
+    pub m_scale: f32,
+    pub m_force_scale: f32,
+    pub m_health: i32,
+    pub m_frame: i32,
+    pub m_stable_count: i32,
+    pub m_static_rope: i32,
+    pub m_lighting_handle: u16,
+}
+
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
 pub(crate) struct ParRaw {
@@ -355,6 +579,15 @@ pub(crate) struct ParRaw {
     pub flags: i32,
 }
 assert_size!(ParRaw, 40);
+
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Clone, Debug)]
+pub struct Par {
+    pub p: Vec3,
+    pub p0: Vec3,
+    pub p_prev: Vec3,
+    pub flags: i32,
+}
 
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
@@ -368,8 +601,19 @@ pub(crate) struct ConstraintRaw {
 }
 assert_size!(ConstraintRaw, 28);
 
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Clone, Debug)]
+pub struct Constraint {
+    pub p: Vec3,
+    pub type_: RopeConstraint,
+    pub enetiy_index: usize,
+    pub bone_name_hash: i32,
+    pub pi1: u8,
+    pub pi2: u8,
+}
+
 #[cfg_attr(feature = "serde", derive(Serialize))]
-#[derive(Copy, Clone, Default, Debug, PartialEq, Eq, FromPrimitive)]
+#[derive(Copy, Clone, Default, Debug, Deserialize, PartialEq, Eq, FromPrimitive)]
 pub enum RopeConstraint {
     #[default]
     PAIR = 0,
@@ -386,6 +630,13 @@ pub(crate) struct RopeClientVertsRaw {
 }
 assert_size!(RopeClientVertsRaw, 1212);
 
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Clone, Debug)]
+pub struct RopeClientVerts {
+    pub frame_verts: [RopeFrameVerts; 2],
+    pub frame_index: usize,
+}
+
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Debug, Deserialize)]
 pub(crate) struct RopeFrameVertsRaw {
@@ -400,6 +651,23 @@ impl Default for RopeFrameVertsRaw {
         Self {
             num_verts: 0,
             v: [[0.0; 3]; 50],
+        }
+    }
+}
+
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Clone, Debug)]
+pub struct RopeFrameVerts {
+    pub num_verts: i32,
+    #[serde(with = "serde_arrays")]
+    pub v: [Vec3; 50],
+}
+
+impl Default for RopeFrameVerts {
+    fn default() -> Self {
+        Self {
+            num_verts: 0,
+            v: [Vec3::default(); 50],
         }
     }
 }
