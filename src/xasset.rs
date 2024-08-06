@@ -64,6 +64,8 @@ pub enum XAssetGeneric<const MAX_LOCAL_CLIENTS: usize = 1> {
     Image(Option<Box<techset::GfxImage>>),
     Sound(Option<Box<sound::SndBank>>),
     SoundPatch(Option<Box<sound::SndPatch>>),
+    ClipMap(Option<Box<clipmap::ClipMap>>),
+    ClipMapPVS(Option<Box<clipmap::ClipMap>>),
     ComWorld(Option<Box<com_world::ComWorld>>),
     GameWorldSp(Option<Box<gameworld::GameWorldSp>>),
     GameWorldMp(Option<Box<gameworld::GameWorldMp>>),
@@ -100,6 +102,8 @@ impl<const MAX_LOCAL_CLIENTS: usize> XAssetGeneric<MAX_LOCAL_CLIENTS> {
             Self::Image(p) => p.is_some(),
             Self::Sound(p) => p.is_some(),
             Self::SoundPatch(p) => p.is_some(),
+            Self::ClipMap(p) => p.is_some(),
+            Self::ClipMapPVS(p) => p.is_some(),
             Self::ComWorld(p) => p.is_some(),
             Self::GameWorldSp(p) => p.is_some(),
             Self::GameWorldMp(p) => p.is_some(),
@@ -140,6 +144,8 @@ impl<const MAX_LOCAL_CLIENTS: usize> XAssetGeneric<MAX_LOCAL_CLIENTS> {
             Self::Image(p) => p.as_ref().map(|p| p.name.as_str()),
             Self::Sound(p) => p.as_ref().map(|p| p.name.as_str()),
             Self::SoundPatch(p) => p.as_ref().map(|p| p.name.as_str()),
+            Self::ClipMap(p) => p.as_ref().map(|p| p.name.as_str()),
+            Self::ClipMapPVS(p) => p.as_ref().map(|p| p.name.as_str()),
             Self::ComWorld(p) => p.as_ref().map(|p| p.name.as_str()),
             Self::GameWorldSp(p) => p.as_ref().map(|p| p.name.as_str()),
             Self::GameWorldMp(p) => p.as_ref().map(|p| p.name.as_str()),
@@ -293,6 +299,16 @@ impl<'a, const MAX_LOCAL_CLIENTS: usize> XFileInto<XAssetGeneric<MAX_LOCAL_CLIEN
             XAssetType::SOUND_PATCH => XAssetGeneric::SoundPatch(
                 self.asset_data
                     .cast::<sound::SndPatchRaw>()
+                    .xfile_into(de, ())?,
+            ),
+            XAssetType::CLIPMAP => XAssetGeneric::ClipMap(
+                self.asset_data
+                    .cast::<clipmap::ClipMapRaw>()
+                    .xfile_into(de, ())?,
+            ),
+            XAssetType::CLIPMAP_PVS => XAssetGeneric::ClipMapPVS(
+                self.asset_data
+                    .cast::<clipmap::ClipMapRaw>()
                     .xfile_into(de, ())?,
             ),
             XAssetType::COMWORLD => XAssetGeneric::ComWorld(

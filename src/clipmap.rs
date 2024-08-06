@@ -1,5 +1,6 @@
 use common::{Mat3, Vec3, Vec4};
 use fx::{FxEffectDef, FxEffectDefRaw};
+use num::FromPrimitive;
 use techset::{Material, MaterialRaw};
 use xmodel::{
     CBrushSide, CBrushSideRaw, CPlane, CPlaneRaw, PhysConstraint, PhysConstraintRaw, PhysPreset,
@@ -58,7 +59,7 @@ assert_size!(ClipMapRaw, 332);
 #[derive(Clone, Debug)]
 pub struct ClipMap {
     pub name: String,
-    pub is_in_use: i32,
+    pub is_in_use: bool,
     pub planes: Vec<CPlane>,
     pub static_model_list: Vec<CStaticModel>,
     pub materials: Vec<DMaterial>,
@@ -88,7 +89,6 @@ pub struct ClipMap {
     pub box_model: CModel,
     pub original_dyn_ent_count: u16,
     pub dyn_ent_count: [u16; 4],
-    pad: [u8; 2],
     pub dyn_ent_def_list: [Vec<DynEntityDef>; 2],
     pub dyn_ent_pose_list: [Vec<DynEntityPose>; 2],
     pub dyn_ent_client_list: [Vec<DynEntityClient>; 2],
@@ -97,6 +97,134 @@ pub struct ClipMap {
     pub constraints: Vec<PhysConstraint>,
     pub ropes: Vec<Rope>,
     pub checksum: u32,
+}
+
+impl<'a> XFileInto<ClipMap, ()> for ClipMapRaw<'a> {
+    fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<ClipMap> {
+        let name = self.name.xfile_into(de, ())?;
+        let planes = self.planes.to_vec_into(de)?;
+        let static_model_list = self.static_model_list.xfile_into(de, ())?;
+        let materials = self.materials.to_vec_into(de)?;
+        let brushsides = self.brushsides.xfile_into(de, ())?;
+        let nodes = self.nodes.xfile_into(de, ())?;
+        let leafs = self.leafs.to_vec_into(de)?;
+        let leafbrush_nodes = self.leafbrush_nodes.xfile_into(de, ())?;
+        let leafbrushes = self.leafbrushes.to_vec(de)?;
+        let leafsurfaces = self.leafsurfaces.to_vec(de)?;
+        let verts = self.verts.to_vec_into(de)?;
+        let brush_verts = self.brush_verts.to_vec_into(de)?;
+        let uinds = self.uinds.to_vec(de)?;
+        let tri_indices = self
+            .tri_indices
+            .to_array(self.tri_count as usize * 3)
+            .to_vec(de)?;
+        let tri_edge_is_walkable = self
+            .tri_edge_is_walkable
+            .to_array((self.tri_count as usize * 3 + 31 >> 5) * 4)
+            .to_vec(de)?;
+        let borders = self.borders.to_vec_into(de)?;
+        let partitions = self.partitions.xfile_into(de, ())?;
+        let aabb_trees = self.aabb_trees.to_vec_into(de)?;
+        let cmodels = self.cmodels.to_vec_into(de)?;
+        let brushes = self.brushes.xfile_into(de, ())?;
+        let visibility = self
+            .visibility
+            .to_array(self.cluster_bytes as usize * self.num_clusters as usize)
+            .to_vec(de)?;
+        let map_ents = self.map_ents.xfile_into(de, ())?;
+        let box_brush = self.box_brush.xfile_into(de, ())?;
+        let box_model = self.box_model.into();
+        let dyn_ent_def_list = [
+            self.dyn_ent_def_list[0]
+                .to_array(self.dyn_ent_count[0] as usize)
+                .xfile_into(de, ())?,
+            self.dyn_ent_def_list[1]
+                .to_array(self.dyn_ent_count[1] as usize)
+                .xfile_into(de, ())?,
+        ];
+        let dyn_ent_pose_list = [
+            self.dyn_ent_pose_list[0]
+                .to_array(self.dyn_ent_count[0] as usize)
+                .to_vec_into(de)?,
+            self.dyn_ent_pose_list[1]
+                .to_array(self.dyn_ent_count[1] as usize)
+                .to_vec_into(de)?,
+        ];
+        let dyn_ent_client_list = [
+            self.dyn_ent_client_list[0]
+                .to_array(self.dyn_ent_count[0] as usize)
+                .to_vec(de)?,
+            self.dyn_ent_client_list[1]
+                .to_array(self.dyn_ent_count[1] as usize)
+                .to_vec(de)?,
+        ];
+        let dyn_ent_server_list = [
+            self.dyn_ent_server_list[0]
+                .to_array(self.dyn_ent_count[0] as usize)
+                .to_vec(de)?,
+            self.dyn_ent_server_list[1]
+                .to_array(self.dyn_ent_count[1] as usize)
+                .to_vec(de)?,
+        ];
+        let dyn_ent_coll_list = [
+            self.dyn_ent_coll_list[0]
+                .to_array(self.dyn_ent_count[0] as usize)
+                .to_vec_into(de)?,
+            self.dyn_ent_coll_list[1]
+                .to_array(self.dyn_ent_count[1] as usize)
+                .to_vec_into(de)?,
+            self.dyn_ent_coll_list[2]
+                .to_array(self.dyn_ent_count[2] as usize)
+                .to_vec_into(de)?,
+            self.dyn_ent_coll_list[3]
+                .to_array(self.dyn_ent_count[3] as usize)
+                .to_vec_into(de)?,
+        ];
+        let constraints = self.constraints.xfile_into(de, ())?;
+        let ropes = self.ropes.xfile_into(de, ())?;
+
+        Ok(ClipMap {
+            name,
+            is_in_use: self.is_in_use != 0,
+            planes,
+            static_model_list,
+            materials,
+            brushsides,
+            nodes,
+            leafs,
+            leafbrush_nodes,
+            leafbrushes,
+            leafsurfaces,
+            verts,
+            brush_verts,
+            uinds,
+            tri_count: self.tri_count,
+            tri_indices,
+            tri_edge_is_walkable,
+            borders,
+            partitions,
+            aabb_trees,
+            cmodels,
+            brushes,
+            num_clusters: self.num_clusters,
+            cluster_bytes: self.cluster_bytes,
+            visibility,
+            vised: self.vised,
+            map_ents,
+            box_brush,
+            box_model,
+            original_dyn_ent_count: self.original_dyn_ent_count,
+            dyn_ent_count: self.dyn_ent_count,
+            dyn_ent_def_list,
+            dyn_ent_pose_list,
+            dyn_ent_client_list,
+            dyn_ent_server_list,
+            dyn_ent_coll_list,
+            constraints,
+            ropes,
+            checksum: self.checksum,
+        })
+    }
 }
 
 #[cfg_attr(feature = "serde", derive(Serialize))]
@@ -120,6 +248,25 @@ pub struct CStaticModel {
     pub inv_scaled_axis: Mat3,
     pub absmin: Vec3,
     pub absmax: Vec3,
+}
+
+impl<'a> XFileInto<CStaticModel, ()> for CStaticModelRaw<'a> {
+    fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<CStaticModel> {
+        let xmodel = self.xmodel.xfile_into(de, ())?;
+        let origin = self.origin.into();
+        let inv_scaled_axis = self.inv_scaled_axis.into();
+        let absmin = self.absmin.into();
+        let absmax = self.absmax.into();
+
+        Ok(CStaticModel {
+            writable: self.writable,
+            xmodel,
+            origin,
+            inv_scaled_axis,
+            absmin,
+            absmax,
+        })
+    }
 }
 
 #[cfg_attr(feature = "serde", derive(Serialize))]
@@ -170,6 +317,16 @@ pub struct DMaterial {
     pub content_flags: i32,
 }
 
+impl From<DMaterialRaw> for DMaterial {
+    fn from(value: DMaterialRaw) -> Self {
+        Self {
+            material: value.material.to_string(),
+            surface_flags: value.surface_flags,
+            content_flags: value.content_flags,
+        }
+    }
+}
+
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
 pub(crate) struct CNodeRaw<'a> {
@@ -182,6 +339,17 @@ pub(crate) struct CNodeRaw<'a> {
 pub struct CNode {
     pub plane: Option<Box<CPlane>>,
     pub children: [i16; 2],
+}
+
+impl<'a> XFileInto<CNode, ()> for CNodeRaw<'a> {
+    fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<CNode> {
+        let plane = self.plane.xfile_get(de)?.map(Into::into).map(Box::new);
+
+        Ok(CNode {
+            plane,
+            children: self.children,
+        })
+    }
 }
 
 #[cfg_attr(feature = "serde", derive(Serialize))]
@@ -211,11 +379,26 @@ pub struct CLeaf {
     pub cluster: u16,
 }
 
+impl From<CLeafRaw> for CLeaf {
+    fn from(value: CLeafRaw) -> Self {
+        Self {
+            first_coll_aabb_index: value.first_coll_aabb_index as _,
+            coll_aabb_count: value.coll_aabb_count as _,
+            brush_contents: value.brush_contents,
+            terrain_contents: value.terrain_contents,
+            mins: value.mins.into(),
+            maxs: value.maxs.into(),
+            leaf_brush_node: value.leaf_brush_node,
+            cluster: value.cluster,
+        }
+    }
+}
+
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
 pub(crate) struct CLeafBrushNodeRaw<'a> {
     pub axis: u8,
-    pub leaf_brush_count: u16,
+    pub leaf_brush_count: i16,
     pub contents: i32,
     pub data: CLeafBrushNodeDataRaw<'a>,
 }
@@ -226,13 +409,61 @@ pub struct CLeafBrushNode {
     pub axis: u8,
     pub leaf_brush_count: usize,
     pub contents: i32,
-    pub data: CLeafBrushNodeData,
+    pub data: Option<CLeafBrushNodeData>,
+}
+
+impl<'a> XFileInto<CLeafBrushNode, ()> for CLeafBrushNodeRaw<'a> {
+    fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<CLeafBrushNode> {
+        let data = self.data.xfile_into(de, self.leaf_brush_count)?;
+
+        Ok(CLeafBrushNode {
+            axis: self.axis,
+            leaf_brush_count: self.leaf_brush_count as _,
+            contents: self.contents,
+            data,
+        })
+    }
 }
 
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
 pub(crate) struct CLeafBrushNodeDataRaw<'a>(Ptr32<'a, ()>);
 assert_size!(CLeafBrushNodeDataRaw, 4);
+
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Clone, Debug)]
+pub enum CLeafBrushNodeData {
+    Leaf(CLeafBrushNodeLeaf),
+    Children(CLeafBrushNodeChildren),
+}
+
+impl Default for CLeafBrushNodeData {
+    fn default() -> Self {
+        Self::Leaf(CLeafBrushNodeLeaf::default())
+    }
+}
+
+impl<'a> XFileInto<Option<CLeafBrushNodeData>, i16> for CLeafBrushNodeDataRaw<'a> {
+    fn xfile_into(
+        &self,
+        de: &mut T5XFileDeserializer,
+        leaf_brush_count: i16,
+    ) -> Result<Option<CLeafBrushNodeData>> {
+        if leaf_brush_count < 1 {
+            Ok(None)
+        } else {
+            let Some(leaf) = self
+                .0
+                .cast::<CLeafBrushNodeLeafRaw>()
+                .xfile_into(de, leaf_brush_count)?
+                .map(|l| CLeafBrushNodeData::Leaf(*l))
+            else {
+                return Ok(None);
+            };
+            Ok(Some(leaf))
+        }
+    }
+}
 
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
@@ -247,6 +478,18 @@ pub struct CLeafBrushNodeLeaf {
     pub brushes: Vec<u16>,
 }
 
+impl<'a> XFileInto<CLeafBrushNodeLeaf, i16> for CLeafBrushNodeLeafRaw<'a> {
+    fn xfile_into(
+        &self,
+        de: &mut T5XFileDeserializer,
+        leaf_brush_count: i16,
+    ) -> Result<CLeafBrushNodeLeaf> {
+        let brushes = self.brushes.to_array(leaf_brush_count as _).to_vec(de)?;
+
+        Ok(CLeafBrushNodeLeaf { brushes })
+    }
+}
+
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
 pub struct CLeafBrushNodeChildren {
@@ -255,19 +498,6 @@ pub struct CLeafBrushNodeChildren {
     pub child_offset: [u16; 2],
 }
 assert_size!(CLeafBrushNodeChildren, 12);
-
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[derive(Clone, Debug)]
-pub enum CLeafBrushNodeData {
-    Leaf(CLeafBrushNodeLeaf),
-    Children(CLeafBrushNodeChildren),
-}
-
-impl Default for CLeafBrushNodeData {
-    fn default() -> Self {
-        Self::Leaf(CLeafBrushNodeLeaf::default())
-    }
-}
 
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
@@ -288,6 +518,18 @@ pub struct CollisionBorder {
     pub z_base: f32,
     pub start: f32,
     pub length: f32,
+}
+
+impl From<CollisionBorderRaw> for CollisionBorder {
+    fn from(value: CollisionBorderRaw) -> Self {
+        Self {
+            dist_eq: value.dist_eq.into(),
+            z_slope: value.z_slope,
+            z_base: value.z_base,
+            start: value.start,
+            length: value.length,
+        }
+    }
 }
 
 #[cfg_attr(feature = "serde", derive(Serialize))]
@@ -313,6 +555,21 @@ pub struct CollisionPartition {
     pub borders: Option<Box<CollisionBorder>>,
 }
 
+impl<'a> XFileInto<CollisionPartition, ()> for CollisionPartitionRaw<'a> {
+    fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<CollisionPartition> {
+        let borders = self.borders.xfile_get(de)?.map(Into::into).map(Box::new);
+
+        Ok(CollisionPartition {
+            tri_count: self.tri_count,
+            border_count: self.border_count,
+            first_tri: self.first_tri,
+            nuinds: self.nuinds,
+            fuind: self.fuind,
+            borders,
+        })
+    }
+}
+
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
 pub(crate) struct CollisionAabbTreeRaw {
@@ -334,6 +591,18 @@ pub struct CollisionAabbTree {
     pub index: usize,
 }
 
+impl From<CollisionAabbTreeRaw> for CollisionAabbTree {
+    fn from(value: CollisionAabbTreeRaw) -> Self {
+        Self {
+            origin: value.origin.into(),
+            material_index: value.material_index as _,
+            child_count: value.child_count as _,
+            half_size: value.half_size.into(),
+            index: value.index as _,
+        }
+    }
+}
+
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
 pub(crate) struct CModelRaw {
@@ -351,6 +620,17 @@ pub struct CModel {
     pub maxs: Vec3,
     pub radius: f32,
     pub leaf: CLeaf,
+}
+
+impl From<CModelRaw> for CModel {
+    fn from(value: CModelRaw) -> Self {
+        Self {
+            mins: value.mins.into(),
+            maxs: value.maxs.into(),
+            radius: value.radius,
+            leaf: value.leaf.into(),
+        }
+    }
 }
 
 #[cfg_attr(feature = "serde", derive(Serialize))]
@@ -379,6 +659,25 @@ pub struct CBrush {
     pub verts: Vec<Vec3>,
 }
 
+impl<'a> XFileInto<CBrush, ()> for CBrushRaw<'a> {
+    fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<CBrush> {
+        let mins = self.mins.into();
+        let maxs = self.maxs.into();
+        let sides = self.sides.xfile_into(de, ())?;
+        let verts = self.verts.to_vec_into(de)?;
+
+        Ok(CBrush {
+            mins,
+            contents: self.contents,
+            maxs,
+            sides,
+            axial_cflags: self.axial_cflags,
+            axial_sflags: self.axial_sflags,
+            verts,
+        })
+    }
+}
+
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
 pub(crate) struct DynEntityDefRaw<'a> {
@@ -401,6 +700,16 @@ pub(crate) struct DynEntityDefRaw<'a> {
 }
 assert_size!(DynEntityDefRaw, 84);
 
+#[cfg_attr(feature = "serde", derive(Serialize))]
+#[derive(Copy, Clone, Default, Debug, Deserialize, PartialEq, Eq, FromPrimitive)]
+pub enum DynEntityType {
+    #[default]
+    INVALID = 0,
+    CLUTTER = 1,
+    DESTRUCT = 2,
+    COUNT = 3,
+}
+
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug)]
 pub struct DynEntityDef {
@@ -422,14 +731,38 @@ pub struct DynEntityDef {
     pub target: String,
 }
 
-#[cfg_attr(feature = "serde", derive(Serialize))]
-#[derive(Copy, Clone, Default, Debug, Deserialize, PartialEq, Eq, FromPrimitive)]
-pub enum DynEntityType {
-    #[default]
-    INVALID = 0,
-    CLUTTER = 1,
-    DESTRUCT = 2,
-    COUNT = 3,
+impl<'a> XFileInto<DynEntityDef, ()> for DynEntityDefRaw<'a> {
+    fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<DynEntityDef> {
+        let type_ =
+            FromPrimitive::from_i32(self.type_).ok_or(Error::BadFromPrimitive(self.type_ as _))?;
+        let pose = self.pose.into();
+        let xmodel = self.xmodel.xfile_into(de, ())?;
+        let destroyed_xmodel = self.destroyed_xmodel.xfile_into(de, ())?;
+        let destroy_fx = self.destroy_fx.xfile_into(de, ())?;
+        let destroy_pieces = self.destroy_pieces.xfile_into(de, ())?;
+        let phys_preset = self.phys_preset.xfile_into(de, ())?;
+        let targetname = self.targetname.to_string(de)?;
+        let target = self.target.to_string(de)?;
+
+        Ok(DynEntityDef {
+            type_,
+            pose,
+            xmodel,
+            destroyed_xmodel,
+            brush_model: self.brush_model,
+            physics_brush_model: self.physics_brush_model,
+            destroy_fx,
+            destroy_sound: self.destroy_sound,
+            destroy_pieces,
+            phys_preset,
+            phys_constraints: self.phys_constraints,
+            health: self.health,
+            flags: self.flags,
+            contents: self.contents,
+            targetname,
+            target,
+        })
+    }
 }
 
 #[cfg_attr(feature = "serde", derive(Serialize))]
@@ -447,6 +780,15 @@ pub struct GfxPlacement {
     pub origin: Vec3,
 }
 
+impl From<GfxPlacementRaw> for GfxPlacement {
+    fn from(value: GfxPlacementRaw) -> Self {
+        Self {
+            quat: value.quat.into(),
+            origin: value.origin.into(),
+        }
+    }
+}
+
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
 pub(crate) struct DynEntityPoseRaw {
@@ -460,6 +802,15 @@ assert_size!(DynEntityPoseRaw, 32);
 pub struct DynEntityPose {
     pub pose: GfxPlacement,
     pub radius: f32,
+}
+
+impl From<DynEntityPoseRaw> for DynEntityPose {
+    fn from(value: DynEntityPoseRaw) -> Self {
+        Self {
+            pose: value.pose.into(),
+            radius: value.radius,
+        }
+    }
 }
 
 #[cfg_attr(feature = "serde", derive(Serialize))]
@@ -502,6 +853,18 @@ pub struct DynEntityColl {
     pub link_mins: Vec3,
     pub link_maxs: Vec3,
     pub contents: i32,
+}
+
+impl From<DynEntityCollRaw> for DynEntityColl {
+    fn from(value: DynEntityCollRaw) -> Self {
+        Self {
+            sector: value.sector,
+            next_ent_in_sector: value.next_ent_in_sector,
+            link_mins: value.link_mins.into(),
+            link_maxs: value.link_maxs.into(),
+            contents: value.contents,
+        }
+    }
 }
 
 #[cfg_attr(feature = "serde", derive(Serialize))]
@@ -570,6 +933,48 @@ pub struct Rope {
     pub m_lighting_handle: u16,
 }
 
+impl<'a> XFileInto<Rope, ()> for RopeRaw<'a> {
+    fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<Rope> {
+        let m_material = self.m_material.xfile_into(de, ())?;
+
+        Ok(Rope {
+            m_particles: self.m_particles.map(Into::into),
+            m_constraints: self
+                .m_constraints
+                .into_iter()
+                .map(TryInto::try_into)
+                .collect::<Result<Vec<_>>>()?
+                .try_into()
+                .unwrap(),
+            m_entity_anchors: self.m_entity_anchors,
+            m_num_particles: self.m_num_particles,
+            m_num_constraints: self.m_num_constraints,
+            m_num_entity_anchors: self.m_num_entity_anchors,
+            m_num_draw_verts: self.m_num_draw_verts,
+            m_client_verts: self.m_client_verts.into(),
+            m_min: self.m_min.into(),
+            m_max: self.m_max.into(),
+            m_start: self.m_start.into(),
+            m_end: self.m_end.into(),
+            m_in_use: self.m_in_use != 0,
+            m_visible: self.m_visible != 0,
+            m_dist_constraint: self.m_dist_constraint,
+            m_flags: self.m_flags,
+            m_material,
+            m_seglen: self.m_seglen,
+            m_length: self.m_length,
+            m_width: self.m_width,
+            m_scale: self.m_scale,
+            m_force_scale: self.m_force_scale,
+            m_health: self.m_health,
+            m_frame: self.m_frame,
+            m_stable_count: self.m_stable_count,
+            m_static_rope: self.m_static_rope,
+            m_lighting_handle: self.m_lighting_handle,
+        })
+    }
+}
+
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
 pub(crate) struct ParRaw {
@@ -587,6 +992,17 @@ pub struct Par {
     pub p0: Vec3,
     pub p_prev: Vec3,
     pub flags: i32,
+}
+
+impl From<ParRaw> for Par {
+    fn from(value: ParRaw) -> Self {
+        Self {
+            p: value.p.into(),
+            p0: value.p0.into(),
+            p_prev: value.p_prev.into(),
+            flags: value.flags,
+        }
+    }
 }
 
 #[cfg_attr(feature = "serde", derive(Serialize))]
@@ -622,6 +1038,22 @@ pub enum RopeConstraint {
     CENTITY = 3,
 }
 
+impl TryFrom<ConstraintRaw> for Constraint {
+    type Error = crate::Error;
+
+    fn try_from(value: ConstraintRaw) -> Result<Self> {
+        Ok(Self {
+            p: value.p.into(),
+            type_: FromPrimitive::from_i32(value.type_)
+                .ok_or(Error::BadFromPrimitive(value.type_ as _))?,
+            enetiy_index: value.enetiy_index as _,
+            bone_name_hash: value.bone_name_hash,
+            pi1: value.pi1,
+            pi2: value.pi2,
+        })
+    }
+}
+
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
 pub(crate) struct RopeClientVertsRaw {
@@ -635,6 +1067,15 @@ assert_size!(RopeClientVertsRaw, 1212);
 pub struct RopeClientVerts {
     pub frame_verts: [RopeFrameVerts; 2],
     pub frame_index: usize,
+}
+
+impl From<RopeClientVertsRaw> for RopeClientVerts {
+    fn from(value: RopeClientVertsRaw) -> Self {
+        Self {
+            frame_verts: value.frame_verts.map(Into::into),
+            frame_index: value.frame_index as _,
+        }
+    }
 }
 
 #[cfg_attr(feature = "serde", derive(Serialize))]
@@ -668,6 +1109,15 @@ impl Default for RopeFrameVerts {
         Self {
             num_verts: 0,
             v: [Vec3::default(); 50],
+        }
+    }
+}
+
+impl From<RopeFrameVertsRaw> for RopeFrameVerts {
+    fn from(value: RopeFrameVertsRaw) -> Self {
+        Self {
+            num_verts: value.num_verts,
+            v: value.v.map(Into::into),
         }
     }
 }

@@ -1336,6 +1336,15 @@ pub struct XModelPieces {
     pub pieces: Vec<XModelPiece>,
 }
 
+impl<'a> XFileInto<XModelPieces, ()> for XModelPiecesRaw<'a> {
+    fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<XModelPieces> {
+        let name = self.name.xfile_into(de, ())?;
+        let pieces = self.pieces.xfile_into(de, ())?;
+
+        Ok(XModelPieces { name, pieces })
+    }
+}
+
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
 pub(crate) struct XModelPieceRaw<'a> {
@@ -1349,4 +1358,13 @@ assert_size!(XModelPieceRaw, 16);
 pub struct XModelPiece {
     pub model: Option<Box<XModel>>,
     pub offset: Vec3,
+}
+
+impl<'a> XFileInto<XModelPiece, ()> for XModelPieceRaw<'a> {
+    fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<XModelPiece> {
+        let model = self.model.xfile_into(de, ())?;
+        let offset = self.offset.into();
+
+        Ok(XModelPiece { model, offset })
+    }
 }

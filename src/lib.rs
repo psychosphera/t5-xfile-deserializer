@@ -171,8 +171,11 @@ assert_size!(XFile, 36);
 struct ScriptString(u16);
 
 impl ScriptString {
-    pub fn to_string(self, de: &T5XFileDeserializer) -> Option<String> {
-        de.script_strings.get(self.0 as usize).cloned()
+    pub fn to_string(self, de: &T5XFileDeserializer) -> Result<String> {
+        de.script_strings
+            .get(self.0 as usize)
+            .cloned()
+            .ok_or(Error::BadScriptString(self.0))
     }
 }
 
@@ -332,6 +335,7 @@ pub enum Error {
     WrongEndiannessForPlatform(XFilePlatform),
     UnsupportedPlatform(XFilePlatform),
     Todo(String),
+    BadScriptString(u16),
     #[cfg(feature = "d3d9")]
     Windows(windows::core::Error),
 }
