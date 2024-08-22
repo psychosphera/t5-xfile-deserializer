@@ -83,7 +83,7 @@ pub struct ClipMap {
     pub num_clusters: i32,
     pub cluster_bytes: i32,
     pub visibility: Vec<u8>,
-    pub vised: i32,
+    pub vised: bool,
     pub map_ents: Option<Box<MapEnts>>,
     pub box_brush: Option<Box<CBrush>>,
     pub box_model: CModel,
@@ -209,7 +209,7 @@ impl<'a> XFileInto<ClipMap, ()> for ClipMapRaw<'a> {
             num_clusters: self.num_clusters,
             cluster_bytes: self.cluster_bytes,
             visibility,
-            vised: self.vised,
+            vised: self.vised != 0,
             map_ents,
             box_brush,
             box_model,
@@ -333,6 +333,7 @@ pub(crate) struct CNodeRaw<'a> {
     pub plane: Ptr32<'a, CPlaneRaw>,
     pub children: [i16; 2],
 }
+assert_size!(CNodeRaw, 8);
 
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug)]
@@ -402,6 +403,7 @@ pub(crate) struct CLeafBrushNodeRaw<'a> {
     pub contents: i32,
     pub data: CLeafBrushNodeDataRaw<'a>,
 }
+assert_size!(CLeafBrushNodeRaw, 12);
 
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug)]

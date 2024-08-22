@@ -1,3 +1,5 @@
+use std::mem::transmute;
+
 use crate::{common::Vec3, *};
 
 #[cfg_attr(feature = "serde", derive(Serialize))]
@@ -19,6 +21,7 @@ pub(crate) struct XAnimPartsRaw<'a> {
     pub notify_count: u8,
     pub asset_type: u8,
     pub is_default: bool,
+    pad: [u8; 3],
     pub random_data_short_count: u32,
     pub index_count: u32,
     pub framerate: f32,
@@ -73,12 +76,58 @@ pub struct XAnimParts {
 
 impl<'a> XFileInto<XAnimParts, ()> for XAnimPartsRaw<'a> {
     fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<XAnimParts> {
+        dbg!(self);
         let name = self.name.xfile_into(de, ())?;
+        dbg!(&name);
+        let names = self
+            .names
+            .to_array(self.bone_count[PART_TYPE_ALL] as _)
+            .to_vec(de)?
+            .into_iter()
+            .map(|s| s.to_string(de))
+            .collect::<Result<Vec<_>>>()?;
+        dbg!(&names);
         let notify = self
             .notify
             .to_array(self.notify_count as _)
             .xfile_into(de, ())?;
+        dbg!(&notify);
         let delta_part = self.delta_part.xfile_into(de, self.numframes)?;
+        dbg!(&delta_part);
+        let data_byte = self
+            .data_byte
+            .to_array(self.data_byte_count as _)
+            .to_vec(de)?;
+        dbg!(&data_byte.len());
+        let data_short = self
+            .data_short
+            .to_array(self.data_short_count as _)
+            .to_vec(de)?;
+        dbg!(&data_short.len());
+        let data_int = self
+            .data_int
+            .to_array(self.data_int_count as _)
+            .to_vec(de)?;
+        dbg!(&data_int.len());
+        let random_data_byte = self
+            .random_data_byte
+            .to_array(self.random_data_byte_count as _)
+            .to_vec(de)?;
+        dbg!(&random_data_byte.len());
+        let random_data_short = self
+            .random_data_short
+            .to_array(self.random_data_short_count as _)
+            .to_vec(de)?;
+        dbg!(&random_data_short.len());
+        let random_data_int = self
+            .random_data_int
+            .to_array(self.random_data_int_count as _)
+            .to_vec(de)?;
+        dbg!(&random_data_int.len());
+        let indices = self
+            .indices
+            .xfile_into(de, (self.numframes, self.index_count))?;
+        dbg!(&indices);
 
         Ok(XAnimParts {
             name,
@@ -97,40 +146,14 @@ impl<'a> XFileInto<XAnimParts, ()> for XAnimPartsRaw<'a> {
             frequency: self.frequency,
             primed_length: self.primed_length,
             loop_entry_time: self.loop_entry_time,
-            names: self
-                .names
-                .to_array(self.bone_count[PART_TYPE_ALL] as _)
-                .to_vec(de)?
-                .into_iter()
-                .map(|s| s.to_string(de).unwrap_or_default())
-                .collect(),
-            data_byte: self
-                .data_byte
-                .to_array(self.data_byte_count as _)
-                .to_vec(de)?,
-            data_short: self
-                .data_short
-                .to_array(self.data_short_count as _)
-                .to_vec(de)?,
-            data_int: self
-                .data_int
-                .to_array(self.data_int_count as _)
-                .to_vec(de)?,
-            random_data_short: self
-                .random_data_short
-                .to_array(self.random_data_short_count as _)
-                .to_vec(de)?,
-            random_data_byte: self
-                .random_data_byte
-                .to_array(self.random_data_byte_count as _)
-                .to_vec(de)?,
-            random_data_int: self
-                .random_data_int
-                .to_array(self.random_data_int_count as _)
-                .to_vec(de)?,
-            indices: self
-                .indices
-                .xfile_into(de, (self.numframes, self.index_count))?,
+            names,
+            data_byte,
+            data_short,
+            data_int,
+            random_data_short,
+            random_data_byte,
+            random_data_int,
+            indices,
             notify,
             delta_part,
         })
@@ -171,6 +194,7 @@ impl<'a> XFileInto<XAnimIndices, (u16, u32)> for XAnimIndicesRaw<'a> {
 #[derive(Copy, Clone, Debug, Default, Deserialize)]
 pub(crate) struct XAnimNotifyInfoRaw {
     pub name: ScriptString,
+    pad: [u8; 2],
     pub time: f32,
 }
 assert_size!(XAnimNotifyInfoRaw, 8);
@@ -194,8 +218,8 @@ impl XFileInto<XAnimNotifyInfo, ()> for XAnimNotifyInfoRaw {
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Debug, Default, Deserialize)]
 pub(crate) struct XAnimDeltaPartRaw<'a> {
-    pub trans: Ptr32<'a, XAnimPartTransRaw<'a>>,
-    pub quat: Ptr32<'a, XAnimDeltaPartQuatRaw<'a>>,
+    pub trans: Ptr32<'a, XAnimPartTransRaw>,
+    pub quat: Ptr32<'a, XAnimDeltaPartQuatRaw>,
 }
 assert_size!(XAnimDeltaPartRaw, 8);
 
@@ -217,12 +241,11 @@ impl<'a> XFileInto<XAnimDeltaPart, u16> for XAnimDeltaPartRaw<'a> {
 
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Debug, Default, Deserialize)]
-pub(crate) struct XAnimPartTransRaw<'a> {
+pub(crate) struct XAnimPartTransRaw {
     pub size: u16,
     pub small_trans: u8,
-    pub u: XAnimPartTransDataRaw<'a>,
-    #[allow(dead_code)]
-    pad: [u8; 28],
+    pad: [u8; 1],
+    pub u: XAnimPartTransDataRaw,
 }
 assert_size!(XAnimPartTransRaw, 36);
 
@@ -234,7 +257,7 @@ pub struct XAnimPartTrans {
     pub u: Option<XAnimPartTransData>,
 }
 
-impl<'a> XFileInto<XAnimPartTrans, u16> for XAnimPartTransRaw<'a> {
+impl XFileInto<XAnimPartTrans, u16> for XAnimPartTransRaw {
     fn xfile_into(&self, de: &mut T5XFileDeserializer, numframes: u16) -> Result<XAnimPartTrans> {
         Ok(XAnimPartTrans {
             size: self.size,
@@ -248,8 +271,8 @@ impl<'a> XFileInto<XAnimPartTrans, u16> for XAnimPartTransRaw<'a> {
 
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Debug, Default, Deserialize)]
-pub(crate) struct XAnimPartTransDataRaw<'a>(Ptr32<'a, ()>);
-assert_size!(XAnimPartTransDataRaw, 4);
+pub(crate) struct XAnimPartTransDataRaw([u8; 32]);
+assert_size!(XAnimPartTransDataRaw, 32);
 
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug)]
@@ -258,32 +281,20 @@ pub enum XAnimPartTransData {
     Frame0(Vec3),
 }
 
-impl<'a> XFileInto<Option<XAnimPartTransData>, (u16, u8, u16)> for XAnimPartTransDataRaw<'a> {
+impl XFileInto<Option<XAnimPartTransData>, (u16, u8, u16)> for XAnimPartTransDataRaw {
     fn xfile_into(
         &self,
         de: &mut T5XFileDeserializer,
         (numframes, small_trans, size): (u16, u8, u16),
     ) -> Result<Option<XAnimPartTransData>> {
-        if self.0.is_null() {
-            return Ok(None);
-        }
-
         if size == 0 {
-            Ok(Some(XAnimPartTransData::Frame0(
-                self.0
-                    .cast::<[f32; 3]>()
-                    .xfile_get(de)?
-                    .map(Into::into)
-                    .unwrap(),
-            )))
+            Ok(Some(XAnimPartTransData::Frame0(unsafe {
+                transmute::<[u8; 12], _>(self.0[..12].try_into().unwrap())
+            })))
         } else {
-            Ok(Some(XAnimPartTransData::Frames(
-                *self
-                    .0
-                    .cast::<XAnimPartTransFramesRaw>()
-                    .xfile_into(de, (numframes, small_trans, size))?
-                    .unwrap(),
-            )))
+            let frames = unsafe { transmute::<_, XAnimPartTransFramesRaw>(self.0) }
+                .xfile_into(de, (numframes, small_trans, size))?;
+            Ok(Some(XAnimPartTransData::Frames(frames)))
         }
     }
 }
@@ -314,10 +325,11 @@ impl<'a> XFileInto<XAnimPartTransFrames, (u16, u8, u16)> for XAnimPartTransFrame
         (numframes, small_trans, size): (u16, u8, u16),
     ) -> Result<XAnimPartTransFrames> {
         let indices = self.indices.xfile_into(de, (numframes, size))?;
+        let frames = self.frames.xfile_into(de, (small_trans, size))?;
         Ok(XAnimPartTransFrames {
             mins: self.mins.into(),
             maxs: self.maxs.into(),
-            frames: self.frames.xfile_into(de, (small_trans, size))?,
+            frames,
             indices,
         })
     }
@@ -397,11 +409,10 @@ impl<'a> XFileInto<XAnimDynamicIndices, (u16, u16)> for XAnimDynamicIndicesRaw<'
 
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Debug, Default, Deserialize)]
-pub(crate) struct XAnimDeltaPartQuatRaw<'a> {
+pub(crate) struct XAnimDeltaPartQuatRaw {
     pub size: u16,
-    pub u: XAnimDeltaPartQuatDataRaw<'a>,
-    #[allow(dead_code)]
-    pad: [u8; 4],
+    pad: [u8; 2],
+    pub u: XAnimDeltaPartQuatDataRaw,
 }
 assert_size!(XAnimDeltaPartQuatRaw, 12);
 
@@ -410,11 +421,9 @@ assert_size!(XAnimDeltaPartQuatRaw, 12);
 pub struct XAnimDeltaPartQuat {
     pub size: u16,
     pub u: Option<XAnimDeltaPartQuatData>,
-    #[allow(dead_code)]
-    pad: [u8; 4],
 }
 
-impl<'a> XFileInto<XAnimDeltaPartQuat, u16> for XAnimDeltaPartQuatRaw<'a> {
+impl<'a> XFileInto<XAnimDeltaPartQuat, u16> for XAnimDeltaPartQuatRaw {
     fn xfile_into(
         &self,
         de: &mut T5XFileDeserializer,
@@ -423,15 +432,14 @@ impl<'a> XFileInto<XAnimDeltaPartQuat, u16> for XAnimDeltaPartQuatRaw<'a> {
         Ok(XAnimDeltaPartQuat {
             size: self.size,
             u: self.u.xfile_into(de, (numframes, self.size))?,
-            pad: [0; 4],
         })
     }
 }
 
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Debug, Default, Deserialize)]
-pub(crate) struct XAnimDeltaPartQuatDataRaw<'a>(Ptr32<'a, ()>);
-assert_size!(XAnimDeltaPartQuatDataRaw, 4);
+pub(crate) struct XAnimDeltaPartQuatDataRaw([u8; 8]);
+assert_size!(XAnimDeltaPartQuatDataRaw, 8);
 
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug)]
@@ -440,27 +448,23 @@ pub enum XAnimDeltaPartQuatData {
     Frame0([i16; 2]),
 }
 
-impl<'a> XFileInto<Option<XAnimDeltaPartQuatData>, (u16, u16)> for XAnimDeltaPartQuatDataRaw<'a> {
+impl<'a> XFileInto<Option<XAnimDeltaPartQuatData>, (u16, u16)> for XAnimDeltaPartQuatDataRaw {
     fn xfile_into(
         &self,
         de: &mut T5XFileDeserializer,
         (numframes, size): (u16, u16),
     ) -> Result<Option<XAnimDeltaPartQuatData>> {
-        if self.0.is_null() {
-            return Ok(None);
-        }
-
-        if numframes == 0 {
-            Ok(Some(XAnimDeltaPartQuatData::Frame0(
-                self.0.cast::<[i16; 2]>().xfile_get(de)?.unwrap_or_default(),
-            )))
+        if size == 0 {
+            let frames = unsafe {
+                transmute::<[u8; 4], Ptr32<'a, [i16; 2]>>(self.0[0..4].try_into().unwrap())
+            }
+            .xfile_get(de)?
+            .unwrap();
+            Ok(Some(XAnimDeltaPartQuatData::Frame0(frames)))
         } else {
             Ok(Some(XAnimDeltaPartQuatData::Frames(
-                self.0
-                    .cast::<XAnimDeltaPartQuatDataFramesRaw>()
-                    .xfile_into(de, (numframes, size))?
-                    .map(|d| *d)
-                    .unwrap(),
+                unsafe { transmute::<_, XAnimDeltaPartQuatDataFramesRaw>(self.0) }
+                    .xfile_into(de, (numframes, size))?,
             )))
         }
     }

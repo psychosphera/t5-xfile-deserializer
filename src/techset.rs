@@ -41,7 +41,7 @@ pub struct MaterialTechniqueSet {
 
 impl<'a> XFileInto<MaterialTechniqueSet, ()> for MaterialTechniqueSetRaw<'a> {
     fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<MaterialTechniqueSet> {
-        //dbg!(*self);
+        dbg!(self);
 
         let name = self.name.xfile_into(de, ())?;
         dbg!(&name);
@@ -633,7 +633,9 @@ impl Default for Material {
 
 impl<'a> XFileInto<Material, ()> for MaterialRaw<'a> {
     fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<Material> {
-        //dbg!(&self);
+        dbg!(self);
+        dbg!(de.stream_pos()?);
+
         let info = self.info.xfile_into(de, ())?;
         let technique_set = self.technique_set.xfile_into(de, ())?;
         let textures = self
@@ -673,6 +675,7 @@ pub(crate) struct MaterialInfoRaw<'a> {
     pub sort_key: u8,
     pub texture_atlas_row_count: u8,
     pub texture_atlas_column_count: u8,
+    pad2: [u8; 4],
     pub draw_surf: GfxDrawSurf,
     pub surface_type_bits: u32,
     pub layered_surface_types: u32,
@@ -698,8 +701,10 @@ pub struct MaterialInfo {
 
 impl<'a> XFileInto<MaterialInfo, ()> for MaterialInfoRaw<'a> {
     fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<MaterialInfo> {
+        dbg!(de.stream_pos()?);
         let name = self.name.xfile_into(de, ())?;
         dbg!(&name);
+        dbg!(de.stream_pos()?);
 
         Ok(MaterialInfo {
             name,
@@ -922,10 +927,10 @@ pub(crate) struct GfxImageRaw<'a> {
     pub level_count: u8,
     pub streaming: bool,
     pub base_size: u32,
-    #[allow(dead_code)]
-    pixels: Ptr32<'a, u8>,
+    pub pixels: Ptr32<'a, u8>,
     pub loaded_size: u32,
     pub skipped_mip_levels: u8,
+    pad: [u8; 3],
     pub name: XString<'a>,
     pub hash: u32,
 }
@@ -933,6 +938,7 @@ assert_size!(GfxImageRaw, 52);
 
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Default, Debug)]
+#[repr(C)]
 pub struct GfxImage {
     pub texture: GfxTexture,
     pub map_type: MapType,
@@ -948,6 +954,7 @@ pub struct GfxImage {
     pub level_count: u8,
     pub streaming: bool,
     pub base_size: u32,
+    pub pixels: Vec<u8>,
     pub loaded_size: u32,
     pub skipped_mip_levels: u8,
     pub name: String,
@@ -956,6 +963,9 @@ pub struct GfxImage {
 
 impl<'a> XFileInto<GfxImage, ()> for GfxImageRaw<'a> {
     fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<GfxImage> {
+        dbg!(self);
+        //let _ = de.load_from_xfile::<[u8; 3]>();
+        dbg!(de.stream_pos()?);
         let name = self.name.xfile_into(de, ())?;
         dbg!(&name);
 
@@ -990,6 +1000,7 @@ impl<'a> XFileInto<GfxImage, ()> for GfxImageRaw<'a> {
             streaming: self.streaming,
             base_size: self.base_size,
             loaded_size: self.loaded_size,
+            pixels: Vec::new(),
             skipped_mip_levels: self.skipped_mip_levels,
             name,
             hash: self.hash,
@@ -1025,6 +1036,7 @@ impl Default for GfxTexture {
 
 impl<'a> XFileInto<GfxTexture, ()> for GfxTextureRaw<'a> {
     fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<GfxTexture> {
+        dbg!(de.stream_pos()?);
         let load_def = self.p.cast::<GfxImageLoadDefRaw>().xfile_into(de, ())?;
 
         Ok(GfxTexture::LoadDef(load_def))
@@ -1047,6 +1059,8 @@ pub enum MapType {
 pub enum ImgCategory {
     #[default]
     UNKNOWN = 0x00,
+    ONE = 0x01,
+    TWO = 0x02,
     LOAD_FROM_FILE = 0x03,
     WATER = 0x05,
     RENDER_TARGET = 0x06,
@@ -1087,6 +1101,7 @@ assert_size!(GfxStateBits, 8);
 pub(crate) struct GfxImageLoadDefRaw {
     pub level_count: u8,
     pub flags: u8,
+    pad: [u8; 2],
     pub format: D3DFORMAT,
     pub resource: FlexibleArrayU32<u8>,
 }
@@ -1105,6 +1120,9 @@ type D3DFORMAT = i32;
 
 impl XFileInto<GfxImageLoadDef, ()> for GfxImageLoadDefRaw {
     fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<GfxImageLoadDef> {
+        dbg!(self);
+        dbg!(de.stream_pos()?);
+
         Ok(GfxImageLoadDef {
             level_count: self.level_count,
             flags: self.flags,

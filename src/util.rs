@@ -40,11 +40,13 @@ macro_rules! sizeof {
 }
 
 // ============================================================================
+#[allow(dead_code)]
 pub(crate) struct ArrayVisitor<T, const N: usize> {
     element: PhantomData<[T; N]>,
 }
 
 impl<T, const N: usize> ArrayVisitor<T, N> {
+    #[allow(dead_code)]
     pub fn new() -> Self {
         Self {
             element: PhantomData,
@@ -102,6 +104,7 @@ impl<'a> XString<'a> {
         Self(Ptr32::from_u32(value))
     }
 
+    #[allow(dead_code)]
     pub fn as_u32(self) -> u32 {
         self.0.as_u32()
     }
@@ -114,16 +117,16 @@ impl<'a> XFileInto<String, ()> for XString<'a> {
         }
 
         if self.0.is_real() {
-            eprintln!("ignoring offset {:#010X}", self.as_u32());
-            Ok(String::new())
+            //eprintln!("ignoring offset {:#010X}", self.as_u32());
+            return Ok(String::new());
             // TODO: SeekFrom::Start(off) once offsets are fixed
             // de.seek_and(std::io::SeekFrom::Start(self.as_u32() as _), |de| {
             //     xfile_read_string(de)
             // })
-        } else {
-            // no need to seek for 0xFFFFFFFF / 0xFFFFFFFE
-            xfile_read_string(de)
         }
+
+        // no need to seek for 0xFFFFFFFF / 0xFFFFFFFE
+        xfile_read_string(de)
     }
 }
 
@@ -261,7 +264,7 @@ impl<'a, T: DeserializeOwned + Clone + Debug + XFileInto<U, V>, U, V: Copy>
         }
 
         let t = if self.is_real() {
-            eprintln!("ignoring offset {:#010X}", self.as_u32());
+            //eprintln!("ignoring offset {:#010X}", self.as_u32());
             return Ok(None);
             // TODO: SeekFrom::Start(off) once offsets are fixed
             // de.seek_and(from, |de| de.load_from_xfile::<T>())??
@@ -287,7 +290,7 @@ impl<'a, T: DeserializeOwned + Debug> Ptr32<'a, T> {
         }
 
         let t = if self.is_real() {
-            eprintln!("ignoring offset {:#010X}", self.as_u32());
+            //eprintln!("ignoring offset {:#010X}", self.as_u32());
             return Ok(None);
             // TODO: SeekFrom::Start(off) once offsets are fixed
             // de.seek_and(from, |de| de.load_from_xfile::<T>())??
@@ -392,7 +395,7 @@ pub(crate) trait FatPointer<'a, T: DeserializeOwned + 'a> {
         }
 
         let v = if self.p().is_real() {
-            eprintln!("ignoring offset {:#010X}", self.p().as_u32());
+            //eprintln!("ignoring offset {:#010X}", self.p().as_u32());
             return Ok(Vec::new());
             // TODO: SeekFrom::Start(off) once offsets are fixed
         } else {

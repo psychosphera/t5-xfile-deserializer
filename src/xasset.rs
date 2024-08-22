@@ -191,7 +191,7 @@ assert_size!(XAssetRaw, 8);
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Copy, Clone, Default, Debug, FromPrimitive)]
 #[repr(u32)]
-pub(crate) enum XAssetType {
+pub enum XAssetType {
     #[default]
     XMODELPIECES = 0x00,
     PHYSPRESET = 0x01,
@@ -248,8 +248,10 @@ impl<'a, const MAX_LOCAL_CLIENTS: usize> XFileInto<XAssetGeneric<MAX_LOCAL_CLIEN
         de: &mut T5XFileDeserializer,
         _data: (),
     ) -> Result<XAssetGeneric<MAX_LOCAL_CLIENTS>> {
+        dbg!(de.stream_pos()?);
         let asset_type = num::FromPrimitive::from_u32(self.asset_type)
-            .ok_or(Error::BadFromPrimitive(self.asset_type as _))?;
+            .ok_or(Error::InvalidXAssetType(self.asset_type))?;
+        println!("type={:?} ({})", asset_type, self.asset_type);
         Ok(match asset_type {
             XAssetType::PHYSPRESET => XAssetGeneric::PhysPreset(
                 self.asset_data
@@ -404,7 +406,7 @@ impl<'a, const MAX_LOCAL_CLIENTS: usize> XFileInto<XAssetGeneric<MAX_LOCAL_CLIEN
             }
             _ => {
                 dbg!(asset_type);
-                unimplemented!()
+                return Err(Error::UnusedXAssetType(asset_type));
             }
         })
     }

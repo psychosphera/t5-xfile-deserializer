@@ -9,13 +9,18 @@ Data stored by `XFiles` includes shaders, the clipmap/PVS, scripts, animations, 
 1. Material Technique Sets
 2. Materials
 3. Images (textures)
+4. PhysPresets
+5. PhysConstraints
+6. XAnims
+7. XModels
+8. LightDefs
+9. String Tables
+10. RawFiles
 
 ### What can probably be deserialzed (untested)
-1. String Tables
-2. XGlobals
-3. Raw Files
-4. Map Ents
-5. Localize Entries
+1. XGlobals
+2. Map Ents
+3. Localize Entries
 
 ### What will soon be able to be deserialized (implemented but bugged)
 1. Destructibles
@@ -23,22 +28,18 @@ Data stored by `XFiles` includes shaders, the clipmap/PVS, scripts, animations, 
 3. Impact Effects
 4. Effects
 5. Gameworlds (SP & MP)
-6. Lights
-7. XAnims (animations)
-8. XModels (models)
-9. Phys Constraints
-10. Sounds
-11. Sound Patches
-12. Sound Driver Globals
-13. DDLs
-14. Glasses
-15. Emblem Sets
-16. Menu Lists
-17. Menus
-18. Weapon Variants
-19. ComWorld
-20. GfxWorld
-21. Clipmap/PVS
+6. Sounds
+7. Sound Patches
+8. SndDriverGlobals
+9. DDLs
+10. Glasses
+11. Emblem Sets
+12. Menu Lists
+13. Menus
+14. Weapon Variants
+15. ComWorld
+16. GfxWorld
+17. Clipmap/PVS
 
 ## Building
 ```bash
@@ -53,7 +54,7 @@ To run, you'll need to supply an `XFile` (which I naturally can't provide here).
 I primarily created this to integrate into OpenT5 once it's done, but I figured it could be useful as a standalone project in case someone else has a use for it. Some of the structure definitions here are probably identical or very similar for, e.g., T4 or T6 (or even IW3), so this could probably serve as the groundwork for deserializing their `XFiles` (not something I plan on doing though).
 
 ## Todo
-1. Fix deserialization of `XModel` and whatever deserialization problems come next. (Probably a lot.)
+1. Fix deserialization logic of remaining `XAsset`s.
 2. Get offsets working.
 3. Account for shared pointers. (All pointers get boxed currently, but that's definitely not correct semantically for a lot of them.)
 4. Relatedly, account for linked lists.

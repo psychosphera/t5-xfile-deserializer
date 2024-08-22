@@ -7,7 +7,8 @@ use crate::*;
 #[derive(Copy, Clone, Debug, Deserialize)]
 pub(crate) struct RawFileRaw<'a> {
     pub name: XString<'a>,
-    pub buffer: FatPointerCountFirstU32<'a, u8>,
+    pub len: i32,
+    pub buffer: Ptr32<'a, u8>,
 }
 assert_size!(RawFileRaw, 12);
 
@@ -20,10 +21,10 @@ pub struct RawFile {
 
 impl<'a> XFileInto<RawFile, ()> for RawFileRaw<'a> {
     fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<RawFile> {
-        Ok(RawFile {
-            name: self.name.xfile_into(de, ())?,
-            buffer: self.buffer.to_vec(de)?,
-        })
+        dbg!(&self);
+        let name = self.name.xfile_into(de, ())?;
+        let buffer = self.buffer.to_array(self.len as usize + 1).to_vec(de)?;
+        Ok(RawFile { name, buffer })
     }
 }
 

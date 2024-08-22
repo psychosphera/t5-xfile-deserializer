@@ -130,7 +130,7 @@ use windows::Win32::Graphics::Direct3D9::IDirect3DDevice9;
 
 pub use misc::*;
 use util::{StreamLen, *};
-use xasset::{XAsset, XAssetList, XAssetRaw};
+use xasset::{XAsset, XAssetList, XAssetRaw, XAssetType};
 
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
@@ -193,7 +193,7 @@ impl XFileVersion {
     fn is_valid(version: u32, platform: XFilePlatform) -> bool {
         Self::from_u32(version)
             .map(|v| v.as_u32())
-            .unwrap_or(0xFFFFFFFF)
+            .unwrap_or(0xFFFFFFFF) // sentinel value to make life simple
             == Self::from_platform(platform).as_u32()
     }
 
@@ -286,6 +286,7 @@ pub struct D3D9State<'a> {
 #[cfg(not(feature = "d3d9"))]
 struct D3D9State<'a>(PhantomData<&'a ()>);
 
+/// Trait to seal [`T5XFileDeserializer`]'s typestates.
 pub(crate) trait T5XFileDeserializerTypestate {}
 
 pub enum T5XFileDeserializerUninflated {}
@@ -315,27 +316,46 @@ pub struct T5XFileDeserializer<'a, T: T5XFileDeserializerTypestate = T5XFileDese
     _p: PhantomData<T>,
 }
 
+/// A simple enum that contains all the possible errors this library can return.
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum Error {
+    /// Occurs when a [`std::io`] function returns an error.
     Io(std::io::Error),
+    /// Occurs when `bincode` couldn't deserialize an object.
     Bincode(Box<bincode::ErrorKind>),
+    /// Occurs when an XFile's blob couldn't be inflated.
     Inflate(String),
-    BadOffset(u32),
+    /// Occurs when `num::FromPrimitive::from_*` return [`None`].
     BadFromPrimitive(i64),
+    /// Occurs when `bitflags::from_bits` returns [`None`].
     BadBitflags(u32),
+    /// Occurs when a character has invalid encoding.
     BadChar(u32),
+    /// Occurs when an invariant expected by the deserializer is broken.
+    /// Likely indicates the file is corrupt or some deserialization logic is wrong
     BrokenInvariant(String),
-    InvalidSeek {
-        off: u32,
-        max: u32,
-    },
+    /// Occurs when attempting to seek to an offset beyond the bounds of a file.
+    InvalidSeek { off: u32, max: u32 },
+    /// Occurs when an XFile's `magic` field is invalid.
+    /// Likely indicates the file is corrupt or isn't an XFile.
     BadHeaderMagic(String),
+    /// Occurs when an XFile's version doesn't match the expected version ([`XFILE_VERSION`]).
     WrongVersion(u32),
+    /// Occurs when an XFile has the wrong endianness for the given platform.
     WrongEndiannessForPlatform(XFilePlatform),
+    /// Occurs when an XFile's platform is unsupported (currently just Wii).
     UnsupportedPlatform(XFilePlatform),
+    /// Occurs when some part of the library hasn't yet been implemented.
     Todo(String),
+    /// Occurs when a [`ScriptString`] doesn't index [`T5XFileDeserializer::script_strings`].
     BadScriptString(u16),
+    /// Occurs when an `XAsset`'s `asset_type` isn't a variant of [`XAssetType`].
+    InvalidXAssetType(u32),
+    /// Occurs when an `XAsset`'s `asset_type` *is* a variant of [`XAssetType`],
+    /// but that `asset_type` isn't used by T5.
+    UnusedXAssetType(XAssetType),
+    /// Occurs when an error is returned by D3D9.
     #[cfg(feature = "d3d9")]
     Windows(windows::core::Error),
 }
@@ -768,6 +788,7 @@ impl<'a> T5XFileDeserializer<'a, T5XFileDeserializerDeserialize> {
         };
 
         let asset = XAsset::try_get(self, asset, self.platform);
+        //dbg!(&asset);
         if let Ok(ref a) = asset {
             self.deserialized_assets += 1;
             if a.is_some() {
@@ -799,6 +820,14 @@ impl<'a> T5XFileDeserializer<'a, T5XFileDeserializerDeserialize> {
         }
 
         Ok(deserialized_assets)
+    }
+
+    pub(crate) fn stream_pos(&mut self) -> Result<u64> {
+        self.reader
+            .as_mut()
+            .unwrap()
+            .stream_position()
+            .map_err(Error::Io)
     }
 
     // pub(crate) fn seek_and<T, F: FnOnce(&mut Self) -> T>(
@@ -879,8 +908,6 @@ impl<'a> T5XFileDeserializer<'a, T5XFileDeserializerDeserialize> {
 
     fn get_script_strings_and_assets(&mut self) -> Result<()> {
         let xasset_list = self.xasset_list;
-        let assets = xasset_list.assets.to_vec(self)?;
-        self.xassets_raw = VecDeque::from_iter(assets);
 
         self.script_strings = xasset_list
             .strings
@@ -889,6 +916,9 @@ impl<'a> T5XFileDeserializer<'a, T5XFileDeserializerDeserialize> {
             .map(|s| s.xfile_into(self, ()))
             .collect::<Result<Vec<_>>>()?;
         //dbg!(&strings);
+
+        let assets = xasset_list.assets.to_vec(self)?;
+        self.xassets_raw = VecDeque::from_iter(assets);
 
         Ok(())
     }

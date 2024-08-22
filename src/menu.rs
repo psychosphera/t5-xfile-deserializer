@@ -28,8 +28,13 @@ impl<'a, const MAX_LOCAL_CLIENTS: usize> XFileInto<MenuList<MAX_LOCAL_CLIENTS>, 
         de: &mut T5XFileDeserializer,
         _data: (),
     ) -> Result<MenuList<MAX_LOCAL_CLIENTS>> {
+        dbg!(self);
         let name = self.name.xfile_into(de, ())?;
+        dbg!(&name);
+        dbg!(de.stream_pos()?);
         let menus = self.menus.xfile_into(de, ())?;
+        dbg!(&menus);
+        dbg!(de.stream_pos()?);
 
         Ok(MenuList { name, menus })
     }
@@ -76,7 +81,7 @@ pub(crate) struct MenuDefRaw<'a, const MAX_LOCAL_CLIENTS: usize> {
     pub rect_y_exp: ExpressionStatementRaw<'a>,
     pub items: Ptr32<'a, Ptr32<'a, ItemDefRaw<'a, MAX_LOCAL_CLIENTS>>>,
     #[allow(dead_code)]
-    pub pad: [u8; 4],
+    pad: [u8; 4],
 }
 assert_size!(MenuDefRaw<1>, 400);
 
@@ -173,7 +178,10 @@ impl<'a, const MAX_LOCAL_CLIENTS: usize> XFileInto<MenuDef<MAX_LOCAL_CLIENTS>, (
         de: &mut T5XFileDeserializer,
         _data: (),
     ) -> Result<MenuDef<MAX_LOCAL_CLIENTS>> {
+        dbg!(self);
+        dbg!(de.stream_pos()?);
         let window = self.window.xfile_into(de, ())?;
+        dbg!(de.stream_pos()?);
         let font = self.font.xfile_into(de, ())?;
         let full_screen = self.full_screen != 0;
         let intial_rect_info = self.intial_rect_info.into();
@@ -443,6 +451,7 @@ pub(crate) struct GenericEventScriptRaw<'a> {
     pub condition: ExpressionStatementRaw<'a>,
     pub type_: i32,
     pub fire_on_true: bool,
+    pad: [u8; 3],
     pub action: XString<'a>,
     pub block_id: i32,
     pub construct_id: i32,
@@ -491,6 +500,7 @@ impl<'a> XFileInto<GenericEventScript, ()> for GenericEventScriptRaw<'a> {
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
 pub(crate) struct ScriptConditionRaw<'a> {
     pub fire_on_true: bool,
+    pad: [u8; 3],
     pub block_id: i32,
     pub construct_id: i32,
     pub next: Ptr32<'a, ScriptConditionRaw<'a>>,
@@ -1297,6 +1307,7 @@ pub(crate) struct MenuRowRaw<'a> {
     pub event_name: XString<'a>,
     pub on_focus_event_name: XString<'a>,
     pub disable_arg: bool,
+    pad: [u8; 3],
     pub status: i32,
     pub name: i32,
 }
