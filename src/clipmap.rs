@@ -735,8 +735,10 @@ pub struct DynEntityDef {
 
 impl<'a> XFileInto<DynEntityDef, ()> for DynEntityDefRaw<'a> {
     fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<DynEntityDef> {
-        let type_ =
-            FromPrimitive::from_i32(self.type_).ok_or(Error::BadFromPrimitive(self.type_ as _))?;
+        let type_ = FromPrimitive::from_i32(self.type_).ok_or(Error::new(
+            file_line_col!(),
+            ErrorKind::BadFromPrimitive(self.type_ as _),
+        ))?;
         let pose = self.pose.into();
         let xmodel = self.xmodel.xfile_into(de, ())?;
         let destroyed_xmodel = self.destroyed_xmodel.xfile_into(de, ())?;
@@ -1046,8 +1048,10 @@ impl TryFrom<ConstraintRaw> for Constraint {
     fn try_from(value: ConstraintRaw) -> Result<Self> {
         Ok(Self {
             p: value.p.into(),
-            type_: FromPrimitive::from_i32(value.type_)
-                .ok_or(Error::BadFromPrimitive(value.type_ as _))?,
+            type_: FromPrimitive::from_i32(value.type_).ok_or(Error::new(
+                file_line_col!(),
+                ErrorKind::BadFromPrimitive(value.type_ as _),
+            ))?,
             enetiy_index: value.enetiy_index as _,
             bone_name_hash: value.bone_name_hash,
             pi1: value.pi1,

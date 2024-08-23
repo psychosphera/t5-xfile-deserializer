@@ -11,35 +11,55 @@ Data stored by `XFiles` includes shaders, the clipmap/PVS, scripts, animations, 
 3. Images (textures)
 4. PhysPresets
 5. PhysConstraints
-6. XAnims
-7. XModels
-8. LightDefs
-9. String Tables
-10. RawFiles
+6. XModels
+7. LightDefs
+8. String Tables
+9. RawFiles
+10. Localize Entries
+11. Fonts
+12. Sounds
 
 ### What can probably be deserialzed (untested)
 1. XGlobals
 2. Map Ents
-3. Localize Entries
 
 ### What will soon be able to be deserialized (implemented but bugged)
 1. Destructibles
-2. Fonts
-3. Impact Effects
-4. Effects
-5. Gameworlds (SP & MP)
-6. Sounds
-7. Sound Patches
-8. SndDriverGlobals
-9. DDLs
-10. Glasses
-11. Emblem Sets
-12. Menu Lists
-13. Menus
-14. Weapon Variants
-15. ComWorld
-16. GfxWorld
-17. Clipmap/PVS
+2. Impact Effects
+3. Effects
+4. Gameworlds (SP & MP)
+6. Sound Patches
+7. SndDriverGlobals
+8. DDLs
+9. Glasses
+10. Emblem Sets
+11. Menu Lists (these can technically be deserialized, but they contain Menus, which can't yet)
+12. Menus
+13. Weapon Variants
+14. ComWorld
+15. GfxWorld
+16. Clipmap/PVS
+17. XAnims
+
+### The following files can currently be deserialized in their entirety
+* `code_pre_gfx.ff`
+* `code_post_gfx.ff`
+* `en_code_pre_gfx.ff`
+* `en_code_post_gfx.ff`
+* `code_pre_gfx_mp.ff`
+* `en_code_pre_gfx_mp.ff`
+* `en_code_post_gfx_mp.ff`
+* `en_patch.ff`
+* `en_common.ff`
+* `en_common_mp.ff`
+* `en_ui_mp.ff`
+* `zombietron_patch.ff`
+* `en_frontend.ff`
+* `en_mp_nuked.ff`
+* `en_zombie_theater.ff`
+* `en_zombietron.ff`
+
+Some others (particularly the localized ones) can probably be deserialized, they just haven't been tested.
 
 ## Building
 ```bash
@@ -54,7 +74,7 @@ To run, you'll need to supply an `XFile` (which I naturally can't provide here).
 I primarily created this to integrate into OpenT5 once it's done, but I figured it could be useful as a standalone project in case someone else has a use for it. Some of the structure definitions here are probably identical or very similar for, e.g., T4 or T6 (or even IW3), so this could probably serve as the groundwork for deserializing their `XFiles` (not something I plan on doing though).
 
 ## Todo
-1. Fix deserialization logic of remaining `XAsset`s.
+1. Fix deserialization logic of remaining `XAssets`.
 2. Get offsets working.
 3. Account for shared pointers. (All pointers get boxed currently, but that's definitely not correct semantically for a lot of them.)
 4. Relatedly, account for linked lists.

@@ -249,8 +249,10 @@ impl<'a, const MAX_LOCAL_CLIENTS: usize> XFileInto<XAssetGeneric<MAX_LOCAL_CLIEN
         _data: (),
     ) -> Result<XAssetGeneric<MAX_LOCAL_CLIENTS>> {
         dbg!(de.stream_pos()?);
-        let asset_type = num::FromPrimitive::from_u32(self.asset_type)
-            .ok_or(Error::InvalidXAssetType(self.asset_type))?;
+        let asset_type = num::FromPrimitive::from_u32(self.asset_type).ok_or(Error::new(
+            file_line_col!(),
+            ErrorKind::InvalidXAssetType(self.asset_type),
+        ))?;
         println!("type={:?} ({})", asset_type, self.asset_type);
         Ok(match asset_type {
             XAssetType::PHYSPRESET => XAssetGeneric::PhysPreset(
@@ -406,7 +408,10 @@ impl<'a, const MAX_LOCAL_CLIENTS: usize> XFileInto<XAssetGeneric<MAX_LOCAL_CLIEN
             }
             _ => {
                 dbg!(asset_type);
-                return Err(Error::UnusedXAssetType(asset_type));
+                return Err(Error::new(
+                    file_line_col!(),
+                    ErrorKind::UnusedXAssetType(asset_type),
+                ));
             }
         })
     }

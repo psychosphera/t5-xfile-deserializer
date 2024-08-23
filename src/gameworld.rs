@@ -252,10 +252,14 @@ pub struct PathNodeConstant {
 impl<'a> XFileInto<PathNodeConstant, ()> for PathNodeConstantRaw<'a> {
     fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<PathNodeConstant> {
         Ok(PathNodeConstant {
-            type_: num::FromPrimitive::from_u16(self.type_)
-                .ok_or(Error::BadFromPrimitive(self.type_ as _))?,
-            spawnflags: SpawnFlags::from_bits(self.spawnflags)
-                .ok_or(Error::BadBitflags(self.spawnflags as _))?,
+            type_: num::FromPrimitive::from_u16(self.type_).ok_or(Error::new(
+                file_line_col!(),
+                ErrorKind::BadFromPrimitive(self.type_ as _),
+            ))?,
+            spawnflags: SpawnFlags::from_bits(self.spawnflags).ok_or(Error::new(
+                file_line_col!(),
+                ErrorKind::BadBitflags(self.spawnflags as _),
+            ))?,
             targetname: self.targetname.to_string(de).unwrap_or_default(),
             script_linkname: self.script_linkname.to_string(de).unwrap_or_default(),
             script_noteworthy: self.script_noteworthy.to_string(de).unwrap_or_default(),

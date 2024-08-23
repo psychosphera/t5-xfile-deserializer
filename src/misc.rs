@@ -21,7 +21,7 @@ pub struct RawFile {
 
 impl<'a> XFileInto<RawFile, ()> for RawFileRaw<'a> {
     fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<RawFile> {
-        dbg!(&self);
+        //dbg!(&self);
         let name = self.name.xfile_into(de, ())?;
         let buffer = self.buffer.to_array(self.len as usize + 1).to_vec(de)?;
         Ok(RawFile { name, buffer })
@@ -237,10 +237,10 @@ pub struct LocalizeEntry {
 
 impl<'a> XFileInto<LocalizeEntry, ()> for LocalizeEntryRaw<'a> {
     fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<LocalizeEntry> {
-        Ok(LocalizeEntry {
-            value: self.value.xfile_into(de, ())?,
-            name: self.name.xfile_into(de, ())?,
-        })
+        let value = self.value.xfile_into(de, ())?;
+        let name = self.name.xfile_into(de, ())?;
+        //dbg!(&value, &name);
+        Ok(LocalizeEntry { value, name })
     }
 }
 
