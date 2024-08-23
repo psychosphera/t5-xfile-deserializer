@@ -175,7 +175,10 @@ impl ScriptString {
         de.script_strings
             .get(self.0 as usize)
             .cloned()
-            .ok_or(Error::BadScriptString(self.0))
+            .ok_or(Error::new(
+                file_line_col!(),
+                ErrorKind::BadScriptString(self.0),
+            ))
     }
 }
 
@@ -319,7 +322,7 @@ pub struct T5XFileDeserializer<'a, T: T5XFileDeserializerTypestate = T5XFileDese
 /// A simple enum that contains all the possible errors this library can return.
 #[derive(Debug)]
 #[non_exhaustive]
-pub enum Error {
+pub enum ErrorKind {
     /// Occurs when a [`std::io`] function returns an error.
     Io(std::io::Error),
     /// Occurs when `bincode` couldn't deserialize an object.
@@ -360,26 +363,26 @@ pub enum Error {
     Windows(windows::core::Error),
 }
 
-impl From<std::io::Error> for Error {
+impl From<std::io::Error> for ErrorKind {
     fn from(value: std::io::Error) -> Self {
         Self::Io(value)
     }
 }
 
-impl From<Box<bincode::ErrorKind>> for Error {
+impl From<Box<bincode::ErrorKind>> for ErrorKind {
     fn from(value: Box<bincode::ErrorKind>) -> Self {
         Self::Bincode(value)
     }
 }
 
-impl From<String> for Error {
+impl From<String> for ErrorKind {
     fn from(value: String) -> Self {
         Self::Inflate(value)
     }
 }
 
 #[cfg(feature = "d3d9")]
-impl From<windows::core::Error> for Error {
+impl From<windows::core::Error> for ErrorKind {
     fn from(value: windows::core::Error) -> Self {
         Self::Windows(value)
     }
@@ -390,6 +393,26 @@ macro_rules! file_line_col {
     () => {
         format!("{}:{}:{}", file!(), line!(), column!())
     };
+}
+
+#[derive(Debug)]
+pub struct Error {
+    where_: String,
+    kind: ErrorKind,
+}
+
+impl Error {
+    pub(crate) fn new(where_: String, kind: ErrorKind) -> Self {
+        Self { where_, kind }
+    }
+
+    pub fn kind(&self) -> &ErrorKind {
+        &self.kind
+    }
+
+    pub fn where_(&self) -> String {
+        self.where_.clone()
+    }
 }
 
 pub type Result<T> = core::result::Result<T, Error>;
@@ -516,7 +539,10 @@ impl<'a> T5XFileDeserializer<'a, T5XFileDeserializerUninflated> {
             if !silent {
                 println!("Wii Fastfiles aren't supported.");
             }
-            return Err(Error::UnsupportedPlatform(platform));
+            return Err(Error::new(
+                file_line_col!(),
+                ErrorKind::UnsupportedPlatform(platform),
+            ));
         }
 
         if !silent && (platform == XFilePlatform::Xbox360 || platform == XFilePlatform::PS3) {
@@ -543,7 +569,9 @@ impl<'a> T5XFileDeserializer<'a, T5XFileDeserializerUninflated> {
 
         let opts = BincodeOptions::from_platform(platform);
 
-        let header = opts.deserialize_from::<XFileHeader>(&mut *file)?;
+        let header = opts
+            .deserialize_from::<XFileHeader>(&mut *file)
+            .map_err(|e| Error::new(file_line_col!(), ErrorKind::Bincode(e)))?;
 
         // dbg!(&header);
 
@@ -551,7 +579,10 @@ impl<'a> T5XFileDeserializer<'a, T5XFileDeserializerUninflated> {
             if !silent {
                 println!("Fastfile header magic invalid: valid values are IWffu100 and IWff0100");
             }
-            return Err(Error::BadHeaderMagic(header.magic_string()));
+            return Err(Error::new(
+                file_line_col!(),
+                ErrorKind::BadHeaderMagic(header.magic_string()),
+            ));
         }
 
         if XFileVersion::is_other_endian(header.version, platform) {
@@ -562,7 +593,10 @@ impl<'a> T5XFileDeserializer<'a, T5XFileDeserializerUninflated> {
                     platform
                 );
             }
-            return Err(Error::WrongEndiannessForPlatform(platform));
+            return Err(Error::new(
+                file_line_col!(),
+                ErrorKind::WrongEndiannessForPlatform(platform),
+            ));
         }
 
         if !XFileVersion::is_valid(header.version, platform) {
@@ -574,7 +608,10 @@ impl<'a> T5XFileDeserializer<'a, T5XFileDeserializerUninflated> {
                 );
             }
 
-            return Err(Error::WrongVersion(header.version));
+            return Err(Error::new(
+                file_line_col!(),
+                ErrorKind::WrongVersion(header.version),
+            ));
         }
 
         if !silent {
@@ -611,7 +648,10 @@ impl<'a> T5XFileDeserializer<'a, T5XFileDeserializerUninflated> {
             if !silent {
                 println!("Wii Fastfiles aren't supported (does Wii even use Fastfiles?)");
             }
-            return Err(Error::UnsupportedPlatform(platform));
+            return Err(Error::new(
+                file_line_col!(),
+                ErrorKind::UnsupportedPlatform(platform),
+            ));
         }
 
         if !silent {
@@ -641,17 +681,24 @@ impl<'a> T5XFileDeserializer<'a, T5XFileDeserializerUninflated> {
 
         let reader = if let Some(f) = self.cache_file.take() {
             let mut decompressed_payload = Vec::new();
-            f.read_to_end(&mut decompressed_payload)?;
+            f.read_to_end(&mut decompressed_payload)
+                .map_err(|e| Error::new(file_line_col!(), ErrorKind::Io(e)))?;
             Cursor::new(decompressed_payload)
         } else if let Some(f) = self.file.take() {
             let mut compressed_payload = Vec::new();
-            f.seek(std::io::SeekFrom::Start(sizeof!(XFileHeader) as _))?;
-            dbg!(f.stream_position()?);
-            let bytes_read = f.read_to_end(&mut compressed_payload)?;
+            f.seek(std::io::SeekFrom::Start(sizeof!(XFileHeader) as _))
+                .map_err(|e| Error::new(file_line_col!(), ErrorKind::Io(e)))?;
+            dbg!(f
+                .stream_position()
+                .map_err(|e| Error::new(file_line_col!(), ErrorKind::Io(e)))?);
+            let bytes_read = f
+                .read_to_end(&mut compressed_payload)
+                .map_err(|e| Error::new(file_line_col!(), ErrorKind::Io(e)))?;
             if !self.silent {
                 println!("Payload read, inflating... (this may take a while)");
             }
-            let decompressed_payload = inflate::inflate_bytes_zlib(&compressed_payload)?;
+            let decompressed_payload = inflate::inflate_bytes_zlib(&compressed_payload)
+                .map_err(|e| Error::new(file_line_col!(), ErrorKind::Inflate(e)))?;
             if !self.silent {
                 println!(
                     "Payload inflated, compressed size: {} bytes, decompressed size: {} bytes",
@@ -668,16 +715,26 @@ impl<'a> T5XFileDeserializer<'a, T5XFileDeserializerUninflated> {
 
         let xasset_list = {
             let mut file = self.reader.as_mut().unwrap();
-            let xfile = self.opts.deserialize_from::<XFile>(&mut file)?;
+            let xfile = self
+                .opts
+                .deserialize_from::<XFile>(&mut file)
+                .map_err(|e| Error::new(file_line_col!(), ErrorKind::Bincode(e)))?;
 
             dbg!(xfile);
-            dbg!(StreamLen::stream_len(&mut file))?;
+            dbg!(StreamLen::stream_len(&mut file)?);
             self.xfile = xfile;
 
-            dbg!(file.stream_position()?);
-            let xasset_list = self.opts.deserialize_from::<XAssetList>(&mut file)?;
+            dbg!(file
+                .stream_position()
+                .map_err(|e| Error::new(file_line_col!(), ErrorKind::Io(e)))?);
+            let xasset_list = self
+                .opts
+                .deserialize_from::<XAssetList>(&mut file)
+                .map_err(|e| Error::new(file_line_col!(), ErrorKind::Bincode(e)))?;
             dbg!(&xasset_list);
-            dbg!(file.stream_position()?);
+            dbg!(file
+                .stream_position()
+                .map_err(|e| Error::new(file_line_col!(), ErrorKind::Io(e)))?);
             xasset_list
         };
 
@@ -720,10 +777,12 @@ impl<'a> T5XFileDeserializer<'a, T5XFileDeserializerInflated> {
 
         let cache_exists = path.as_ref().exists();
 
-        let mut f = std::fs::File::create(path)?;
+        let mut f = std::fs::File::create(path)
+            .map_err(|e| Error::new(file_line_col!(), ErrorKind::Io(e)))?;
         let pos = self.reader.as_ref().unwrap().position();
         let v = self.reader.take().unwrap().into_inner();
-        f.write_all(&v)?;
+        f.write_all(&v)
+            .map_err(|e| Error::new(file_line_col!(), ErrorKind::Io(e)))?;
         self.reader = Some(Cursor::new(v));
         self.reader.as_mut().unwrap().set_position(pos);
 
@@ -827,7 +886,7 @@ impl<'a> T5XFileDeserializer<'a, T5XFileDeserializerDeserialize> {
             .as_mut()
             .unwrap()
             .stream_position()
-            .map_err(Error::Io)
+            .map_err(|e| Error::new(file_line_col!(), ErrorKind::Io(e)))
     }
 
     // pub(crate) fn seek_and<T, F: FnOnce(&mut Self) -> T>(
@@ -891,7 +950,7 @@ impl<'a> T5XFileDeserializer<'a, T5XFileDeserializerDeserialize> {
     pub(crate) fn load_from_xfile<T: DeserializeOwned>(&mut self) -> Result<T> {
         self.opts
             .deserialize_from(self.reader.as_mut().unwrap())
-            .map_err(Error::Bincode)
+            .map_err(|e| Error::new(file_line_col!(), ErrorKind::Bincode(e)))
     }
 
     // pub(crate) fn convert_offset_to_ptr(&self, offset: u32) -> Result<(u8, u32)> {

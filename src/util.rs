@@ -82,10 +82,15 @@ impl<'de, T: Default + Copy + Deserialize<'de>, const N: usize> Visitor<'de>
 // ============================================================================
 /// [`Seek::stream_len`] isn't stable yet, so we implement it manually here
 pub(crate) trait StreamLen: Seek {
-    fn stream_len(&mut self) -> std::io::Result<u64> {
-        let pos = self.stream_position()?;
-        let len = self.seek(SeekFrom::End(0))?;
-        self.seek(SeekFrom::Start(pos))?;
+    fn stream_len(&mut self) -> Result<u64> {
+        let pos = self
+            .stream_position()
+            .map_err(|e| Error::new(file_line_col!(), ErrorKind::Io(e)))?;
+        let len = self
+            .seek(SeekFrom::End(0))
+            .map_err(|e| Error::new(file_line_col!(), ErrorKind::Io(e)))?;
+        self.seek(SeekFrom::Start(pos))
+            .map_err(|e| Error::new(file_line_col!(), ErrorKind::Io(e)))?;
         Ok(len)
     }
 }
@@ -136,11 +141,11 @@ pub(crate) fn xfile_read_string(de: &mut T5XFileDeserializer) -> Result<String> 
     loop {
         let c = de.load_from_xfile::<u8>()?;
 
-        if !c.is_ascii() {
-            return Err(Error::BrokenInvariant(format!(
-                "{}: XString: c ({c:#02X}) is not valid ASCII",
-                file_line_col!()
-            )));
+        if !c.is_ascii() && c != 0xF1 && c != 0xDC && c != 0xAE && c != 0xA9 && c != 0x99 {
+            return Err(Error::new(
+                file_line_col!(),
+                ErrorKind::BrokenInvariant(format!("XString: c ({c:#02X}) is not valid ASCII",)),
+            ));
         }
 
         string_buf.push(c);
@@ -273,7 +278,16 @@ impl<'a, T: DeserializeOwned + Clone + Debug + XFileInto<U, V>, U, V: Copy>
             //     .map(Some)
         } else {
             // no need to seek for 0xFFFFFFFF / 0xFFFFFFFE
-            de.load_from_xfile::<T>()?
+            let old = de.stream_pos()?;
+            let t = de.load_from_xfile::<T>()?;
+            let new = de.stream_pos()?;
+            assert!(
+                new == old + sizeof!(T) as u64,
+                "new ({new}) - old ({old}) = {}, expected {}",
+                new - old,
+                sizeof!(T)
+            );
+            t
         };
 
         t.xfile_into(de, data).map(Box::new).map(Some)
@@ -296,7 +310,16 @@ impl<'a, T: DeserializeOwned + Debug> Ptr32<'a, T> {
             // de.seek_and(from, |de| de.load_from_xfile::<T>())??
         } else {
             // no need to seek for 0xFFFFFFFF / 0xFFFFFFFE
-            de.load_from_xfile::<T>()
+            let old = de.stream_pos()?;
+            let t = de.load_from_xfile::<T>();
+            let new = de.stream_pos()?;
+            assert!(
+                new == old + sizeof!(T) as u64,
+                "new ({new}) - old ({old}) = {}, expected {}",
+                new - old,
+                sizeof!(T)
+            );
+            t
         };
 
         t.map(Some)
@@ -359,9 +382,12 @@ pub(crate) trait FlexibleArray<T: DeserializeOwned> {
     fn to_vec(&self, de: &mut T5XFileDeserializer) -> Result<Vec<T>> {
         let mut vt = Vec::new();
 
+        let old = de.stream_pos()?;
         for _ in 0..self.count() {
             vt.push(de.load_from_xfile()?);
         }
+        let new = de.stream_pos()?;
+        assert!(new == old + sizeof!(T) as u64 * self.count() as u64);
 
         Ok(vt)
     }
@@ -400,10 +426,18 @@ pub(crate) trait FatPointer<'a, T: DeserializeOwned + 'a> {
             // TODO: SeekFrom::Start(off) once offsets are fixed
         } else {
             // no need to seek for 0xFFFFFFFF / 0xFFFFFFFE
+            let old = de.stream_pos()?;
             let mut v = Vec::new();
             for _ in 0..self.size() {
                 v.push(de.load_from_xfile::<T>()?);
             }
+            let new = de.stream_pos()?;
+            assert!(
+                new == old + sizeof!(T) as u64 * self.size() as u64,
+                "new ({new}) != old ({old}) + {} ({})",
+                sizeof!(T) * self.size(),
+                new - old
+            );
             v
         };
 

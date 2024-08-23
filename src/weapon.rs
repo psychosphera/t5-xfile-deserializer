@@ -43,6 +43,7 @@ pub(crate) struct WeaponVariantDefRaw<'a> {
     pub full_metal_jacket: bool,
     pub hollow_point: bool,
     pub rapid_fire: bool,
+    pad: [u8; 3],
     pub overlay_material: Ptr32<'a, techset::MaterialRaw<'a>>,
     pub overlay_material_low_res: Ptr32<'a, techset::MaterialRaw<'a>>,
     pub dpad_icon: Ptr32<'a, techset::MaterialRaw<'a>>,
@@ -137,8 +138,10 @@ impl<'a> XFileInto<WeaponVariantDef, ()> for WeaponVariantDefRaw<'a> {
         let overlay_material = self.overlay_material.xfile_into(de, ())?;
         let overlay_material_low_res = self.overlay_material_low_res.xfile_into(de, ())?;
         let dpad_icon = self.dpad_icon.xfile_into(de, ())?;
-        let dpad_icon_ratio = FromPrimitive::from_u32(self.dpad_icon_ratio)
-            .ok_or(Error::BadFromPrimitive(self.dpad_icon_ratio as _))?;
+        let dpad_icon_ratio = FromPrimitive::from_u32(self.dpad_icon_ratio).ok_or(Error::new(
+            file_line_col!(),
+            ErrorKind::BadFromPrimitive(self.dpad_icon_ratio as _),
+        ))?;
         let left_hand_offset = self.left_hand_offset.into();
         let left_hand_rotation = self.left_hand_rotation.into();
         let left_hand_prone_offset = self.left_hand_prone_offset.into();
@@ -228,7 +231,7 @@ pub(crate) struct WeaponDefRaw<'a> {
     pub cool_while_firing: bool,
     pub fuel_tank_weapon: bool,
     #[allow(dead_code)]
-    pad: [u8; 3],
+    pad: [u8; 2],
     pub tank_life_time: i32,
     pub offhand_class: u32,
     pub offhand_slot: u32,
@@ -464,6 +467,7 @@ pub(crate) struct WeaponDefRaw<'a> {
     pub aim_padding: f32,
     pub enemy_crosshair_range: f32,
     pub crosshair_color_change: bool,
+    pad5: [u8; 3],
     pub move_speed_scale: f32,
     pub ads_move_speed_scale: f32,
     pub sprint_duration_scale: f32,
@@ -516,7 +520,7 @@ pub(crate) struct WeaponDefRaw<'a> {
     pub rechamber_while_ads: bool,
     pub reload_while_ads: bool,
     #[allow(dead_code)]
-    pad5: [u8; 2],
+    pad6: [u8; 2],
     pub ads_view_error_min: f32,
     pub ads_view_error_max: f32,
     pub cook_off_hold: bool,
@@ -543,7 +547,7 @@ pub(crate) struct WeaponDefRaw<'a> {
     pub keep_crosshair_when_ads: bool,
     pub use_only_alt_weaopon_hide_tags_in_alt_mode: bool,
     #[allow(dead_code)]
-    pad6: [u8; 2],
+    pad7: [u8; 1],
     pub kill_icon: Ptr32<'a, techset::MaterialRaw<'a>>,
     pub kill_icon_ratio: u32,
     pub flip_kill_icon: bool,
@@ -562,7 +566,7 @@ pub(crate) struct WeaponDefRaw<'a> {
     pub blocks_prone: bool,
     pub show_indicator: bool,
     #[allow(dead_code)]
-    pad7: [u8; 2],
+    pad8: [u8; 2],
     pub is_rolling_grenade: i32,
     pub explosion_radius: i32,
     pub explosion_radius_min: i32,
@@ -583,23 +587,23 @@ pub(crate) struct WeaponDefRaw<'a> {
     pub proj_explosion_effect: Ptr32<'a, fx::FxEffectDefRaw<'a>>,
     pub proj_explosion_effect_force_normal_up: bool,
     #[allow(dead_code)]
-    pad8: [u8; 3],
+    pad9: [u8; 3],
     pub proj_explosion_effect_2: Ptr32<'a, fx::FxEffectDefRaw<'a>>,
     pub proj_explosion_effect_2_force_normal_up: bool,
     #[allow(dead_code)]
-    pad9: [u8; 3],
+    pad10: [u8; 3],
     pub proj_explosion_effect_3: Ptr32<'a, fx::FxEffectDefRaw<'a>>,
     pub proj_explosion_effect_3_force_normal_up: bool,
     #[allow(dead_code)]
-    pad10: [u8; 3],
+    pad11: [u8; 3],
     pub proj_explosion_effect_4: Ptr32<'a, fx::FxEffectDefRaw<'a>>,
     pub proj_explosion_effect_4_force_normal_up: bool,
     #[allow(dead_code)]
-    pad11: [u8; 3],
+    pad12: [u8; 3],
     pub proj_explosion_effect_5: Ptr32<'a, fx::FxEffectDefRaw<'a>>,
     pub proj_explosion_effect_5_force_normal_up: bool,
     #[allow(dead_code)]
-    pad12: [u8; 3],
+    pad13: [u8; 3],
     pub proj_dud_effect: Ptr32<'a, fx::FxEffectDefRaw<'a>>,
     pub proj_explosion_sound: XString<'a>,
     pub proj_dud_sound: XString<'a>,
@@ -608,7 +612,7 @@ pub(crate) struct WeaponDefRaw<'a> {
     pub proj_impact_explode: bool,
     pub bullet_impact_explode: bool,
     #[allow(dead_code)]
-    pad13: [u8; 2],
+    pad14: [u8; 2],
     pub stickiness: u32,
     pub rotate_type: u32,
     pub plantable: bool,
@@ -621,14 +625,14 @@ pub(crate) struct WeaponDefRaw<'a> {
     pub offhand_hold_is_cancelable: bool,
     pub freeze_movement_when_firing: bool,
     #[allow(dead_code)]
-    pad14: [u8; 3],
+    pad15: [u8; 3],
     pub low_ammo_warning_threshold: f32,
     pub melee_charge_range: f32,
     pub use_as_melee: bool,
     pub is_camera_sensor: bool,
     pub is_acoustic_sensor: bool,
     #[allow(dead_code)]
-    pad15: [u8; 1],
+    pad16: [u8; 1],
     pub parallel_bounce: Ptr32ArrayConst<'a, f32, 31>,
     pub perpendicular_bounce: Ptr32ArrayConst<'a, f32, 31>,
     pub proj_tail_effect: Ptr32<'a, fx::FxEffectDefRaw<'a>>,
@@ -730,7 +734,7 @@ pub(crate) struct WeaponDefRaw<'a> {
     pub tag_flash_preparation_effect: Ptr32<'a, fx::FxEffectDefRaw<'a>>,
     pub do_gibbing: bool,
     #[allow(dead_code)]
-    pad16: [u8; 3],
+    pad17: [u8; 3],
     pub max_gib_distance: f32,
 }
 assert_size!(WeaponDefRaw, 2056);
@@ -1514,27 +1518,47 @@ impl<'a> XFileInto<WeaponDef, ()> for WeaponDefRaw<'a> {
                     .unwrap(),
             ))
         };
-        let weap_type = FromPrimitive::from_u32(self.weap_type)
-            .ok_or(Error::BadFromPrimitive(self.weap_type as _))?;
-        let weap_class = FromPrimitive::from_u32(self.weap_class)
-            .ok_or(Error::BadFromPrimitive(self.weap_class as _))?;
-        let penetrate_type = FromPrimitive::from_u32(self.penetrate_type)
-            .ok_or(Error::BadFromPrimitive(self.penetrate_type as _))?;
-        let impact_type = FromPrimitive::from_u32(self.impact_type)
-            .ok_or(Error::BadFromPrimitive(self.impact_type as _))?;
-        let inventory_type = FromPrimitive::from_u32(self.inventory_type)
-            .ok_or(Error::BadFromPrimitive(self.inventory_type as _))?;
-        let fire_type = FromPrimitive::from_u32(self.fire_type)
-            .ok_or(Error::BadFromPrimitive(self.fire_type as _))?;
-        let clip_type = FromPrimitive::from_u32(self.clip_type)
-            .ok_or(Error::BadFromPrimitive(self.clip_type as _))?;
+        let weap_type = FromPrimitive::from_u32(self.weap_type).ok_or(Error::new(
+            file_line_col!(),
+            ErrorKind::BadFromPrimitive(self.weap_type as _),
+        ))?;
+        let weap_class = FromPrimitive::from_u32(self.weap_class).ok_or(Error::new(
+            file_line_col!(),
+            ErrorKind::BadFromPrimitive(self.weap_class as _),
+        ))?;
+        let penetrate_type = FromPrimitive::from_u32(self.penetrate_type).ok_or(Error::new(
+            file_line_col!(),
+            ErrorKind::BadFromPrimitive(self.penetrate_type as _),
+        ))?;
+        let impact_type = FromPrimitive::from_u32(self.impact_type).ok_or(Error::new(
+            file_line_col!(),
+            ErrorKind::BadFromPrimitive(self.impact_type as _),
+        ))?;
+        let inventory_type = FromPrimitive::from_u32(self.inventory_type).ok_or(Error::new(
+            file_line_col!(),
+            ErrorKind::BadFromPrimitive(self.inventory_type as _),
+        ))?;
+        let fire_type = FromPrimitive::from_u32(self.fire_type).ok_or(Error::new(
+            file_line_col!(),
+            ErrorKind::BadFromPrimitive(self.fire_type as _),
+        ))?;
+        let clip_type = FromPrimitive::from_u32(self.clip_type).ok_or(Error::new(
+            file_line_col!(),
+            ErrorKind::BadFromPrimitive(self.clip_type as _),
+        ))?;
         let parent_weapon_name = self.parent_weapon_name.xfile_into(de, ())?;
-        let offhand_class = FromPrimitive::from_u32(self.offhand_class)
-            .ok_or(Error::BadFromPrimitive(self.offhand_class as _))?;
-        let offhand_slot = FromPrimitive::from_u32(self.offhand_slot)
-            .ok_or(Error::BadFromPrimitive(self.offhand_slot as _))?;
-        let stance = FromPrimitive::from_u32(self.stance)
-            .ok_or(Error::BadFromPrimitive(self.stance as _))?;
+        let offhand_class = FromPrimitive::from_u32(self.offhand_class).ok_or(Error::new(
+            file_line_col!(),
+            ErrorKind::BadFromPrimitive(self.offhand_class as _),
+        ))?;
+        let offhand_slot = FromPrimitive::from_u32(self.offhand_slot).ok_or(Error::new(
+            file_line_col!(),
+            ErrorKind::BadFromPrimitive(self.offhand_slot as _),
+        ))?;
+        let stance = FromPrimitive::from_u32(self.stance).ok_or(Error::new(
+            file_line_col!(),
+            ErrorKind::BadFromPrimitive(self.stance as _),
+        ))?;
         let view_flash_effect = self.view_flash_effect.xfile_into(de, ())?;
         let world_flash_effect = self.world_flash_effect.xfile_into(de, ())?;
         let pickup_sound = self.pickup_sound.xfile_into(de, ())?;
@@ -1618,8 +1642,11 @@ impl<'a> XFileInto<WeaponDef, ()> for WeaponDefRaw<'a> {
         let world_last_shot_eject_effect = self.world_last_shot_eject_effect.xfile_into(de, ())?;
         let reticle_center = self.reticle_center.xfile_into(de, ())?;
         let reticle_side = self.reticle_side.xfile_into(de, ())?;
-        let active_reticle_type = FromPrimitive::from_u32(self.active_reticle_type)
-            .ok_or(Error::BadFromPrimitive(self.active_reticle_type as _))?;
+        let active_reticle_type =
+            FromPrimitive::from_u32(self.active_reticle_type).ok_or(Error::new(
+                file_line_col!(),
+                ErrorKind::BadFromPrimitive(self.active_reticle_type as _),
+            ))?;
         let world_model = if self.world_model.is_null() {
             None
         } else {
@@ -1632,16 +1659,27 @@ impl<'a> XFileInto<WeaponDef, ()> for WeaponDefRaw<'a> {
         let mounted_model = self.mounted_model.xfile_into(de, ())?;
         let additional_melee_model = self.additional_melee_model.xfile_into(de, ())?;
         let hud_icon = self.hud_icon.xfile_into(de, ())?;
-        let hud_icon_ratio = FromPrimitive::from_u32(self.hud_icon_ratio)
-            .ok_or(Error::BadFromPrimitive(self.hud_icon_ratio as _))?;
+        let hud_icon_ratio = FromPrimitive::from_u32(self.hud_icon_ratio).ok_or(Error::new(
+            file_line_col!(),
+            ErrorKind::BadFromPrimitive(self.hud_icon_ratio as _),
+        ))?;
         let indicator_icon = self.indicator_icon.xfile_into(de, ())?;
-        let indicator_icon_ratio = FromPrimitive::from_u32(self.indicator_icon_ratio)
-            .ok_or(Error::BadFromPrimitive(self.indicator_icon_ratio as _))?;
+        let indicator_icon_ratio =
+            FromPrimitive::from_u32(self.indicator_icon_ratio).ok_or(Error::new(
+                file_line_col!(),
+                ErrorKind::BadFromPrimitive(self.indicator_icon_ratio as _),
+            ))?;
         let ammo_counter_icon = self.ammo_counter_icon.xfile_into(de, ())?;
-        let ammo_counter_icon_ratio = FromPrimitive::from_u32(self.ammo_counter_icon_ratio)
-            .ok_or(Error::BadFromPrimitive(self.ammo_counter_icon_ratio as _))?;
-        let ammo_counter_clip = FromPrimitive::from_u32(self.ammo_counter_clip)
-            .ok_or(Error::BadFromPrimitive(self.ammo_counter_clip as _))?;
+        let ammo_counter_icon_ratio =
+            FromPrimitive::from_u32(self.ammo_counter_icon_ratio).ok_or(Error::new(
+                file_line_col!(),
+                ErrorKind::BadFromPrimitive(self.ammo_counter_icon_ratio as _),
+            ))?;
+        let ammo_counter_clip =
+            FromPrimitive::from_u32(self.ammo_counter_clip).ok_or(Error::new(
+                file_line_col!(),
+                ErrorKind::BadFromPrimitive(self.ammo_counter_clip as _),
+            ))?;
         let shared_ammo_cap_name = self.shared_ammo_cap_name.xfile_into(de, ())?;
         let explosion_tag = self.explosion_tag.to_string(de).unwrap_or_default();
         let spin_loop_sound = self.spin_loop_sound.xfile_into(de, ())?;
@@ -1651,18 +1689,27 @@ impl<'a> XFileInto<WeaponDef, ()> for WeaponDefRaw<'a> {
         let stop_spin_sound = self.stop_spin_sound.xfile_into(de, ())?;
         let stop_spin_sound_player = self.stop_spin_sound_player.xfile_into(de, ())?;
         let stack_sound = self.stack_sound.xfile_into(de, ())?;
-        let overlay_reticle = FromPrimitive::from_u32(self.overlay_reticle)
-            .ok_or(Error::BadFromPrimitive(self.overlay_reticle as _))?;
-        let overlay_interface = FromPrimitive::from_u32(self.overlay_interface)
-            .ok_or(Error::BadFromPrimitive(self.overlay_interface as _))?;
+        let overlay_reticle = FromPrimitive::from_u32(self.overlay_reticle).ok_or(Error::new(
+            file_line_col!(),
+            ErrorKind::BadFromPrimitive(self.overlay_reticle as _),
+        ))?;
+        let overlay_interface =
+            FromPrimitive::from_u32(self.overlay_interface).ok_or(Error::new(
+                file_line_col!(),
+                ErrorKind::BadFromPrimitive(self.overlay_interface as _),
+            ))?;
         let kill_icon = self.kill_icon.xfile_into(de, ())?;
-        let kill_icon_ratio = FromPrimitive::from_u32(self.kill_icon_ratio)
-            .ok_or(Error::BadFromPrimitive(self.kill_icon_ratio as _))?;
+        let kill_icon_ratio = FromPrimitive::from_u32(self.kill_icon_ratio).ok_or(Error::new(
+            file_line_col!(),
+            ErrorKind::BadFromPrimitive(self.kill_icon_ratio as _),
+        ))?;
         let spawned_grenade_weapon_name = self.spawned_grenade_weapon_name.xfile_into(de, ())?;
         let dual_wield_weapon_name = self.dual_wield_weapon_name.xfile_into(de, ())?;
         let projectile_model = self.projectile_model.xfile_into(de, ())?;
-        let proj_explosion = FromPrimitive::from_u32(self.proj_explosion)
-            .ok_or(Error::BadFromPrimitive(self.proj_explosion as _))?;
+        let proj_explosion = FromPrimitive::from_u32(self.proj_explosion).ok_or(Error::new(
+            file_line_col!(),
+            ErrorKind::BadFromPrimitive(self.proj_explosion as _),
+        ))?;
         let proj_explosion_effect = self.proj_explosion_effect.xfile_into(de, ())?;
         let proj_explosion_effect_2 = self.proj_explosion_effect_2.xfile_into(de, ())?;
         let proj_explosion_effect_3 = self.proj_explosion_effect_3.xfile_into(de, ())?;
@@ -1673,10 +1720,14 @@ impl<'a> XFileInto<WeaponDef, ()> for WeaponDefRaw<'a> {
         let proj_dud_sound = self.proj_dud_sound.xfile_into(de, ())?;
         let mortar_shell_sound = self.mortar_shell_sound.xfile_into(de, ())?;
         let tank_shell_sound = self.tank_shell_sound.xfile_into(de, ())?;
-        let stickiness = FromPrimitive::from_u32(self.stickiness)
-            .ok_or(Error::BadFromPrimitive(self.stickiness as _))?;
-        let rotate_type = FromPrimitive::from_u32(self.rotate_type)
-            .ok_or(Error::BadFromPrimitive(self.rotate_type as _))?;
+        let stickiness = FromPrimitive::from_u32(self.stickiness).ok_or(Error::new(
+            file_line_col!(),
+            ErrorKind::BadFromPrimitive(self.stickiness as _),
+        ))?;
+        let rotate_type = FromPrimitive::from_u32(self.rotate_type).ok_or(Error::new(
+            file_line_col!(),
+            ErrorKind::BadFromPrimitive(self.rotate_type as _),
+        ))?;
         let parallel_bounce = if self.parallel_bounce.is_null() {
             None
         } else {
@@ -1692,8 +1743,11 @@ impl<'a> XFileInto<WeaponDef, ()> for WeaponDefRaw<'a> {
             ))
         };
         let proj_tail_effect = self.proj_tail_effect.xfile_into(de, ())?;
-        let guided_missile_type = FromPrimitive::from_u32(self.guided_missile_type)
-            .ok_or(Error::BadFromPrimitive(self.guided_missile_type as _))?;
+        let guided_missile_type =
+            FromPrimitive::from_u32(self.guided_missile_type).ok_or(Error::new(
+                file_line_col!(),
+                ErrorKind::BadFromPrimitive(self.guided_missile_type as _),
+            ))?;
         let proj_ignition_effect = self.proj_ignition_effect.xfile_into(de, ())?;
         let proj_ignition_sound = self.proj_ignition_sound.xfile_into(de, ())?;
 

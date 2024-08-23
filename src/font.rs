@@ -43,6 +43,7 @@ pub struct Glyph {
     pub dx: u8,
     pub pixel_width: u8,
     pub pixel_height: u8,
+    pad: [u8; 1],
     pub s0: f32,
     pub to: f32,
     pub s1: f32,

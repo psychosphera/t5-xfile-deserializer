@@ -102,31 +102,36 @@ pub struct XModel {
 impl<'a> XFileInto<XModel, ()> for XModelRaw<'a> {
     fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<XModel> {
         dbg!(self);
-        //dbg!(xfile.stream_position()?);
+        ////dbg!(xfile.stream_position()?);
 
         let name = self.name.xfile_into(de, ())?;
-        dbg!(&name);
-        //dbg!(xfile.stream_position()?);
+        //dbg!(&name);
+        ////dbg!(xfile.stream_position()?);
 
         if self.num_bones < self.num_root_bones {
-            return Err(Error::BrokenInvariant(format!(
-                "{}: XModel: num_bones ({}) < num_root_bones ({})",
+            return Err(Error::new(
                 file_line_col!(),
-                self.num_bones,
-                self.num_root_bones
-            )));
+                ErrorKind::BrokenInvariant(format!(
+                    "XModel: num_bones ({}) < num_root_bones ({})",
+                    self.num_bones, self.num_root_bones
+                )),
+            ));
         }
 
         if self.lod_ramp_type >= XModelLodRampType::COUNT as u8 {
-            return Err(Error::BrokenInvariant(format!(
-                "{}: XModel: lod_ramp_type ({}) >= XModelLodRampType::COUNT",
+            return Err(Error::new(
                 file_line_col!(),
-                self.lod_ramp_type
-            )));
+                ErrorKind::BrokenInvariant(format!(
+                    "XModel: lod_ramp_type ({}) >= XModelLodRampType::COUNT",
+                    self.lod_ramp_type
+                )),
+            ));
         }
 
-        let lod_ramp_type = XModelLodRampType::from_u8(self.lod_ramp_type)
-            .ok_or(Error::BadFromPrimitive(self.lod_ramp_type as _))?;
+        let lod_ramp_type = XModelLodRampType::from_u8(self.lod_ramp_type).ok_or(Error::new(
+            file_line_col!(),
+            ErrorKind::BadFromPrimitive(self.lod_ramp_type as _),
+        ))?;
 
         let bone_names = self
             .bone_names
@@ -135,41 +140,41 @@ impl<'a> XFileInto<XModel, ()> for XModelRaw<'a> {
             .into_iter()
             .map(|s| s.to_string(de).unwrap_or_default())
             .collect();
-        dbg!(&bone_names);
-        dbg!(de.stream_pos()?);
+        //dbg!(&bone_names);
+        //dbg!(de.stream_pos()?);
         let parent_list = self
             .parent_list
             .to_array(self.num_bones as usize - self.num_root_bones as usize)
             .to_vec(de)?;
-        //dbg!(&parent_list);
-        dbg!(de.stream_pos()?);
+        ////dbg!(&parent_list);
+        //dbg!(de.stream_pos()?);
         let quats = self
             .quats
             .to_array((self.num_bones as usize - self.num_root_bones as usize) * 4)
             .to_vec(de)?;
-        //dbg!(&quats);
-        dbg!(de.stream_pos()?);
+        ////dbg!(&quats);
+        //dbg!(de.stream_pos()?);
         let trans = self
             .trans
             .to_array((self.num_bones as usize - self.num_root_bones as usize) * 4)
             .to_vec(de)?;
-        //dbg!(&trans);
-        dbg!(de.stream_pos()?);
+        ////dbg!(&trans);
+        //dbg!(de.stream_pos()?);
         let part_classification = self
             .part_classification
             .to_array(self.num_bones as _)
             .to_vec(de)?;
-        //dbg!(&part_classification);
-        dbg!(de.stream_pos()?);
+        ////dbg!(&part_classification);
+        //dbg!(de.stream_pos()?);
         let base_mat = self
             .base_mat
             .to_array(self.num_bones as _)
             .to_vec_into(de)?;
-        dbg!(&base_mat);
-        dbg!(de.stream_pos()?);
+        //dbg!(&base_mat);
+        //dbg!(de.stream_pos()?);
         let surfs = self.surfs.to_array(self.numsurfs as _).xfile_into(de, ())?;
-        //dbg!(&surfs);
-        dbg!(de.stream_pos()?);
+        ////dbg!(&surfs);
+        //dbg!(de.stream_pos()?);
         let material_handles = self
             .material_handles
             .to_array(self.numsurfs as _)
@@ -177,8 +182,8 @@ impl<'a> XFileInto<XModel, ()> for XModelRaw<'a> {
             .into_iter()
             .flatten()
             .collect();
-        dbg!(&material_handles);
-        dbg!(de.stream_pos()?);
+        //dbg!(&material_handles);
+        //dbg!(de.stream_pos()?);
         let lod_info = [
             self.lod_info[0].try_into()?,
             self.lod_info[1].try_into()?,
@@ -186,43 +191,47 @@ impl<'a> XFileInto<XModel, ()> for XModelRaw<'a> {
             self.lod_info[3].try_into()?,
         ];
         let coll_surfs = self.coll_surfs.xfile_into(de, ())?;
-        dbg!(&coll_surfs);
-        dbg!(de.stream_pos()?);
+        //dbg!(&coll_surfs);
+        //dbg!(de.stream_pos()?);
         let bone_info = self
             .bone_info
             .to_array(self.num_bones as _)
             .to_vec_into(de)?;
-        dbg!(&bone_info);
-        dbg!(de.stream_pos()?);
+        //dbg!(&bone_info);
+        //dbg!(de.stream_pos()?);
 
         if self.num_lods > MAX_LODS as i16 {
-            return Err(Error::BrokenInvariant(format!(
-                "{}: XModel: num_lods ({}) > MAX_LODS",
+            return Err(Error::new(
                 file_line_col!(),
-                self.num_lods
-            )));
+                ErrorKind::BrokenInvariant(format!(
+                    "XModel: num_lods ({}) > MAX_LODS",
+                    self.num_lods
+                )),
+            ));
         }
 
         if self.coll_lod > MAX_LODS as i16 {
-            return Err(Error::BrokenInvariant(format!(
-                "{}: XModel: coll_lod ({}) > MAX_LODS",
+            return Err(Error::new(
                 file_line_col!(),
-                self.coll_lod
-            )));
+                ErrorKind::BrokenInvariant(format!(
+                    "XModel: coll_lod ({}) > MAX_LODS",
+                    self.coll_lod
+                )),
+            ));
         }
 
         let stream_info = self.stream_info.xfile_into(de, self.numsurfs)?;
-        dbg!(&stream_info);
-        dbg!(de.stream_pos()?);
+        //dbg!(&stream_info);
+        //dbg!(de.stream_pos()?);
         let phys_preset = self.phys_preset.xfile_into(de, ())?;
-        dbg!(&phys_preset);
-        dbg!(de.stream_pos()?);
+        //dbg!(&phys_preset);
+        //dbg!(de.stream_pos()?);
         let collmaps = self.collmaps.xfile_into(de, ())?;
-        dbg!(&collmaps);
-        dbg!(de.stream_pos()?);
+        //dbg!(&collmaps);
+        //dbg!(de.stream_pos()?);
         let phys_constraints = self.phys_constraints.xfile_into(de, ())?;
-        dbg!(&phys_constraints);
-        dbg!(de.stream_pos()?);
+        //dbg!(&phys_constraints);
+        //dbg!(de.stream_pos()?);
 
         Ok(XModel {
             name,
@@ -335,12 +344,14 @@ pub struct XSurface {
 
 impl<'a> XFileInto<XSurface, ()> for XSurfaceRaw<'a> {
     fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<XSurface> {
-        //dbg!(self);
-        let pos = de.stream_pos()?;
-        dbg!(pos);
+        ////dbg!(self);
+        //let pos = de.stream_pos()?;
+        //dbg!(pos);
 
-        let flags =
-            XSurfaceFlags::from_bits(self.flags).ok_or(Error::BadBitflags(self.flags as _))?;
+        let flags = XSurfaceFlags::from_bits(self.flags).ok_or(Error::new(
+            file_line_col!(),
+            ErrorKind::BadBitflags(self.flags as _),
+        ))?;
         let vert_info = self.vert_info.xfile_into(de, ())?;
         let verts0 = self.verts0.to_array(self.vert_count as _).to_vec_into(de)?;
         let vert_list = self
@@ -479,7 +490,7 @@ pub struct XRigidVertList {
 
 impl<'a> XFileInto<XRigidVertList, ()> for XRigidVertListRaw<'a> {
     fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<XRigidVertList> {
-        //dbg!(&self);
+        ////dbg!(&self);
 
         Ok(XRigidVertList {
             bone_offset: self.bone_offset as _,
@@ -512,7 +523,7 @@ pub struct XSurfaceCollisionTree {
 
 impl<'a> XFileInto<XSurfaceCollisionTree, ()> for XSurfaceCollisionTreeRaw<'a> {
     fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<XSurfaceCollisionTree> {
-        //dbg!(&self);
+        ////dbg!(&self);
 
         Ok(XSurfaceCollisionTree {
             trans: self.trans.into(),
@@ -610,19 +621,20 @@ impl TryInto<XModelLodInfo> for XModelLodInfoRaw {
     type Error = Error;
     fn try_into(self) -> Result<XModelLodInfo> {
         if self.lod > MAX_LODS as u8 {
-            return Err(Error::BrokenInvariant(format!(
-                "{}: XModelLodInfo: lod ({}) > MAX_LODS",
+            return Err(Error::new(
                 file_line_col!(),
-                self.lod
-            )));
+                ErrorKind::BrokenInvariant(format!("XModelLodInfo: lod ({}) > MAX_LODS", self.lod)),
+            ));
         }
 
         if self.smc_alloc_bits != 0 && (self.smc_alloc_bits < 4 || self.smc_alloc_bits > 9) {
-            return Err(Error::BrokenInvariant(format!(
-                "{}: XModelLodInfo: smc_alloc_bits ({}) != 0, 4..=9",
+            return Err(Error::new(
                 file_line_col!(),
-                self.smc_alloc_bits
-            )));
+                ErrorKind::BrokenInvariant(format!(
+                    "XModelLodInfo: smc_alloc_bits ({}) != 0, 4..=9",
+                    self.smc_alloc_bits
+                )),
+            ));
         }
 
         Ok(XModelLodInfo {
@@ -822,27 +834,28 @@ pub struct PhysPreset {
 
 impl<'a> XFileInto<PhysPreset, ()> for PhysPresetRaw<'a> {
     fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<PhysPreset> {
-        dbg!(self);
+        //dbg!(self);
         if self.flags > 1 {
-            return Err(Error::BrokenInvariant(format!(
-                "{}: PhysPreset: flags ({}) > 1",
+            return Err(Error::new(
                 file_line_col!(),
-                self.flags
-            )));
+                ErrorKind::BrokenInvariant(format!("PhysPreset: flags ({}) > 1", self.flags)),
+            ));
         }
 
         if self.can_float > 1 {
-            return Err(Error::BrokenInvariant(format!(
-                "{}: PhysPreset: can_float ({}) > 1",
+            return Err(Error::new(
                 file_line_col!(),
-                self.can_float
-            )));
+                ErrorKind::BrokenInvariant(format!(
+                    "PhysPreset: can_float ({}) > 1",
+                    self.can_float
+                )),
+            ));
         }
 
         let name = self.name.xfile_into(de, ())?;
-        dbg!(&name);
+        //dbg!(&name);
         let snd_alias_prefix = self.snd_alias_prefix.xfile_into(de, ())?;
-        dbg!(&snd_alias_prefix);
+        //dbg!(&snd_alias_prefix);
 
         Ok(PhysPreset {
             name,
@@ -944,8 +957,10 @@ impl<'a> XFileInto<PhysGeomInfo, ()> for PhysGeomInfoRaw<'a> {
     fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<PhysGeomInfo> {
         Ok(PhysGeomInfo {
             brush: self.brush.xfile_into(de, ())?,
-            type_: num::FromPrimitive::from_i32(self.type_)
-                .ok_or(Error::BadFromPrimitive(self.type_ as _))?,
+            type_: num::FromPrimitive::from_i32(self.type_).ok_or(Error::new(
+                file_line_col!(),
+                ErrorKind::BadFromPrimitive(self.type_ as _),
+            ))?,
             orientation: self.orientation.into(),
             offset: self.offset.into(),
             half_lengths: self.half_lengths.into(),
@@ -1151,10 +1166,10 @@ pub struct PhysConstraints {
 
 impl<'a> XFileInto<PhysConstraints, ()> for PhysConstraintsRaw<'a> {
     fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<PhysConstraints> {
-        dbg!(self.name, self.count);
+        //dbg!(self.name, self.count);
 
         let name = self.name.xfile_into(de, ())?;
-        dbg!(&name);
+        //dbg!(&name);
         Ok(PhysConstraints {
             name,
             count: self.count as usize,
@@ -1273,30 +1288,40 @@ pub struct PhysConstraint {
 
 impl<'a> XFileInto<PhysConstraint, ()> for PhysConstraintRaw<'a> {
     fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<PhysConstraint> {
-        //dbg!(self);
+        ////dbg!(self);
         let targetname = self.targetname.to_string(de).unwrap_or_default();
         let target_ent1 = self.target_ent1.to_string(de).unwrap_or_default();
         let target_bone1 = self.target_bone1.xfile_into(de, ())?;
         let target_ent2 = self.target_ent2.to_string(de).unwrap_or_default();
         let target_bone2 = self.target_bone2.xfile_into(de, ())?;
         let material = self.material.xfile_into(de, ())?;
-        //dbg!(&targetname);
-        dbg!(&target_ent1);
-        //dbg!(&target_bone1);
-        dbg!(&target_ent2);
-        dbg!(&target_bone2);
+        ////dbg!(&targetname);
+        //dbg!(&target_ent1);
+        ////dbg!(&target_bone1);
+        //dbg!(&target_ent2);
+        //dbg!(&target_bone2);
 
         Ok(PhysConstraint {
             targetname,
-            type_: num::FromPrimitive::from_i32(self.type_)
-                .ok_or(Error::BadFromPrimitive(self.type_ as _))?,
-            attach_point_type1: num::FromPrimitive::from_i32(self.attach_point_type1)
-                .ok_or(Error::BadFromPrimitive(self.attach_point_type1 as _))?,
+            type_: num::FromPrimitive::from_i32(self.type_).ok_or(Error::new(
+                file_line_col!(),
+                ErrorKind::BadFromPrimitive(self.type_ as _),
+            ))?,
+            attach_point_type1: num::FromPrimitive::from_i32(self.attach_point_type1).ok_or(
+                Error::new(
+                    file_line_col!(),
+                    ErrorKind::BadFromPrimitive(self.attach_point_type1 as _),
+                ),
+            )?,
             target_index1: self.target_index1 as _,
             target_ent1,
             target_bone1,
-            attach_point_type2: num::FromPrimitive::from_i32(self.attach_point_type2)
-                .ok_or(Error::BadFromPrimitive(self.attach_point_type2 as _))?,
+            attach_point_type2: num::FromPrimitive::from_i32(self.attach_point_type2).ok_or(
+                Error::new(
+                    file_line_col!(),
+                    ErrorKind::BadFromPrimitive(self.attach_point_type2 as _),
+                ),
+            )?,
             target_index2: self.target_index2 as _,
             target_ent2,
             target_bone2,
