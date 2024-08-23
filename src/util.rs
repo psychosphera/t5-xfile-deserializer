@@ -141,12 +141,11 @@ pub(crate) fn xfile_read_string(de: &mut T5XFileDeserializer) -> Result<String> 
     loop {
         let c = de.load_from_xfile::<u8>()?;
 
-        // Some extended ASCII is used in localized strings
-        if !c.is_ascii() && c != 0xF1 && c != 0xDC && c != 0xAE && c != 0xA9 && c != 0x99 {
-            return Err(Error::new(
-                file_line_col!(),
-                ErrorKind::BrokenInvariant(format!("XString: c ({c:#02X}) is not valid ASCII",)),
-            ));
+        if !c.is_ascii() {
+            return Err(Error::BrokenInvariant(format!(
+                "{}: XString: c ({c:#02X}) is not valid ASCII",
+                file_line_col!()
+            )));
         }
 
         string_buf.push(c);
@@ -390,6 +389,7 @@ pub(crate) trait FlexibleArray<T: DeserializeOwned> {
         let mut vt = Vec::new();
 
         let old = de.stream_pos()?;
+        let old = de.stream_pos()?;
         for _ in 0..self.count() {
             vt.push(de.load_from_xfile()?);
         }
@@ -436,6 +436,7 @@ pub(crate) trait FatPointer<'a, T: DeserializeOwned + 'a> {
             // TODO: SeekFrom::Start(off) once offsets are fixed
         } else {
             // no need to seek for 0xFFFFFFFF / 0xFFFFFFFE
+            let old = de.stream_pos()?;
             let old = de.stream_pos()?;
             let mut v = Vec::new();
             for _ in 0..self.size() {
