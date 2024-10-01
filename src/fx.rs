@@ -65,6 +65,7 @@ impl<'a> XFileInto<FxEffectDef, ()> for FxEffectDefRaw<'a> {
                     + self.elem_def_count_emission as usize,
             )
             .xfile_into(de, ())?;
+        dbg!(&elem_defs);
 
         let flags = FxEffectDefFlags::from_bits(self.flags).ok_or(Error::new(
             file_line_col!(),
@@ -236,14 +237,16 @@ pub struct FxElemDef {
 impl<'a> XFileInto<FxElemDef, ()> for FxElemDefRaw<'a> {
     fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<FxElemDef> {
         dbg!(self);
-        let vel_samples = self
+        let vel_samples = if self.vel_samples.is_null() { vec![] } else { self
             .vel_samples
             .to_array(self.vel_interval_count as usize + 1)
-            .to_vec(de)?;
-        let vis_samples = self
+            .to_vec(de)?
+        };
+        let vis_samples = if self.vis_samples.is_null() { vec![] } else { self
             .vis_samples
             .to_array(self.vis_state_interval_count as usize + 1)
-            .to_vec_into(de)?;
+            .to_vec_into(de)? 
+        };
         let visuals = self
             .visuals
             .xfile_into(de, (self.elem_type, self.visual_count))?;

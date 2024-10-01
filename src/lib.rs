@@ -889,6 +889,13 @@ impl<'a> T5XFileDeserializer<'a, T5XFileDeserializerDeserialize> {
             .map_err(|e| Error::new(file_line_col!(), ErrorKind::Io(e)))
     }
 
+    pub(crate) fn stream_len(&mut self) -> Result<u64> {
+        StreamLen::stream_len(self.reader
+            .as_mut()
+            .unwrap()
+        )
+    }
+
     // pub(crate) fn seek_and<T, F: FnOnce(&mut Self) -> T>(
     //     &mut self,
     //     from: SeekFrom,

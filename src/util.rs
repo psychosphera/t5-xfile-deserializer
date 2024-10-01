@@ -141,10 +141,15 @@ pub(crate) fn xfile_read_string(de: &mut T5XFileDeserializer) -> Result<String> 
     loop {
         let c = de.load_from_xfile::<u8>()?;
 
+        // Localized strings use CP1252 for languages that use the latin alphabet.
+        // `num::is_ascii` returns false for any values > 127, so valid CP1252 characters
+        // have to be manually permitted here.
+        //
+        // FIXME: come up with a more elegant solution
         if !c.is_ascii() && c != 0xF1 && c != 0xDC && c != 0xAE && c != 0xA9 && c != 0x99 {
             return Err(Error::new(
                 file_line_col!(),
-                ErrorKind::BrokenInvariant(format!("XString: c ({c:#02X}) is not valid ASCII",)),
+                ErrorKind::BrokenInvariant(format!("XString: c ({c:#02X}) is not valid EASCII",)),
             ));
         }
 
@@ -269,6 +274,13 @@ impl<'a, T: DeserializeOwned + Clone + Debug + XFileInto<U, V>, U, V: Copy>
         }
 
         let t = if self.is_real() {
+            if self.0 & 0x1FFFFFFF > de.stream_len().unwrap() as u32 {
+                return Err(Error::new(file_line_col!(), ErrorKind::InvalidSeek { off: self.0 & 0x1FFFFFFF, max: de.stream_len().unwrap() as u32 }));
+            }
+
+            if self.0 < de.xasset_list.assets.size * 12 {
+                return Err(Error::new(file_line_col!(), ErrorKind::InvalidSeek { off: self.0 & 0x1FFFFFFF, max: de.stream_len().unwrap() as u32 }));
+            }
             //eprintln!("ignoring offset {:#010X}", self.as_u32());
             return Ok(None);
             // TODO: SeekFrom::Start(off) once offsets are fixed

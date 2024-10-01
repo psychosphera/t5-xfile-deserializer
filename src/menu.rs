@@ -30,7 +30,7 @@ impl<'a, const MAX_LOCAL_CLIENTS: usize> XFileInto<MenuList<MAX_LOCAL_CLIENTS>, 
     ) -> Result<MenuList<MAX_LOCAL_CLIENTS>> {
         //dbg!(self);
         let name = self.name.xfile_into(de, ())?;
-        //dbg!(&name);
+        dbg!(&name);
         //dbg!(de.stream_pos()?);
         let menus = self
             .menus
@@ -74,6 +74,8 @@ pub(crate) struct MenuDefRaw<'a, const MAX_LOCAL_CLIENTS: usize> {
     pub on_event: Ptr32<'a, GenericEventHandlerRaw<'a>>,
     pub on_key: Ptr32<'a, ItemKeyHandlerRaw<'a>>,
     pub visible_exp: ExpressionStatementRaw<'a>,
+    #[allow(dead_code)]
+    pad: [u8; 4],
     pub show_bits: u64,
     pub hide_bits: u64,
     pub allowed_binding: XString<'a>,
@@ -86,7 +88,7 @@ pub(crate) struct MenuDefRaw<'a, const MAX_LOCAL_CLIENTS: usize> {
     pub rect_y_exp: ExpressionStatementRaw<'a>,
     pub items: Ptr32<'a, Ptr32<'a, ItemDefRaw<'a, MAX_LOCAL_CLIENTS>>>,
     #[allow(dead_code)]
-    pad: [u8; 8],
+    pad2: [u8; 4],
 }
 assert_size!(MenuDefRaw<1>, 400);
 
@@ -118,6 +120,7 @@ impl<'a, const MAX_LOCAL_CLIENTS: usize> Default for MenuDefRaw<'a, MAX_LOCAL_CL
             on_event: Ptr32::default(),
             on_key: Ptr32::default(),
             visible_exp: ExpressionStatementRaw::default(),
+            pad: [u8::default(); 4],
             show_bits: u64::default(),
             hide_bits: u64::default(),
             allowed_binding: XString::default(),
@@ -129,7 +132,7 @@ impl<'a, const MAX_LOCAL_CLIENTS: usize> Default for MenuDefRaw<'a, MAX_LOCAL_CL
             rect_x_exp: ExpressionStatementRaw::default(),
             rect_y_exp: ExpressionStatementRaw::default(),
             items: Ptr32::default(),
-            pad: [u8::default(); 8],
+            pad2: [u8::default(); 4],
         }
     }
 }
@@ -183,35 +186,35 @@ impl<'a, const MAX_LOCAL_CLIENTS: usize> XFileInto<MenuDef<MAX_LOCAL_CLIENTS>, (
         de: &mut T5XFileDeserializer,
         _data: (),
     ) -> Result<MenuDef<MAX_LOCAL_CLIENTS>> {
-        //dbg!(de.stream_pos()?);
-        //dbg!(self);
+        dbg!(de.stream_pos()?);
+        dbg!(self);
         let window = self.window.xfile_into(de, ())?;
-        //dbg!(&window);
-        //dbg!(de.stream_pos()?);
+        dbg!(&window);
+        dbg!(de.stream_pos()?);
         let font = self.font.xfile_into(de, ())?;
-        //dbg!(&font);
-        //dbg!(de.stream_pos()?);
+        dbg!(&font);
+        dbg!(de.stream_pos()?);
         let on_event = self.on_event.xfile_into(de, ())?;
-        //dbg!(&on_event);
-        //dbg!(de.stream_pos()?);
+        dbg!(&on_event);
+        dbg!(de.stream_pos()?);
         let on_key = self.on_key.xfile_into(de, ())?;
-        //dbg!(&on_key);
-        //dbg!(de.stream_pos()?);
+        dbg!(&on_key);
+        dbg!(de.stream_pos()?);
         let visible_exp = self.visible_exp.xfile_into(de, ())?;
-        //dbg!(&visible_exp);
-        //dbg!(de.stream_pos()?);
+        dbg!(&visible_exp);
+        dbg!(de.stream_pos()?);
         let allowed_binding = self.allowed_binding.xfile_into(de, ())?;
-        //dbg!(&allowed_binding);
-        //dbg!(de.stream_pos()?);
+        dbg!(&allowed_binding);
+        dbg!(de.stream_pos()?);
         let sound_name = self.sound_name.xfile_into(de, ())?;
-        //dbg!(&sound_name);
-        //dbg!(de.stream_pos()?);
+        dbg!(&sound_name);
+        dbg!(de.stream_pos()?);
         let rect_x_exp = self.rect_x_exp.xfile_into(de, ())?;
-        //dbg!(&rect_x_exp);
-        //dbg!(de.stream_pos()?);
+        dbg!(&rect_x_exp);
+        dbg!(de.stream_pos()?);
         let rect_y_exp = self.rect_y_exp.xfile_into(de, ())?;
-        //dbg!(&rect_y_exp);
-        //dbg!(de.stream_pos()?);
+        dbg!(&rect_y_exp);
+        dbg!(de.stream_pos()?);
         let items = self
             .items
             .to_array(self.item_count as _)
@@ -219,8 +222,8 @@ impl<'a, const MAX_LOCAL_CLIENTS: usize> XFileInto<MenuDef<MAX_LOCAL_CLIENTS>, (
             .into_iter()
             .flatten()
             .collect();
-        //dbg!(&items);
-        //dbg!(de.stream_pos()?);
+        dbg!(&items);
+        dbg!(de.stream_pos()?);
 
         let focus_color = self.focus_color.into();
         let disable_color = self.disable_color.into();
@@ -759,6 +762,7 @@ pub(crate) struct ItemDefRaw<'a, const MAX_LOCAL_CLIENTS: usize> {
     pub parent: Ptr32<'a, MenuDefRaw<'a, MAX_LOCAL_CLIENTS>>,
     pub rect_exp_data: Ptr32<'a, RectDataRaw<'a>>,
     pub visible_exp: ExpressionStatementRaw<'a>,
+    pad: [u8; 4],
     pub show_bits: u64,
     pub hide_bits: u64,
     pub forecolor_a_exp: ExpressionStatementRaw<'a>,
@@ -766,7 +770,7 @@ pub(crate) struct ItemDefRaw<'a, const MAX_LOCAL_CLIENTS: usize> {
     pub on_event: Ptr32<'a, GenericEventHandlerRaw<'a>>,
     pub anim_info: Ptr32<'a, UIAnimInfoRaw<'a>>,
     #[allow(dead_code)]
-    pad: [u8; 8],
+    pad2: [u8; 4],
 }
 assert_size!(ItemDefRaw<1>, 272);
 
@@ -781,7 +785,7 @@ pub struct ItemDef<const MAX_LOCAL_CLIENTS: usize> {
     pub dvar_text: String,
     pub enable_dvar: String,
     pub dvar_flags: i32,
-    pub type_data: ItemDefData<MAX_LOCAL_CLIENTS>,
+    pub type_data: Option<ItemDefData<MAX_LOCAL_CLIENTS>>,
     pub parent: Option<Box<MenuDef<MAX_LOCAL_CLIENTS>>>, // TODO
     pub rect_exp_data: Option<Box<RectData>>,
     pub visible_exp: ExpressionStatement,
@@ -801,11 +805,23 @@ impl<'a, const MAX_LOCAL_CLIENTS: usize> XFileInto<ItemDef<MAX_LOCAL_CLIENTS>, (
         de: &mut T5XFileDeserializer,
         _data: (),
     ) -> Result<ItemDef<MAX_LOCAL_CLIENTS>> {
+        dbg!(de.stream_pos().unwrap());
+        dbg!(self);
         let window = self.window.xfile_into(de, ())?;
+        dbg!(de.stream_pos().unwrap());
+        dbg!(&window);
         let dvar = self.dvar.xfile_into(de, ())?;
+        dbg!(de.stream_pos().unwrap());
+        dbg!(&dvar);
         let dvar_text = self.dvar_text.xfile_into(de, ())?;
+        dbg!(de.stream_pos().unwrap());
+        dbg!(&dvar_text);
         let enable_dvar = self.enable_dvar.xfile_into(de, ())?;
+        dbg!(de.stream_pos().unwrap());
+        dbg!(&enable_dvar);
         let type_data = self.type_data.xfile_into(de, self.type_)?;
+        dbg!(de.stream_pos().unwrap());
+        dbg!(&type_data);
         let parent = if self.parent.is_null() || self.parent.is_real() {
             None
         } else {
@@ -814,11 +830,23 @@ impl<'a, const MAX_LOCAL_CLIENTS: usize> XFileInto<ItemDef<MAX_LOCAL_CLIENTS>, (
                 ErrorKind::Todo(format!("ItemDef: fix recursion.",)),
             ));
         };
+        dbg!(de.stream_pos().unwrap());
+        dbg!(&parent);
         let rect_exp_data = self.rect_exp_data.xfile_into(de, ())?;
+        dbg!(de.stream_pos().unwrap());
+        dbg!(&rect_exp_data);
         let visible_exp = self.visible_exp.xfile_into(de, ())?;
+        dbg!(de.stream_pos().unwrap());
+        dbg!(&visible_exp);
         let forecolor_a_exp = self.forecolor_a_exp.xfile_into(de, ())?;
+        dbg!(de.stream_pos().unwrap());
+        dbg!(&forecolor_a_exp);
         let on_event = self.on_event.xfile_into(de, ())?;
+        dbg!(de.stream_pos().unwrap());
+        dbg!(&on_event);
         let anim_info = self.anim_info.xfile_into(de, ())?;
+        dbg!(de.stream_pos().unwrap());
+        dbg!(&anim_info);
 
         Ok(ItemDef {
             window,
@@ -857,39 +885,43 @@ pub enum ItemDefData<const MAX_LOCAL_CLIENTS: usize> {
     OwnerDrawDef(Option<Box<OwnerDrawDef>>),
 }
 
-impl<'a, const MAX_LOCAL_CLIENTS: usize> XFileInto<ItemDefData<MAX_LOCAL_CLIENTS>, i32>
+impl<'a, const MAX_LOCAL_CLIENTS: usize> XFileInto<Option<ItemDefData<MAX_LOCAL_CLIENTS>>, i32>
     for ItemDefDataRaw<'a, MAX_LOCAL_CLIENTS>
 {
     fn xfile_into(
         &self,
         de: &mut T5XFileDeserializer,
         type_: i32,
-    ) -> Result<ItemDefData<MAX_LOCAL_CLIENTS>> {
-        if type_ == 2 {
-            Ok(ItemDefData::ImageDef(
+    ) -> Result<Option<ItemDefData<MAX_LOCAL_CLIENTS>>> {
+        dbg!(self);
+        if self.0.is_null() {
+            Ok(None)
+        }
+        else if type_ == 2 {
+            Ok(Some(ItemDefData::ImageDef(
                 self.0.cast::<ImageDefRaw>().xfile_into(de, ())?,
-            ))
+            )))
         } else if type_ == 21 || type_ == 19 {
-            Ok(ItemDefData::BlankButtonDef(
+            Ok(Some(ItemDefData::BlankButtonDef(
                 self.0
                     .cast::<FocusItemDefRaw<MAX_LOCAL_CLIENTS>>()
                     .xfile_into(de, type_)?,
-            ))
+            )))
         } else if type_ == 6 {
-            Ok(ItemDefData::OwnerDrawDef(
+            Ok(Some(ItemDefData::OwnerDrawDef(
                 self.0.cast::<OwnerDrawDefRaw>().xfile_into(de, ())?,
-            ))
+            )))
         } else if type_ > 22 {
             Err(Error::new(
                 file_line_col!(),
                 ErrorKind::BrokenInvariant(format!("ItemDefData: type ({type_}) > 22",)),
             ))
         } else {
-            Ok(ItemDefData::TextDef(
+            Ok(Some(ItemDefData::TextDef(
                 self.0
                     .cast::<TextDefRaw<MAX_LOCAL_CLIENTS>>()
                     .xfile_into(de, type_)?,
-            ))
+            )))
         }
     }
 }
@@ -947,7 +979,7 @@ pub struct TextDef<const MAX_LOCAL_CLIENTS: usize> {
     pub text_style: i32,
     pub text: String,
     pub text_exp_data: Option<Box<TextExp>>,
-    pub text_type_data: TextDefData<MAX_LOCAL_CLIENTS>,
+    pub text_type_data: Option<TextDefData<MAX_LOCAL_CLIENTS>>,
 }
 
 impl<'a, const MAX_LOCAL_CLIENTS: usize> XFileInto<TextDef<MAX_LOCAL_CLIENTS>, i32>
@@ -958,6 +990,7 @@ impl<'a, const MAX_LOCAL_CLIENTS: usize> XFileInto<TextDef<MAX_LOCAL_CLIENTS>, i
         de: &mut T5XFileDeserializer,
         type_: i32,
     ) -> Result<TextDef<MAX_LOCAL_CLIENTS>> {
+        dbg!(self);
         let text_rect = self.text_rect.map(Into::into);
         let text = self.text.xfile_into(de, ())?;
         let text_exp_data = self.text_exp_data.xfile_into(de, ())?;
@@ -1013,18 +1046,21 @@ pub enum TextDefData<const MAX_LOCAL_CLIENTS: usize> {
     GameMsgDef(Option<Box<GameMsgDef>>),
 }
 
-impl<'a, const MAX_LOCAL_CLIENTS: usize> XFileInto<TextDefData<MAX_LOCAL_CLIENTS>, i32>
+impl<'a, const MAX_LOCAL_CLIENTS: usize> XFileInto<Option<TextDefData<MAX_LOCAL_CLIENTS>>, i32>
     for TextDefDataRaw<'a, MAX_LOCAL_CLIENTS>
 {
     fn xfile_into(
         &self,
         de: &mut T5XFileDeserializer,
         type_: i32,
-    ) -> Result<TextDefData<MAX_LOCAL_CLIENTS>> {
-        if type_ == 15 {
-            Ok(TextDefData::GameMsgDef(
+    ) -> Result<Option<TextDefData<MAX_LOCAL_CLIENTS>>> {
+        dbg!(self);
+        if self.0.is_null() {
+            Ok(None)
+        } else if type_ == 15 {
+            Ok(Some(TextDefData::GameMsgDef(
                 self.0.cast::<GameMsgDef>().xfile_get(de)?.map(Box::new),
-            ))
+            )))
         } else if type_ < 3
             || type_ == 6
             || type_ == 7
@@ -1038,11 +1074,11 @@ impl<'a, const MAX_LOCAL_CLIENTS: usize> XFileInto<TextDefData<MAX_LOCAL_CLIENTS
                 ErrorKind::BrokenInvariant(format!("TextDefData: type ({type_}) invalid.",)),
             ))
         } else {
-            Ok(TextDefData::FocusItemDef(
+            Ok(Some(TextDefData::FocusItemDef(
                 self.0
                     .cast::<FocusItemDefRaw<MAX_LOCAL_CLIENTS>>()
                     .xfile_into(de, type_)?,
-            ))
+            )))
         }
     }
 }
@@ -1067,7 +1103,7 @@ pub struct FocusItemDef<const MAX_LOCAL_CLIENTS: usize> {
     pub mouse_enter: String,
     pub mouse_exit: String,
     pub on_key: Option<Box<ItemKeyHandler>>,
-    pub focus_type_data: FocusDefData<MAX_LOCAL_CLIENTS>,
+    pub focus_type_data: Option<FocusDefData<MAX_LOCAL_CLIENTS>>,
 }
 
 impl<'a, const MAX_LOCAL_CLIENTS: usize> XFileInto<FocusItemDef<MAX_LOCAL_CLIENTS>, i32>
@@ -1078,6 +1114,7 @@ impl<'a, const MAX_LOCAL_CLIENTS: usize> XFileInto<FocusItemDef<MAX_LOCAL_CLIENT
         de: &mut T5XFileDeserializer,
         type_: i32,
     ) -> Result<FocusItemDef<MAX_LOCAL_CLIENTS>> {
+        dbg!(self);
         let mouse_enter_text = self.mouse_enter_text.xfile_into(de, ())?;
         let mouse_exit_text = self.mouse_exit_text.xfile_into(de, ())?;
         let mouse_enter = self.mouse_enter.xfile_into(de, ())?;
@@ -1110,28 +1147,31 @@ pub enum FocusDefData<const MAX_LOCAL_CLIENTS: usize> {
     EnumDvar(Option<Box<EnumDvarDef>>),
 }
 
-impl<'a, const MAX_LOCAL_CLIENTS: usize> XFileInto<FocusDefData<MAX_LOCAL_CLIENTS>, i32>
+impl<'a, const MAX_LOCAL_CLIENTS: usize> XFileInto<Option<FocusDefData<MAX_LOCAL_CLIENTS>>, i32>
     for FocusDefDataRaw<'a, MAX_LOCAL_CLIENTS>
 {
     fn xfile_into(
         &self,
         de: &mut T5XFileDeserializer,
         type_: i32,
-    ) -> Result<FocusDefData<MAX_LOCAL_CLIENTS>> {
-        if type_ == 4 {
-            Ok(FocusDefData::ListBox(
+    ) -> Result<Option<FocusDefData<MAX_LOCAL_CLIENTS>>> {
+        dbg!(self);
+        if self.0.is_null() {
+            Ok(None)
+        } else if type_ == 4 {
+            Ok(Some(FocusDefData::ListBox(
                 self.0
                     .cast::<ListBoxDefRaw<MAX_LOCAL_CLIENTS>>()
                     .xfile_into(de, ())?,
-            ))
+            )))
         } else if type_ == 10 {
-            Ok(FocusDefData::Multi(
+            Ok(Some(FocusDefData::Multi(
                 self.0.cast::<MultiDefRaw>().xfile_into(de, ())?,
-            ))
+            )))
         } else if type_ == 11 {
-            Ok(FocusDefData::EnumDvar(
+            Ok(Some(FocusDefData::EnumDvar(
                 self.0.cast::<EnumDvarDefRaw>().xfile_into(de, ())?,
-            ))
+            )))
         } else if type_ == 5
             || type_ == 7
             || type_ == 8
@@ -1143,12 +1183,12 @@ impl<'a, const MAX_LOCAL_CLIENTS: usize> XFileInto<FocusDefData<MAX_LOCAL_CLIENT
             || type_ == 22
             || type_ == 30
         {
-            Ok(FocusDefData::EditField(
+            Ok(Some(FocusDefData::EditField(
                 self.0
                     .cast::<EditFieldDef<MAX_LOCAL_CLIENTS>>()
                     .xfile_get(de)?
                     .map(Box::new),
-            ))
+            )))
         } else {
             Err(Error::new(
                 file_line_col!(),

@@ -41,7 +41,7 @@ pub struct MaterialTechniqueSet {
 
 impl<'a> XFileInto<MaterialTechniqueSet, ()> for MaterialTechniqueSetRaw<'a> {
     fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<MaterialTechniqueSet> {
-        //dbg!(self);
+        dbg!(self);
 
         let name = self.name.xfile_into(de, ())?;
         dbg!(&name);
@@ -703,6 +703,7 @@ pub struct MaterialInfo {
 
 impl<'a> XFileInto<MaterialInfo, ()> for MaterialInfoRaw<'a> {
     fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<MaterialInfo> {
+        dbg!(self);
         //dbg!(de.stream_pos()?);
         let name = self.name.xfile_into(de, ())?;
         dbg!(&name);

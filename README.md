@@ -18,30 +18,32 @@ Data stored by `XFiles` includes shaders, the clipmap/PVS, scripts, animations, 
 10. Localize Entries
 11. Fonts
 12. Sounds
+13. Menu Lists
+14. Menus
 
-### What can probably be deserialzed (untested)
+### What can probably be deserialzed (untested, but simple in structure)
 1. XGlobals
 2. Map Ents
 
-### What will soon be able to be deserialized (implemented but bugged)
+### What will soon be able to be deserialized (implemented but bugged, currently debugging)
+1. Effects
+2. Weapon Variants
+3. XAnims
+
+### What will later be able to be deserialized (implemented but bugged, not currently debugging)
 1. Destructibles
 2. Impact Effects
-3. Effects
-4. Gameworlds (SP & MP)
-6. Sound Patches
-7. SndDriverGlobals
-8. DDLs
-9. Glasses
-10. Emblem Sets
-11. Menu Lists (these can technically be deserialized, but they contain Menus, which can't yet)
-12. Menus
-13. Weapon Variants
-14. ComWorld
-15. GfxWorld
-16. Clipmap/PVS
-17. XAnims
+3. ComWorld
+4. GfxWorld
+5. Clipmap/PVS
+6. Gameworlds (SP & MP)
+7. Sound Patches
+8. SndDriverGlobals
+9. DDLs
+10. Glasses
+11. Emblem Sets
 
-### The following files can currently be deserialized in their entirety
+### The following `XFiles` can currently be deserialized in their entirety
 * `code_pre_gfx.ff`
 * `code_post_gfx.ff`
 * `en_code_pre_gfx.ff`
@@ -59,7 +61,7 @@ Data stored by `XFiles` includes shaders, the clipmap/PVS, scripts, animations, 
 * `en_zombie_theater.ff`
 * `en_zombietron.ff`
 
-Some others (particularly the localized ones) can probably be deserialized, they just haven't been tested.
+Some others (particularly the English localized ones) can probably be deserialized, they just haven't been tested.
 
 ## Building
 ```bash
@@ -80,11 +82,10 @@ I primarily created this to integrate into OpenT5 once it's done, but I figured 
 4. Relatedly, account for linked lists.
 5. Tidy up the deserializer's API (typestated now, but still a little janky).
 6. Better CLI for the binary.
-7. Then debug them (yay...).
-8. Make sure all the arrays sized by `MAX_LOCAL_CLIENTS` were caught (pretty sure a couple in `techset.rs` slipped through).
-9. Verify whether macOS `XFiles` are identical to Windows.
-10. Verify whether Wii even uses `XFiles`.
-11. Docs (lol)
+7. Make sure all the arrays sized by `MAX_LOCAL_CLIENTS` were caught (pretty sure a couple in `techset.rs` slipped through).
+8. Verify whether macOS `XFiles` are identical to Windows.
+9. Verify whether Wii even uses `XFiles`.
+10. Docs (lol)
 
 ## Future Todo
 1. Account for differences in macOS `XFiles`, if they're different from Windows.
