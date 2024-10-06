@@ -275,11 +275,23 @@ impl<'a, T: DeserializeOwned + Clone + Debug + XFileInto<U, V>, U, V: Copy>
 
         let t = if self.is_real() {
             if self.0 & 0x1FFFFFFF > de.stream_len().unwrap() as u32 {
-                return Err(Error::new(file_line_col!(), ErrorKind::InvalidSeek { off: self.0 & 0x1FFFFFFF, max: de.stream_len().unwrap() as u32 }));
+                return Err(Error::new(
+                    file_line_col!(),
+                    ErrorKind::InvalidSeek {
+                        off: self.0 & 0x1FFFFFFF,
+                        max: de.stream_len().unwrap() as u32,
+                    },
+                ));
             }
 
             if self.0 < de.xasset_list.assets.size * 12 {
-                return Err(Error::new(file_line_col!(), ErrorKind::InvalidSeek { off: self.0 & 0x1FFFFFFF, max: de.stream_len().unwrap() as u32 }));
+                return Err(Error::new(
+                    file_line_col!(),
+                    ErrorKind::InvalidSeek {
+                        off: self.0 & 0x1FFFFFFF,
+                        max: de.stream_len().unwrap() as u32,
+                    },
+                ));
             }
             //eprintln!("ignoring offset {:#010X}", self.as_u32());
             return Ok(None);

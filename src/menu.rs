@@ -28,18 +28,18 @@ impl<'a, const MAX_LOCAL_CLIENTS: usize> XFileInto<MenuList<MAX_LOCAL_CLIENTS>, 
         de: &mut T5XFileDeserializer,
         _data: (),
     ) -> Result<MenuList<MAX_LOCAL_CLIENTS>> {
-        //dbg!(self);
+        ////dbg!(self);
         let name = self.name.xfile_into(de, ())?;
-        dbg!(&name);
-        //dbg!(de.stream_pos()?);
+        //dbg!(&name);
+        ////dbg!(de.stream_pos()?);
         let menus = self
             .menus
             .xfile_into(de, ())?
             .into_iter()
             .flatten()
             .collect();
-        //dbg!(&menus);
-        //dbg!(de.stream_pos()?);
+        ////dbg!(&menus);
+        ////dbg!(de.stream_pos()?);
 
         Ok(MenuList { name, menus })
     }
@@ -186,35 +186,35 @@ impl<'a, const MAX_LOCAL_CLIENTS: usize> XFileInto<MenuDef<MAX_LOCAL_CLIENTS>, (
         de: &mut T5XFileDeserializer,
         _data: (),
     ) -> Result<MenuDef<MAX_LOCAL_CLIENTS>> {
-        dbg!(de.stream_pos()?);
-        dbg!(self);
+        //dbg!(de.stream_pos()?);
+        //dbg!(self);
         let window = self.window.xfile_into(de, ())?;
-        dbg!(&window);
-        dbg!(de.stream_pos()?);
+        //dbg!(&window);
+        //dbg!(de.stream_pos()?);
         let font = self.font.xfile_into(de, ())?;
-        dbg!(&font);
-        dbg!(de.stream_pos()?);
+        //dbg!(&font);
+        //dbg!(de.stream_pos()?);
         let on_event = self.on_event.xfile_into(de, ())?;
-        dbg!(&on_event);
-        dbg!(de.stream_pos()?);
+        //dbg!(&on_event);
+        //dbg!(de.stream_pos()?);
         let on_key = self.on_key.xfile_into(de, ())?;
-        dbg!(&on_key);
-        dbg!(de.stream_pos()?);
+        //dbg!(&on_key);
+        //dbg!(de.stream_pos()?);
         let visible_exp = self.visible_exp.xfile_into(de, ())?;
-        dbg!(&visible_exp);
-        dbg!(de.stream_pos()?);
+        //dbg!(&visible_exp);
+        //dbg!(de.stream_pos()?);
         let allowed_binding = self.allowed_binding.xfile_into(de, ())?;
-        dbg!(&allowed_binding);
-        dbg!(de.stream_pos()?);
+        //dbg!(&allowed_binding);
+        //dbg!(de.stream_pos()?);
         let sound_name = self.sound_name.xfile_into(de, ())?;
-        dbg!(&sound_name);
-        dbg!(de.stream_pos()?);
+        //dbg!(&sound_name);
+        //dbg!(de.stream_pos()?);
         let rect_x_exp = self.rect_x_exp.xfile_into(de, ())?;
-        dbg!(&rect_x_exp);
-        dbg!(de.stream_pos()?);
+        //dbg!(&rect_x_exp);
+        //dbg!(de.stream_pos()?);
         let rect_y_exp = self.rect_y_exp.xfile_into(de, ())?;
-        dbg!(&rect_y_exp);
-        dbg!(de.stream_pos()?);
+        //dbg!(&rect_y_exp);
+        //dbg!(de.stream_pos()?);
         let items = self
             .items
             .to_array(self.item_count as _)
@@ -222,8 +222,8 @@ impl<'a, const MAX_LOCAL_CLIENTS: usize> XFileInto<MenuDef<MAX_LOCAL_CLIENTS>, (
             .into_iter()
             .flatten()
             .collect();
-        dbg!(&items);
-        dbg!(de.stream_pos()?);
+        //dbg!(&items);
+        //dbg!(de.stream_pos()?);
 
         let focus_color = self.focus_color.into();
         let disable_color = self.disable_color.into();
@@ -364,16 +364,16 @@ impl<'a, const MAX_LOCAL_CLIENTS: usize> XFileInto<WindowDef<MAX_LOCAL_CLIENTS>,
         de: &mut T5XFileDeserializer,
         _data: (),
     ) -> Result<WindowDef<MAX_LOCAL_CLIENTS>> {
-        //dbg!(de.stream_pos()?);
+        ////dbg!(de.stream_pos()?);
         let name = self.name.xfile_into(de, ())?;
-        //dbg!(&name);
-        //dbg!(de.stream_pos()?);
+        ////dbg!(&name);
+        ////dbg!(de.stream_pos()?);
         let group = self.group.xfile_into(de, ())?;
-        //dbg!(&group);
-        //dbg!(de.stream_pos()?);
+        ////dbg!(&group);
+        ////dbg!(de.stream_pos()?);
         let background = self.background.xfile_into(de, ())?;
-        //dbg!(&background);
-        //dbg!(de.stream_pos()?);
+        ////dbg!(&background);
+        ////dbg!(de.stream_pos()?);
 
         let rect = self.rect.into();
         let rect_client = self.rect_client.into();
@@ -610,7 +610,7 @@ assert_size!(ExpressionRpnRaw, 12);
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug)]
 pub struct ExpressionRpn {
-    pub data: ExpressionRpnDataUnion,
+    pub data: Option<ExpressionRpnDataUnion>,
 }
 
 impl XFileInto<ExpressionRpn, ()> for ExpressionRpnRaw {
@@ -632,21 +632,18 @@ pub enum ExpressionRpnDataUnion {
     CmdIdx(i32),
 }
 
-impl XFileInto<ExpressionRpnDataUnion, i32> for ExpressionRpnDataUnionRaw {
+impl XFileInto<Option<ExpressionRpnDataUnion>, i32> for ExpressionRpnDataUnionRaw {
     fn xfile_into(
         &self,
         de: &mut T5XFileDeserializer,
         type_: i32,
-    ) -> Result<ExpressionRpnDataUnion> {
+    ) -> Result<Option<ExpressionRpnDataUnion>> {
         if type_ == 0 {
-            Ok(ExpressionRpnDataUnion::Constant(
+            Ok(Some(ExpressionRpnDataUnion::Constant(
                 unsafe { transmute::<_, OperandRaw>(self.0) }.xfile_into(de, ())?,
-            ))
+            )))
         } else {
-            Err(Error::new(
-                file_line_col!(),
-                ErrorKind::BrokenInvariant(format!("ExpressionRpnDataUnion: type ({type_}) != 0")),
-            ))
+            Ok(None)
         }
     }
 }
@@ -805,23 +802,23 @@ impl<'a, const MAX_LOCAL_CLIENTS: usize> XFileInto<ItemDef<MAX_LOCAL_CLIENTS>, (
         de: &mut T5XFileDeserializer,
         _data: (),
     ) -> Result<ItemDef<MAX_LOCAL_CLIENTS>> {
-        dbg!(de.stream_pos().unwrap());
-        dbg!(self);
+        //dbg!(de.stream_pos().unwrap());
+        //dbg!(self);
         let window = self.window.xfile_into(de, ())?;
-        dbg!(de.stream_pos().unwrap());
-        dbg!(&window);
+        //dbg!(de.stream_pos().unwrap());
+        //dbg!(&window);
         let dvar = self.dvar.xfile_into(de, ())?;
-        dbg!(de.stream_pos().unwrap());
-        dbg!(&dvar);
+        //dbg!(de.stream_pos().unwrap());
+        //dbg!(&dvar);
         let dvar_text = self.dvar_text.xfile_into(de, ())?;
-        dbg!(de.stream_pos().unwrap());
-        dbg!(&dvar_text);
+        //dbg!(de.stream_pos().unwrap());
+        //dbg!(&dvar_text);
         let enable_dvar = self.enable_dvar.xfile_into(de, ())?;
-        dbg!(de.stream_pos().unwrap());
-        dbg!(&enable_dvar);
+        //dbg!(de.stream_pos().unwrap());
+        //dbg!(&enable_dvar);
         let type_data = self.type_data.xfile_into(de, self.type_)?;
-        dbg!(de.stream_pos().unwrap());
-        dbg!(&type_data);
+        //dbg!(de.stream_pos().unwrap());
+        //dbg!(&type_data);
         let parent = if self.parent.is_null() || self.parent.is_real() {
             None
         } else {
@@ -830,23 +827,23 @@ impl<'a, const MAX_LOCAL_CLIENTS: usize> XFileInto<ItemDef<MAX_LOCAL_CLIENTS>, (
                 ErrorKind::Todo(format!("ItemDef: fix recursion.",)),
             ));
         };
-        dbg!(de.stream_pos().unwrap());
-        dbg!(&parent);
+        //dbg!(de.stream_pos().unwrap());
+        //dbg!(&parent);
         let rect_exp_data = self.rect_exp_data.xfile_into(de, ())?;
-        dbg!(de.stream_pos().unwrap());
-        dbg!(&rect_exp_data);
+        //dbg!(de.stream_pos().unwrap());
+        //dbg!(&rect_exp_data);
         let visible_exp = self.visible_exp.xfile_into(de, ())?;
-        dbg!(de.stream_pos().unwrap());
-        dbg!(&visible_exp);
+        //dbg!(de.stream_pos().unwrap());
+        //dbg!(&visible_exp);
         let forecolor_a_exp = self.forecolor_a_exp.xfile_into(de, ())?;
-        dbg!(de.stream_pos().unwrap());
-        dbg!(&forecolor_a_exp);
+        //dbg!(de.stream_pos().unwrap());
+        //dbg!(&forecolor_a_exp);
         let on_event = self.on_event.xfile_into(de, ())?;
-        dbg!(de.stream_pos().unwrap());
-        dbg!(&on_event);
+        //dbg!(de.stream_pos().unwrap());
+        //dbg!(&on_event);
         let anim_info = self.anim_info.xfile_into(de, ())?;
-        dbg!(de.stream_pos().unwrap());
-        dbg!(&anim_info);
+        //dbg!(de.stream_pos().unwrap());
+        //dbg!(&anim_info);
 
         Ok(ItemDef {
             window,
@@ -893,11 +890,10 @@ impl<'a, const MAX_LOCAL_CLIENTS: usize> XFileInto<Option<ItemDefData<MAX_LOCAL_
         de: &mut T5XFileDeserializer,
         type_: i32,
     ) -> Result<Option<ItemDefData<MAX_LOCAL_CLIENTS>>> {
-        dbg!(self);
+        //dbg!(self);
         if self.0.is_null() {
             Ok(None)
-        }
-        else if type_ == 2 {
+        } else if type_ == 2 {
             Ok(Some(ItemDefData::ImageDef(
                 self.0.cast::<ImageDefRaw>().xfile_into(de, ())?,
             )))
@@ -911,7 +907,7 @@ impl<'a, const MAX_LOCAL_CLIENTS: usize> XFileInto<Option<ItemDefData<MAX_LOCAL_
             Ok(Some(ItemDefData::OwnerDrawDef(
                 self.0.cast::<OwnerDrawDefRaw>().xfile_into(de, ())?,
             )))
-        } else if type_ > 22 {
+        } else if type_ == 17 || type_ > 22 {
             Err(Error::new(
                 file_line_col!(),
                 ErrorKind::BrokenInvariant(format!("ItemDefData: type ({type_}) > 22",)),
@@ -990,7 +986,7 @@ impl<'a, const MAX_LOCAL_CLIENTS: usize> XFileInto<TextDef<MAX_LOCAL_CLIENTS>, i
         de: &mut T5XFileDeserializer,
         type_: i32,
     ) -> Result<TextDef<MAX_LOCAL_CLIENTS>> {
-        dbg!(self);
+        //dbg!(self);
         let text_rect = self.text_rect.map(Into::into);
         let text = self.text.xfile_into(de, ())?;
         let text_exp_data = self.text_exp_data.xfile_into(de, ())?;
@@ -1054,7 +1050,7 @@ impl<'a, const MAX_LOCAL_CLIENTS: usize> XFileInto<Option<TextDefData<MAX_LOCAL_
         de: &mut T5XFileDeserializer,
         type_: i32,
     ) -> Result<Option<TextDefData<MAX_LOCAL_CLIENTS>>> {
-        dbg!(self);
+        //dbg!(self);
         if self.0.is_null() {
             Ok(None)
         } else if type_ == 15 {
@@ -1114,7 +1110,7 @@ impl<'a, const MAX_LOCAL_CLIENTS: usize> XFileInto<FocusItemDef<MAX_LOCAL_CLIENT
         de: &mut T5XFileDeserializer,
         type_: i32,
     ) -> Result<FocusItemDef<MAX_LOCAL_CLIENTS>> {
-        dbg!(self);
+        //dbg!(self);
         let mouse_enter_text = self.mouse_enter_text.xfile_into(de, ())?;
         let mouse_exit_text = self.mouse_exit_text.xfile_into(de, ())?;
         let mouse_enter = self.mouse_enter.xfile_into(de, ())?;
@@ -1155,7 +1151,7 @@ impl<'a, const MAX_LOCAL_CLIENTS: usize> XFileInto<Option<FocusDefData<MAX_LOCAL
         de: &mut T5XFileDeserializer,
         type_: i32,
     ) -> Result<Option<FocusDefData<MAX_LOCAL_CLIENTS>>> {
-        dbg!(self);
+        //dbg!(self);
         if self.0.is_null() {
             Ok(None)
         } else if type_ == 4 {

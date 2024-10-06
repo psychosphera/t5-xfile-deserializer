@@ -4,7 +4,7 @@ use t5_xfile_deserializer::{T5XFileDeserializerBuilder, XFilePlatform};
 fn main() {
     let filename = std::env::args_os()
         .nth(1)
-        .unwrap_or(OsString::from_str("code_post_gfx.ff").unwrap());
+        .unwrap_or(OsString::from_str("common_zombie.ff").unwrap());
     let cached_filename = Path::new(&filename).with_extension("cache");
     let cache_exists = Path::new(&filename).with_extension("cache").exists();
 

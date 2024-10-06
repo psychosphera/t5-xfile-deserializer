@@ -20,6 +20,7 @@ Data stored by `XFiles` includes shaders, the clipmap/PVS, scripts, animations, 
 12. Sounds
 13. Menu Lists
 14. Menus
+15. Weapon Variants
 
 ### What can probably be deserialzed (untested, but simple in structure)
 1. XGlobals
@@ -27,7 +28,6 @@ Data stored by `XFiles` includes shaders, the clipmap/PVS, scripts, animations, 
 
 ### What will soon be able to be deserialized (implemented but bugged, currently debugging)
 1. Effects
-2. Weapon Variants
 3. XAnims
 
 ### What will later be able to be deserialized (implemented but bugged, not currently debugging)
