@@ -140,6 +140,7 @@ impl<'a> XFileInto<WeaponVariantDef, ()> for WeaponVariantDefRaw<'a> {
         let dpad_icon = self.dpad_icon.xfile_into(de, ())?;
         let dpad_icon_ratio = FromPrimitive::from_u32(self.dpad_icon_ratio).ok_or(Error::new(
             file_line_col!(),
+            de.stream_pos()? as _,
             ErrorKind::BadFromPrimitive(self.dpad_icon_ratio as _),
         ))?;
         let left_hand_offset = self.left_hand_offset.into();
@@ -1527,43 +1528,53 @@ impl<'a> XFileInto<WeaponDef, ()> for WeaponDefRaw<'a> {
         };
         let weap_type = FromPrimitive::from_u32(self.weap_type).ok_or(Error::new(
             file_line_col!(),
+            de.stream_pos()? as _,
             ErrorKind::BadFromPrimitive(self.weap_type as _),
         ))?;
         let weap_class = FromPrimitive::from_u32(self.weap_class).ok_or(Error::new(
             file_line_col!(),
+            de.stream_pos()? as _,
             ErrorKind::BadFromPrimitive(self.weap_class as _),
         ))?;
         let penetrate_type = FromPrimitive::from_u32(self.penetrate_type).ok_or(Error::new(
             file_line_col!(),
+            de.stream_pos()? as _,
             ErrorKind::BadFromPrimitive(self.penetrate_type as _),
         ))?;
         let impact_type = FromPrimitive::from_u32(self.impact_type).ok_or(Error::new(
             file_line_col!(),
+            de.stream_pos()? as _,
             ErrorKind::BadFromPrimitive(self.impact_type as _),
         ))?;
         let inventory_type = FromPrimitive::from_u32(self.inventory_type).ok_or(Error::new(
             file_line_col!(),
+            de.stream_pos()? as _,
             ErrorKind::BadFromPrimitive(self.inventory_type as _),
         ))?;
         let fire_type = FromPrimitive::from_u32(self.fire_type).ok_or(Error::new(
             file_line_col!(),
+            de.stream_pos()? as _,
             ErrorKind::BadFromPrimitive(self.fire_type as _),
         ))?;
         let clip_type = FromPrimitive::from_u32(self.clip_type).ok_or(Error::new(
             file_line_col!(),
+            de.stream_pos()? as _,
             ErrorKind::BadFromPrimitive(self.clip_type as _),
         ))?;
         let parent_weapon_name = self.parent_weapon_name.xfile_into(de, ())?;
         let offhand_class = FromPrimitive::from_u32(self.offhand_class).ok_or(Error::new(
             file_line_col!(),
+            de.stream_pos()? as _,
             ErrorKind::BadFromPrimitive(self.offhand_class as _),
         ))?;
         let offhand_slot = FromPrimitive::from_u32(self.offhand_slot).ok_or(Error::new(
             file_line_col!(),
+            de.stream_pos()? as _,
             ErrorKind::BadFromPrimitive(self.offhand_slot as _),
         ))?;
         let stance = FromPrimitive::from_u32(self.stance).ok_or(Error::new(
             file_line_col!(),
+            de.stream_pos()? as _,
             ErrorKind::BadFromPrimitive(self.stance as _),
         ))?;
         let view_flash_effect = self.view_flash_effect.xfile_into(de, ())?;
@@ -1652,6 +1663,7 @@ impl<'a> XFileInto<WeaponDef, ()> for WeaponDefRaw<'a> {
         let active_reticle_type =
             FromPrimitive::from_u32(self.active_reticle_type).ok_or(Error::new(
                 file_line_col!(),
+                de.stream_pos()? as _,
                 ErrorKind::BadFromPrimitive(self.active_reticle_type as _),
             ))?;
         let world_model = if self.world_model.is_null() {
@@ -1671,23 +1683,27 @@ impl<'a> XFileInto<WeaponDef, ()> for WeaponDefRaw<'a> {
         let hud_icon = self.hud_icon.xfile_into(de, ())?;
         let hud_icon_ratio = FromPrimitive::from_u32(self.hud_icon_ratio).ok_or(Error::new(
             file_line_col!(),
+            de.stream_pos()? as _,
             ErrorKind::BadFromPrimitive(self.hud_icon_ratio as _),
         ))?;
         let indicator_icon = self.indicator_icon.xfile_into(de, ())?;
         let indicator_icon_ratio =
             FromPrimitive::from_u32(self.indicator_icon_ratio).ok_or(Error::new(
                 file_line_col!(),
+                de.stream_pos()? as _,
                 ErrorKind::BadFromPrimitive(self.indicator_icon_ratio as _),
             ))?;
         let ammo_counter_icon = self.ammo_counter_icon.xfile_into(de, ())?;
         let ammo_counter_icon_ratio =
             FromPrimitive::from_u32(self.ammo_counter_icon_ratio).ok_or(Error::new(
                 file_line_col!(),
+                de.stream_pos()? as _,
                 ErrorKind::BadFromPrimitive(self.ammo_counter_icon_ratio as _),
             ))?;
         let ammo_counter_clip =
             FromPrimitive::from_u32(self.ammo_counter_clip).ok_or(Error::new(
                 file_line_col!(),
+                de.stream_pos()? as _,
                 ErrorKind::BadFromPrimitive(self.ammo_counter_clip as _),
             ))?;
         let shared_ammo_cap_name = self.shared_ammo_cap_name.xfile_into(de, ())?;
@@ -1701,16 +1717,19 @@ impl<'a> XFileInto<WeaponDef, ()> for WeaponDefRaw<'a> {
         let stack_sound = self.stack_sound.xfile_into(de, ())?;
         let overlay_reticle = FromPrimitive::from_u32(self.overlay_reticle).ok_or(Error::new(
             file_line_col!(),
+            de.stream_pos()? as _,
             ErrorKind::BadFromPrimitive(self.overlay_reticle as _),
         ))?;
         let overlay_interface =
             FromPrimitive::from_u32(self.overlay_interface).ok_or(Error::new(
                 file_line_col!(),
+                de.stream_pos()? as _,
                 ErrorKind::BadFromPrimitive(self.overlay_interface as _),
             ))?;
         let kill_icon = self.kill_icon.xfile_into(de, ())?;
         let kill_icon_ratio = FromPrimitive::from_u32(self.kill_icon_ratio).ok_or(Error::new(
             file_line_col!(),
+            de.stream_pos()? as _,
             ErrorKind::BadFromPrimitive(self.kill_icon_ratio as _),
         ))?;
         let spawned_grenade_weapon_name = self.spawned_grenade_weapon_name.xfile_into(de, ())?;
@@ -1718,6 +1737,7 @@ impl<'a> XFileInto<WeaponDef, ()> for WeaponDefRaw<'a> {
         let projectile_model = self.projectile_model.xfile_into(de, ())?;
         let proj_explosion = FromPrimitive::from_u32(self.proj_explosion).ok_or(Error::new(
             file_line_col!(),
+            de.stream_pos()? as _,
             ErrorKind::BadFromPrimitive(self.proj_explosion as _),
         ))?;
         let proj_explosion_effect = self.proj_explosion_effect.xfile_into(de, ())?;
@@ -1732,10 +1752,12 @@ impl<'a> XFileInto<WeaponDef, ()> for WeaponDefRaw<'a> {
         let tank_shell_sound = self.tank_shell_sound.xfile_into(de, ())?;
         let stickiness = FromPrimitive::from_u32(self.stickiness).ok_or(Error::new(
             file_line_col!(),
+            de.stream_pos()? as _,
             ErrorKind::BadFromPrimitive(self.stickiness as _),
         ))?;
         let rotate_type = FromPrimitive::from_u32(self.rotate_type).ok_or(Error::new(
             file_line_col!(),
+            de.stream_pos()? as _,
             ErrorKind::BadFromPrimitive(self.rotate_type as _),
         ))?;
         let parallel_bounce = if self.parallel_bounce.is_null() {
@@ -1762,6 +1784,7 @@ impl<'a> XFileInto<WeaponDef, ()> for WeaponDefRaw<'a> {
         let guided_missile_type =
             FromPrimitive::from_u32(self.guided_missile_type).ok_or(Error::new(
                 file_line_col!(),
+                de.stream_pos()? as _,
                 ErrorKind::BadFromPrimitive(self.guided_missile_type as _),
             ))?;
         let proj_ignition_effect = self.proj_ignition_effect.xfile_into(de, ())?;

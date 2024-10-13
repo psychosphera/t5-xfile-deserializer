@@ -171,12 +171,13 @@ assert_size!(XFile, 36);
 struct ScriptString(u16);
 
 impl ScriptString {
-    pub fn to_string(self, de: &T5XFileDeserializer) -> Result<String> {
+    pub fn to_string(self, de: &mut T5XFileDeserializer) -> Result<String> {
         de.script_strings
             .get(self.0 as usize)
             .cloned()
             .ok_or(Error::new(
                 file_line_col!(),
+                de.stream_pos()? as _,
                 ErrorKind::BadScriptString(self.0),
             ))
     }
@@ -399,11 +400,12 @@ macro_rules! file_line_col {
 pub struct Error {
     where_: String,
     kind: ErrorKind,
+    off: u32,
 }
 
 impl Error {
-    pub(crate) fn new(where_: String, kind: ErrorKind) -> Self {
-        Self { where_, kind }
+    pub(crate) fn new(where_: String, off: u32, kind: ErrorKind) -> Self {
+        Self { where_, kind, off }
     }
 
     pub fn kind(&self) -> &ErrorKind {
@@ -412,6 +414,10 @@ impl Error {
 
     pub fn where_(&self) -> String {
         self.where_.clone()
+    }
+
+    pub fn off(&self) -> u32 {
+        self.off
     }
 }
 
@@ -541,6 +547,7 @@ impl<'a> T5XFileDeserializer<'a, T5XFileDeserializerUninflated> {
             }
             return Err(Error::new(
                 file_line_col!(),
+                0,
                 ErrorKind::UnsupportedPlatform(platform),
             ));
         }
@@ -571,7 +578,7 @@ impl<'a> T5XFileDeserializer<'a, T5XFileDeserializerUninflated> {
 
         let header = opts
             .deserialize_from::<XFileHeader>(&mut *file)
-            .map_err(|e| Error::new(file_line_col!(), ErrorKind::Bincode(e)))?;
+            .map_err(|e| Error::new(file_line_col!(), 0, ErrorKind::Bincode(e)))?;
 
         // dbg!(&header);
 
@@ -581,6 +588,7 @@ impl<'a> T5XFileDeserializer<'a, T5XFileDeserializerUninflated> {
             }
             return Err(Error::new(
                 file_line_col!(),
+                0,
                 ErrorKind::BadHeaderMagic(header.magic_string()),
             ));
         }
@@ -595,6 +603,7 @@ impl<'a> T5XFileDeserializer<'a, T5XFileDeserializerUninflated> {
             }
             return Err(Error::new(
                 file_line_col!(),
+                0,
                 ErrorKind::WrongEndiannessForPlatform(platform),
             ));
         }
@@ -610,6 +619,7 @@ impl<'a> T5XFileDeserializer<'a, T5XFileDeserializerUninflated> {
 
             return Err(Error::new(
                 file_line_col!(),
+                0,
                 ErrorKind::WrongVersion(header.version),
             ));
         }
@@ -650,6 +660,7 @@ impl<'a> T5XFileDeserializer<'a, T5XFileDeserializerUninflated> {
             }
             return Err(Error::new(
                 file_line_col!(),
+                0,
                 ErrorKind::UnsupportedPlatform(platform),
             ));
         }
@@ -682,23 +693,25 @@ impl<'a> T5XFileDeserializer<'a, T5XFileDeserializerUninflated> {
         let reader = if let Some(f) = self.cache_file.take() {
             let mut decompressed_payload = Vec::new();
             f.read_to_end(&mut decompressed_payload)
-                .map_err(|e| Error::new(file_line_col!(), ErrorKind::Io(e)))?;
+                .map_err(|e| Error::new(file_line_col!(), 0, ErrorKind::Io(e)))?;
             Cursor::new(decompressed_payload)
         } else if let Some(f) = self.file.take() {
             let mut compressed_payload = Vec::new();
             f.seek(std::io::SeekFrom::Start(sizeof!(XFileHeader) as _))
-                .map_err(|e| Error::new(file_line_col!(), ErrorKind::Io(e)))?;
-            dbg!(f
-                .stream_position()
-                .map_err(|e| Error::new(file_line_col!(), ErrorKind::Io(e)))?);
+                .map_err(|e| Error::new(file_line_col!(), 0, ErrorKind::Io(e)))?;
+            dbg!(f.stream_position().map_err(|e| Error::new(
+                file_line_col!(),
+                0,
+                ErrorKind::Io(e)
+            ))?);
             let bytes_read = f
                 .read_to_end(&mut compressed_payload)
-                .map_err(|e| Error::new(file_line_col!(), ErrorKind::Io(e)))?;
+                .map_err(|e| Error::new(file_line_col!(), 0, ErrorKind::Io(e)))?;
             if !self.silent {
                 println!("Payload read, inflating... (this may take a while)");
             }
             let decompressed_payload = inflate::inflate_bytes_zlib(&compressed_payload)
-                .map_err(|e| Error::new(file_line_col!(), ErrorKind::Inflate(e)))?;
+                .map_err(|e| Error::new(file_line_col!(), 0, ErrorKind::Inflate(e)))?;
             if !self.silent {
                 println!(
                     "Payload inflated, compressed size: {} bytes, decompressed size: {} bytes",
@@ -718,23 +731,27 @@ impl<'a> T5XFileDeserializer<'a, T5XFileDeserializerUninflated> {
             let xfile = self
                 .opts
                 .deserialize_from::<XFile>(&mut file)
-                .map_err(|e| Error::new(file_line_col!(), ErrorKind::Bincode(e)))?;
+                .map_err(|e| Error::new(file_line_col!(), 0, ErrorKind::Bincode(e)))?;
 
             dbg!(xfile);
             dbg!(StreamLen::stream_len(&mut file)?);
             self.xfile = xfile;
 
-            dbg!(file
-                .stream_position()
-                .map_err(|e| Error::new(file_line_col!(), ErrorKind::Io(e)))?);
+            dbg!(file.stream_position().map_err(|e| Error::new(
+                file_line_col!(),
+                0,
+                ErrorKind::Io(e)
+            ))?);
             let xasset_list = self
                 .opts
                 .deserialize_from::<XAssetList>(&mut file)
-                .map_err(|e| Error::new(file_line_col!(), ErrorKind::Bincode(e)))?;
+                .map_err(|e| Error::new(file_line_col!(), 0, ErrorKind::Bincode(e)))?;
             dbg!(&xasset_list);
-            dbg!(file
-                .stream_position()
-                .map_err(|e| Error::new(file_line_col!(), ErrorKind::Io(e)))?);
+            dbg!(file.stream_position().map_err(|e| Error::new(
+                file_line_col!(),
+                0,
+                ErrorKind::Io(e)
+            ))?);
             xasset_list
         };
 
@@ -778,11 +795,11 @@ impl<'a> T5XFileDeserializer<'a, T5XFileDeserializerInflated> {
         let cache_exists = path.as_ref().exists();
 
         let mut f = std::fs::File::create(path)
-            .map_err(|e| Error::new(file_line_col!(), ErrorKind::Io(e)))?;
+            .map_err(|e| Error::new(file_line_col!(), 0, ErrorKind::Io(e)))?;
         let pos = self.reader.as_ref().unwrap().position();
         let v = self.reader.take().unwrap().into_inner();
         f.write_all(&v)
-            .map_err(|e| Error::new(file_line_col!(), ErrorKind::Io(e)))?;
+            .map_err(|e| Error::new(file_line_col!(), 0, ErrorKind::Io(e)))?;
         self.reader = Some(Cursor::new(v));
         self.reader.as_mut().unwrap().set_position(pos);
 
@@ -886,7 +903,7 @@ impl<'a> T5XFileDeserializer<'a, T5XFileDeserializerDeserialize> {
             .as_mut()
             .unwrap()
             .stream_position()
-            .map_err(|e| Error::new(file_line_col!(), ErrorKind::Io(e)))
+            .map_err(|e| Error::new(file_line_col!(), 0, ErrorKind::Io(e)))
     }
 
     pub(crate) fn stream_len(&mut self) -> Result<u64> {
@@ -952,9 +969,16 @@ impl<'a> T5XFileDeserializer<'a, T5XFileDeserializerDeserialize> {
     // }
 
     pub(crate) fn load_from_xfile<T: DeserializeOwned>(&mut self) -> Result<T> {
+        // FIXME: unwrap
         self.opts
             .deserialize_from(self.reader.as_mut().unwrap())
-            .map_err(|e| Error::new(file_line_col!(), ErrorKind::Bincode(e)))
+            .map_err(|e| {
+                Error::new(
+                    file_line_col!(),
+                    self.stream_pos().unwrap() as _,
+                    ErrorKind::Bincode(e),
+                )
+            })
     }
 
     // pub(crate) fn convert_offset_to_ptr(&self, offset: u32) -> Result<(u8, u32)> {

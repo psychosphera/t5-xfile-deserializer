@@ -70,6 +70,7 @@ impl<'a> XFileInto<FxEffectDef, ()> for FxEffectDefRaw<'a> {
 
         let flags = FxEffectDefFlags::from_bits(self.flags).ok_or(Error::new(
             file_line_col!(),
+            de.stream_pos()? as _,
             ErrorKind::BadBitflags(self.flags as _),
         ))?;
         Ok(FxEffectDef {
@@ -246,6 +247,7 @@ impl<'a> XFileInto<FxElemDef, ()> for FxElemDefRaw<'a> {
                 .to_array(self.vel_interval_count as usize + 1)
                 .to_vec(de)?
         };
+        dbg!(vel_samples.len());
         let vis_samples = if self.vis_samples.is_null() {
             vec![]
         } else {
@@ -253,24 +255,36 @@ impl<'a> XFileInto<FxElemDef, ()> for FxElemDefRaw<'a> {
                 .to_array(self.vis_state_interval_count as usize + 1)
                 .to_vec_into(de)?
         };
+        dbg!(vis_samples.len());
         let visuals = self
             .visuals
             .xfile_into(de, (self.elem_type, self.visual_count))?;
+        dbg!(&visuals);
         let effect_on_impact = self.effect_on_impact.xfile_into(de, ())?;
+        dbg!(&effect_on_impact);
         let effect_on_death = self.effect_on_death.xfile_into(de, ())?;
+        dbg!(&effect_on_death);
         let effect_emitted = self.effect_emitted.xfile_into(de, ())?;
+        dbg!(&effect_emitted);
         let effect_attached = self.effect_attached.xfile_into(de, ())?;
+        dbg!(&effect_attached);
         let trail_def = self.trail_def.xfile_into(de, ())?;
+        dbg!(&trail_def);
         let spawn_sound = self.spawn_sound.xfile_into(de, ())?;
+        dbg!(&spawn_sound);
 
         let flags = FxElemFlags::from_bits(self.flags as _).ok_or(Error::new(
             file_line_col!(),
+            de.stream_pos()? as _,
             ErrorKind::BadBitflags(self.flags as _),
         ))?;
+        dbg!(&flags);
         let elem_type = num::FromPrimitive::from_u8(self.elem_type).ok_or(Error::new(
             file_line_col!(),
+            de.stream_pos()? as _,
             ErrorKind::BadFromPrimitive(self.elem_type as _),
         ))?;
+        dbg!(&elem_type);
 
         Ok(FxElemDef {
             flags,
@@ -376,7 +390,7 @@ impl<'a> XFileInto<Option<FxElemDefVisuals>, (u8, u8)> for FxElemDefVisualsRaw<'
         de: &mut T5XFileDeserializer,
         (elem_type, visual_count): (u8, u8),
     ) -> Result<Option<FxElemDefVisuals>> {
-        dbg!(self);
+        dbg!(self, elem_type, visual_count);
 
         if elem_type == FxElemType::DECAL as u8 {
             let mark_array = self
@@ -397,7 +411,7 @@ impl<'a> XFileInto<Option<FxElemDefVisuals>, (u8, u8)> for FxElemDefVisualsRaw<'
             let array = self
                 .0
                 .cast::<FxElemVisualsRaw>()
-                .to_array(elem_type as _)
+                .to_array(visual_count as _)
                 .xfile_into(de, elem_type)?
                 .into_iter()
                 .flatten()
@@ -455,7 +469,7 @@ impl<'a> XFileInto<Option<FxElemVisuals>, u8> for FxElemVisualsRaw<'a> {
         de: &mut T5XFileDeserializer,
         elem_type: u8,
     ) -> Result<Option<FxElemVisuals>> {
-        dbg!(self);
+        dbg!(self, elem_type);
 
         if elem_type == FxElemType::MODEL as _ {
             let model = self.0.cast::<XModelRaw>().xfile_into(de, ())?;

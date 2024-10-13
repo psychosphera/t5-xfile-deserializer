@@ -85,12 +85,12 @@ pub(crate) trait StreamLen: Seek {
     fn stream_len(&mut self) -> Result<u64> {
         let pos = self
             .stream_position()
-            .map_err(|e| Error::new(file_line_col!(), ErrorKind::Io(e)))?;
+            .map_err(|e| Error::new(file_line_col!(), 0, ErrorKind::Io(e)))?;
         let len = self
             .seek(SeekFrom::End(0))
-            .map_err(|e| Error::new(file_line_col!(), ErrorKind::Io(e)))?;
+            .map_err(|e| Error::new(file_line_col!(), 0, ErrorKind::Io(e)))?;
         self.seek(SeekFrom::Start(pos))
-            .map_err(|e| Error::new(file_line_col!(), ErrorKind::Io(e)))?;
+            .map_err(|e| Error::new(file_line_col!(), 0, ErrorKind::Io(e)))?;
         Ok(len)
     }
 }
@@ -149,6 +149,7 @@ pub(crate) fn xfile_read_string(de: &mut T5XFileDeserializer) -> Result<String> 
         if !c.is_ascii() && c != 0xF1 && c != 0xDC && c != 0xAE && c != 0xA9 && c != 0x99 {
             return Err(Error::new(
                 file_line_col!(),
+                de.stream_pos()? as _,
                 ErrorKind::BrokenInvariant(format!("XString: c ({c:#02X}) is not valid EASCII",)),
             ));
         }
@@ -277,6 +278,7 @@ impl<'a, T: DeserializeOwned + Clone + Debug + XFileInto<U, V>, U, V: Copy>
             if self.0 & 0x1FFFFFFF > de.stream_len().unwrap() as u32 {
                 return Err(Error::new(
                     file_line_col!(),
+                    de.stream_pos()? as _,
                     ErrorKind::InvalidSeek {
                         off: self.0 & 0x1FFFFFFF,
                         max: de.stream_len().unwrap() as u32,
@@ -287,6 +289,7 @@ impl<'a, T: DeserializeOwned + Clone + Debug + XFileInto<U, V>, U, V: Copy>
             if self.0 < de.xasset_list.assets.size * 12 {
                 return Err(Error::new(
                     file_line_col!(),
+                    de.stream_pos()? as _,
                     ErrorKind::InvalidSeek {
                         off: self.0 & 0x1FFFFFFF,
                         max: de.stream_len().unwrap() as u32,

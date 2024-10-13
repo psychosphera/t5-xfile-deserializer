@@ -737,6 +737,7 @@ impl<'a> XFileInto<DynEntityDef, ()> for DynEntityDefRaw<'a> {
     fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<DynEntityDef> {
         let type_ = FromPrimitive::from_i32(self.type_).ok_or(Error::new(
             file_line_col!(),
+            de.stream_pos()? as _,
             ErrorKind::BadFromPrimitive(self.type_ as _),
         ))?;
         let pose = self.pose.into();
@@ -1050,6 +1051,7 @@ impl TryFrom<ConstraintRaw> for Constraint {
             p: value.p.into(),
             type_: FromPrimitive::from_i32(value.type_).ok_or(Error::new(
                 file_line_col!(),
+                0,
                 ErrorKind::BadFromPrimitive(value.type_ as _),
             ))?,
             enetiy_index: value.enetiy_index as _,

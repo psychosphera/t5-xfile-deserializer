@@ -254,10 +254,12 @@ impl<'a> XFileInto<PathNodeConstant, ()> for PathNodeConstantRaw<'a> {
         Ok(PathNodeConstant {
             type_: num::FromPrimitive::from_u16(self.type_).ok_or(Error::new(
                 file_line_col!(),
+                de.stream_pos()? as _,
                 ErrorKind::BadFromPrimitive(self.type_ as _),
             ))?,
             spawnflags: SpawnFlags::from_bits(self.spawnflags).ok_or(Error::new(
                 file_line_col!(),
+                de.stream_pos()? as _,
                 ErrorKind::BadBitflags(self.spawnflags as _),
             ))?,
             targetname: self.targetname.to_string(de).unwrap_or_default(),

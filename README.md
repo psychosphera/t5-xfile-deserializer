@@ -56,6 +56,7 @@ Data stored by `XFiles` includes shaders, the clipmap/PVS, scripts, animations, 
 * `en_common_mp.ff`
 * `en_ui_mp.ff`
 * `zombietron_patch.ff`
+* `zombie_theater_patch.ff`
 * `en_frontend.ff`
 * `en_mp_nuked.ff`
 * `en_zombie_theater.ff`

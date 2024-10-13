@@ -111,6 +111,7 @@ impl<'a> XFileInto<XModel, ()> for XModelRaw<'a> {
         if self.num_bones < self.num_root_bones {
             return Err(Error::new(
                 file_line_col!(),
+                de.stream_pos()? as _,
                 ErrorKind::BrokenInvariant(format!(
                     "XModel: num_bones ({}) < num_root_bones ({})",
                     self.num_bones, self.num_root_bones
@@ -121,6 +122,7 @@ impl<'a> XFileInto<XModel, ()> for XModelRaw<'a> {
         if self.lod_ramp_type >= XModelLodRampType::COUNT as u8 {
             return Err(Error::new(
                 file_line_col!(),
+                de.stream_pos()? as _,
                 ErrorKind::BrokenInvariant(format!(
                     "XModel: lod_ramp_type ({}) >= XModelLodRampType::COUNT",
                     self.lod_ramp_type
@@ -130,6 +132,7 @@ impl<'a> XFileInto<XModel, ()> for XModelRaw<'a> {
 
         let lod_ramp_type = XModelLodRampType::from_u8(self.lod_ramp_type).ok_or(Error::new(
             file_line_col!(),
+            de.stream_pos()? as _,
             ErrorKind::BadFromPrimitive(self.lod_ramp_type as _),
         ))?;
 
@@ -203,6 +206,7 @@ impl<'a> XFileInto<XModel, ()> for XModelRaw<'a> {
         if self.num_lods > MAX_LODS as i16 {
             return Err(Error::new(
                 file_line_col!(),
+                de.stream_pos()? as _,
                 ErrorKind::BrokenInvariant(format!(
                     "XModel: num_lods ({}) > MAX_LODS",
                     self.num_lods
@@ -213,6 +217,7 @@ impl<'a> XFileInto<XModel, ()> for XModelRaw<'a> {
         if self.coll_lod > MAX_LODS as i16 {
             return Err(Error::new(
                 file_line_col!(),
+                de.stream_pos()? as _,
                 ErrorKind::BrokenInvariant(format!(
                     "XModel: coll_lod ({}) > MAX_LODS",
                     self.coll_lod
@@ -350,6 +355,7 @@ impl<'a> XFileInto<XSurface, ()> for XSurfaceRaw<'a> {
 
         let flags = XSurfaceFlags::from_bits(self.flags).ok_or(Error::new(
             file_line_col!(),
+            de.stream_pos()? as _,
             ErrorKind::BadBitflags(self.flags as _),
         ))?;
         let vert_info = self.vert_info.xfile_into(de, ())?;
@@ -623,6 +629,7 @@ impl TryInto<XModelLodInfo> for XModelLodInfoRaw {
         if self.lod > MAX_LODS as u8 {
             return Err(Error::new(
                 file_line_col!(),
+                0,
                 ErrorKind::BrokenInvariant(format!("XModelLodInfo: lod ({}) > MAX_LODS", self.lod)),
             ));
         }
@@ -630,6 +637,7 @@ impl TryInto<XModelLodInfo> for XModelLodInfoRaw {
         if self.smc_alloc_bits != 0 && (self.smc_alloc_bits < 4 || self.smc_alloc_bits > 9) {
             return Err(Error::new(
                 file_line_col!(),
+                0,
                 ErrorKind::BrokenInvariant(format!(
                     "XModelLodInfo: smc_alloc_bits ({}) != 0, 4..=9",
                     self.smc_alloc_bits
@@ -838,6 +846,7 @@ impl<'a> XFileInto<PhysPreset, ()> for PhysPresetRaw<'a> {
         if self.flags > 1 {
             return Err(Error::new(
                 file_line_col!(),
+                de.stream_pos()? as _,
                 ErrorKind::BrokenInvariant(format!("PhysPreset: flags ({}) > 1", self.flags)),
             ));
         }
@@ -845,6 +854,7 @@ impl<'a> XFileInto<PhysPreset, ()> for PhysPresetRaw<'a> {
         if self.can_float > 1 {
             return Err(Error::new(
                 file_line_col!(),
+                de.stream_pos()? as _,
                 ErrorKind::BrokenInvariant(format!(
                     "PhysPreset: can_float ({}) > 1",
                     self.can_float
@@ -959,6 +969,7 @@ impl<'a> XFileInto<PhysGeomInfo, ()> for PhysGeomInfoRaw<'a> {
             brush: self.brush.xfile_into(de, ())?,
             type_: num::FromPrimitive::from_i32(self.type_).ok_or(Error::new(
                 file_line_col!(),
+                de.stream_pos()? as _,
                 ErrorKind::BadFromPrimitive(self.type_ as _),
             ))?,
             orientation: self.orientation.into(),
@@ -1305,11 +1316,13 @@ impl<'a> XFileInto<PhysConstraint, ()> for PhysConstraintRaw<'a> {
             targetname,
             type_: num::FromPrimitive::from_i32(self.type_).ok_or(Error::new(
                 file_line_col!(),
+                de.stream_pos()? as _,
                 ErrorKind::BadFromPrimitive(self.type_ as _),
             ))?,
             attach_point_type1: num::FromPrimitive::from_i32(self.attach_point_type1).ok_or(
                 Error::new(
                     file_line_col!(),
+                    de.stream_pos()? as _,
                     ErrorKind::BadFromPrimitive(self.attach_point_type1 as _),
                 ),
             )?,
@@ -1319,6 +1332,7 @@ impl<'a> XFileInto<PhysConstraint, ()> for PhysConstraintRaw<'a> {
             attach_point_type2: num::FromPrimitive::from_i32(self.attach_point_type2).ok_or(
                 Error::new(
                     file_line_col!(),
+                    de.stream_pos()? as _,
                     ErrorKind::BadFromPrimitive(self.attach_point_type2 as _),
                 ),
             )?,

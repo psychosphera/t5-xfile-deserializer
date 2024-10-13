@@ -675,6 +675,7 @@ impl XFileInto<Operand, ()> for OperandRaw {
     fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<Operand> {
         let data_type = FromPrimitive::from_i32(self.data_type).ok_or(Error::new(
             file_line_col!(),
+            de.stream_pos()? as _,
             ErrorKind::BadFromPrimitive(self.data_type as _),
         ))?;
         let internals = self.internals.xfile_into(de, data_type)?;
@@ -824,6 +825,7 @@ impl<'a, const MAX_LOCAL_CLIENTS: usize> XFileInto<ItemDef<MAX_LOCAL_CLIENTS>, (
         } else {
             return Err(Error::new(
                 file_line_col!(),
+                de.stream_pos()? as _,
                 ErrorKind::Todo(format!("ItemDef: fix recursion.",)),
             ));
         };
@@ -910,6 +912,7 @@ impl<'a, const MAX_LOCAL_CLIENTS: usize> XFileInto<Option<ItemDefData<MAX_LOCAL_
         } else if type_ == 17 || type_ > 22 {
             Err(Error::new(
                 file_line_col!(),
+                de.stream_pos()? as _,
                 ErrorKind::BrokenInvariant(format!("ItemDefData: type ({type_}) > 22",)),
             ))
         } else {
@@ -1067,6 +1070,7 @@ impl<'a, const MAX_LOCAL_CLIENTS: usize> XFileInto<Option<TextDefData<MAX_LOCAL_
         {
             Err(Error::new(
                 file_line_col!(),
+                de.stream_pos()? as _,
                 ErrorKind::BrokenInvariant(format!("TextDefData: type ({type_}) invalid.",)),
             ))
         } else {
@@ -1188,6 +1192,7 @@ impl<'a, const MAX_LOCAL_CLIENTS: usize> XFileInto<Option<FocusDefData<MAX_LOCAL
         } else {
             Err(Error::new(
                 file_line_col!(),
+                de.stream_pos()? as _,
                 ErrorKind::BrokenInvariant(format!("FocusDefData: type ({type_}) invalid.",)),
             ))
         }

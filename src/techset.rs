@@ -41,10 +41,10 @@ pub struct MaterialTechniqueSet {
 
 impl<'a> XFileInto<MaterialTechniqueSet, ()> for MaterialTechniqueSetRaw<'a> {
     fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<MaterialTechniqueSet> {
-        //dbg!(self);
+        dbg!(self.name);
 
         let name = self.name.xfile_into(de, ())?;
-        //dbg!(&name);
+        dbg!(&name);
 
         let techniques = self.techniques;
         let techniques = techniques
@@ -53,7 +53,7 @@ impl<'a> XFileInto<MaterialTechniqueSet, ()> for MaterialTechniqueSetRaw<'a> {
             .flatten()
             .collect::<Vec<_>>();
 
-        //////dbg!(techniques);
+        //dbg!(techniques);
 
         Ok(MaterialTechniqueSet {
             name,
@@ -83,7 +83,7 @@ pub struct MaterialTechnique {
 
 impl<'a> XFileInto<MaterialTechnique, ()> for MaterialTechniqueRaw<'a> {
     fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<MaterialTechnique> {
-        //////dbg!(*self);
+        dbg!(self);
 
         // passes must be deserialized first since its a flexible array (part of the MaterialTechnique), not a pointer.
         let passes = self
@@ -95,7 +95,7 @@ impl<'a> XFileInto<MaterialTechnique, ()> for MaterialTechniqueRaw<'a> {
         //////dbg!(&passes);
 
         let name = self.name.xfile_into(de, ())?;
-        ////dbg!(&name);
+        dbg!(&name);
 
         Ok(MaterialTechnique {
             name,
@@ -134,7 +134,7 @@ pub struct MaterialPass {
 
 impl<'a> XFileInto<MaterialPass, ()> for MaterialPassRaw<'a> {
     fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<MaterialPass> {
-        //////dbg!(*self);
+        dbg!(self);
         //let pos = xfile.stream_position()?;
         //////dbg!(pos);
 
@@ -225,12 +225,12 @@ pub struct MaterialVertexShader {
 
 impl<'a> XFileInto<MaterialVertexShader, ()> for MaterialVertexShaderRaw<'a> {
     fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<MaterialVertexShader> {
-        ////dbg!(&self);
+        dbg!(self);
         //let pos = xfile.stream_position()?;
         //////dbg!(pos);
 
         let name = self.name.xfile_into(de, ())?;
-        ////dbg!(&name);
+        dbg!(&name);
 
         Ok(MaterialVertexShader {
             name,
@@ -262,7 +262,7 @@ impl<'a> XFileInto<MaterialVertexShaderProgram, ()> for MaterialVertexShaderProg
         de: &mut T5XFileDeserializer,
         _data: (),
     ) -> Result<MaterialVertexShaderProgram> {
-        //////dbg!(*self);
+        dbg!(self);
 
         let load_def = self.load_def.xfile_into(de, ())?;
 
@@ -287,7 +287,7 @@ impl<'a> XFileInto<MaterialVertexShaderProgram, ()> for MaterialVertexShaderProg
         de: &mut T5XFileDeserializer,
         _data: (),
     ) -> Result<MaterialVertexShaderProgram> {
-        //////dbg!(*self);
+        //dbg!(self);
 
         let load_def = self.load_def.xfile_into(de, ())?;
 
@@ -321,7 +321,7 @@ impl<'a> XFileInto<GfxVertexShaderLoadDef, ()> for GfxVertexShaderLoadDefRaw<'a>
         let program = self.program.to_vec(de)?;
         //////dbg!(&program[0]);
         if program.len() > 0 && program[0] != DXBC_MAGIC {
-            return Err(Error::new(file_line_col!(), ErrorKind::BrokenInvariant(format!(
+            return Err(Error::new(file_line_col!(),de.stream_pos()? as _, ErrorKind::BrokenInvariant(format!(
                 "GfxVertexShaderLoadDef: program is not valid DXBC (program[0] = ({:#010X}), expected {DXBC_MAGIC:#010X})", 
                 program[0])
             )));
@@ -496,6 +496,7 @@ impl XFileInto<MaterialShaderArgument, ()> for MaterialShaderArgumentRaw {
         if self.arg_type > 7 {
             return Err(Error::new(
                 file_line_col!(),
+                de.stream_pos()? as _,
                 ErrorKind::BrokenInvariant(format!(
                     "MaterialShaderArgument: arg_type ({}) > 7",
                     self.arg_type
@@ -761,6 +762,7 @@ impl<'a> XFileInto<MaterialTextureDef, ()> for MaterialTextureDefRaw<'a> {
     fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<MaterialTextureDef> {
         let semantic = num::FromPrimitive::from_u8(self.semantic).ok_or(Error::new(
             file_line_col!(),
+            de.stream_pos()? as _,
             ErrorKind::BadFromPrimitive(self.semantic as _),
         ))?;
         let info = if semantic == Semantic::WATER_MAP {
@@ -777,10 +779,12 @@ impl<'a> XFileInto<MaterialTextureDef, ()> for MaterialTextureDefRaw<'a> {
             name_hash: self.name_hash,
             name_start: core::char::from_u32(self.name_start as _).ok_or(Error::new(
                 file_line_col!(),
+                de.stream_pos()? as _,
                 ErrorKind::BadChar(self.name_start as _),
             ))?,
             name_end: core::char::from_u32(self.name_end as _).ok_or(Error::new(
                 file_line_col!(),
+                de.stream_pos()? as _,
                 ErrorKind::BadChar(self.name_end as _),
             ))?,
             sampler_state: self.sampler_state,
@@ -987,14 +991,17 @@ impl<'a> XFileInto<GfxImage, ()> for GfxImageRaw<'a> {
 
         let map_type = num::FromPrimitive::from_u8(self.map_type).ok_or(Error::new(
             file_line_col!(),
+            de.stream_pos()? as _,
             ErrorKind::BadFromPrimitive(self.map_type as _),
         ))?;
         let semantic = num::FromPrimitive::from_u8(self.semantic).ok_or(Error::new(
             file_line_col!(),
+            de.stream_pos()? as _,
             ErrorKind::BadFromPrimitive(self.semantic as _),
         ))?;
         let category = num::FromPrimitive::from_u8(self.category).ok_or(Error::new(
             file_line_col!(),
+            de.stream_pos()? as _,
             ErrorKind::BadFromPrimitive(self.category as _),
         ))?;
 
