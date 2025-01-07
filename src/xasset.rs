@@ -2,7 +2,9 @@ use alloc::boxed::Box;
 use num_derive::FromPrimitive;
 use serde::{Deserialize, Serialize};
 
-use crate::{assert_size, clipmap::{ClipMap, ClipMapRaw}, com_world::{ComWorld, ComWorldRaw}, ddl::{DdlRoot, DdlRootRaw}, destructible::{DestructibleDef, DestructibleDefRaw}, file_line_col, font::{Font, FontRaw}, fx::{FxEffectDef, FxEffectDefRaw, FxImpactTable, FxImpactTableRaw}, gameworld::{GameWorldMp, GameWorldMpRaw, GameWorldSp, GameWorldSpRaw}, gfx_world::{GfxWorld, GfxWorldRaw}, light::{GfxLightDef, GfxLightDefRaw}, menu::{MenuDef, MenuDefRaw, MenuList, MenuListRaw}, sound::{SndBank, SndBankRaw, SndDriverGlobals, SndDriverGlobalsRaw, SndPatch, SndPatchRaw}, techset::{GfxImage, GfxImageRaw, Material, MaterialRaw, MaterialTechniqueSet, MaterialTechniqueSetRaw}, weapon::{WeaponVariantDef, WeaponVariantDefRaw}, xanim::{XAnimParts, XAnimPartsRaw}, xmodel::{PhysConstraints, PhysConstraintsRaw, PhysPreset, PhysPresetRaw, XModel, XModelRaw}, EmblemSet, EmblemSetRaw, Error, ErrorKind, FatPointerCountFirstU32, Glasses, GlassesRaw, LocalizeEntry, LocalizeEntryRaw, MapEnts, MapEntsRaw, PackIndex, PackIndexRaw, Ptr32, RawFile, RawFileRaw, Result, StringTable, StringTableRaw, T5XFileDeserializer, XFileInto, XFilePlatform, XGlobals, XGlobalsRaw, XString};
+use crate::{
+    assert_size, clipmap::{ClipMap, ClipMapRaw}, com_world::{ComWorld, ComWorldRaw}, ddl::{DdlRoot, DdlRootRaw}, destructible::{DestructibleDef, DestructibleDefRaw}, file_line_col, font::{Font, FontRaw}, fx::{FxEffectDef, FxEffectDefRaw, FxImpactTable, FxImpactTableRaw}, gameworld::{GameWorldMp, GameWorldMpRaw, GameWorldSp, GameWorldSpRaw}, gfx_world::{GfxWorld, GfxWorldRaw}, light::{GfxLightDef, GfxLightDefRaw}, menu::{MenuDef, MenuDefRaw, MenuList, MenuListRaw}, sound::{SndBank, SndBankRaw, SndDriverGlobals, SndDriverGlobalsRaw, SndPatch, SndPatchRaw}, techset::{GfxImage, GfxImageRaw, Material, MaterialRaw, MaterialTechniqueSet, MaterialTechniqueSetRaw}, weapon::{WeaponVariantDef, WeaponVariantDefRaw}, xanim::{XAnimParts, XAnimPartsRaw}, xmodel::{PhysConstraints, PhysConstraintsRaw, PhysPreset, PhysPresetRaw, XModel, XModelRaw}, EmblemSet, EmblemSetRaw, Error, ErrorKind, FatPointerCountFirstU32, Glasses, GlassesRaw, LocalizeEntry, LocalizeEntryRaw, MapEnts, MapEntsRaw, PackIndex, PackIndexRaw, Ptr32, RawFile, RawFileRaw, Result, StringTable, StringTableRaw, T5XFileDeserializer, T5XFileSerializer, XFileDeserializeInto, XFilePlatform, XFileSerializeInto, XGlobals, XGlobalsRaw, XString
+};
 
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug)]
@@ -18,9 +20,9 @@ impl XAsset {
         platform: XFilePlatform,
     ) -> Result<Self> {
         let asset = if platform.is_pc() {
-            Self::PC(xasset_raw.xfile_into(de, ())?)
+            Self::PC(xasset_raw.xfile_deserialize_into(de, ())?)
         } else {
-            Self::Console(xasset_raw.xfile_into(de, ())?)
+            Self::Console(xasset_raw.xfile_deserialize_into(de, ())?)
         };
         Ok(asset)
     }
@@ -177,11 +179,17 @@ impl<const MAX_LOCAL_CLIENTS: usize> XAssetGeneric<MAX_LOCAL_CLIENTS> {
 
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
-pub(crate) struct XAssetList<'a> {
+pub(crate) struct XAssetListRaw<'a> {
     pub strings: FatPointerCountFirstU32<'a, XString<'a>>,
     pub assets: FatPointerCountFirstU32<'a, XAssetRaw<'a>>,
 }
-assert_size!(XAssetList, 16);
+assert_size!(XAssetListRaw, 16);
+
+#[derive(Clone, Debug, Default)]
+pub(crate) struct XAssetList {
+    pub _strings: Vec<String>,
+    pub assets: Vec<XAsset>,
+}
 
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
@@ -190,6 +198,12 @@ pub(crate) struct XAssetRaw<'a> {
     pub asset_data: Ptr32<'a, ()>,
 }
 assert_size!(XAssetRaw, 8);
+
+impl<'a> XFileSerializeInto<XAssetListRaw<'a>, ()> for XAssetList {
+    fn xfile_serialize_into(&self, _ser: &mut T5XFileSerializer, _data: ()) -> Result<XAssetListRaw<'a>> {
+        todo!()
+    }
+}
 
 /// T5 doesn't actually use all of these.
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
@@ -244,10 +258,10 @@ pub enum XAssetType {
     ASSETLIST = 0x2C,
 }
 
-impl<'a, const MAX_LOCAL_CLIENTS: usize> XFileInto<XAssetGeneric<MAX_LOCAL_CLIENTS>, ()>
+impl<'a, const MAX_LOCAL_CLIENTS: usize> XFileDeserializeInto<XAssetGeneric<MAX_LOCAL_CLIENTS>, ()>
     for XAssetRaw<'a>
 {
-    fn xfile_into(
+    fn xfile_deserialize_into(
         &self,
         de: &mut T5XFileDeserializer,
         _data: (),
@@ -263,153 +277,153 @@ impl<'a, const MAX_LOCAL_CLIENTS: usize> XFileInto<XAssetGeneric<MAX_LOCAL_CLIEN
             XAssetType::PHYSPRESET => XAssetGeneric::PhysPreset(
                 self.asset_data
                     .cast::<PhysPresetRaw>()
-                    .xfile_into(de, ())?,
+                    .xfile_deserialize_into(de, ())?,
             ),
             XAssetType::PHYSCONSTRAINTS => XAssetGeneric::PhysConstraints(
                 self.asset_data
                     .cast::<PhysConstraintsRaw>()
-                    .xfile_into(de, ())?,
+                    .xfile_deserialize_into(de, ())?,
             ),
             XAssetType::DESTRUCTIBLEDEF => XAssetGeneric::DestructibleDef(
                 self.asset_data
                     .cast::<DestructibleDefRaw>()
-                    .xfile_into(de, ())?,
+                    .xfile_deserialize_into(de, ())?,
             ),
             XAssetType::XANIMPARTS => XAssetGeneric::XAnimParts(
                 self.asset_data
                     .cast::<XAnimPartsRaw>()
-                    .xfile_into(de, ())?,
+                    .xfile_deserialize_into(de, ())?,
             ),
             XAssetType::XMODEL => XAssetGeneric::XModel(
                 self.asset_data
                     .cast::<XModelRaw>()
-                    .xfile_into(de, ())?,
+                    .xfile_deserialize_into(de, ())?,
             ),
             XAssetType::MATERIAL => XAssetGeneric::Material(
                 self.asset_data
                     .cast::<MaterialRaw>()
-                    .xfile_into(de, ())?,
+                    .xfile_deserialize_into(de, ())?,
             ),
             XAssetType::TECHNIQUE_SET => XAssetGeneric::TechniqueSet(
                 self.asset_data
                     .cast::<MaterialTechniqueSetRaw>()
-                    .xfile_into(de, ())?,
+                    .xfile_deserialize_into(de, ())?,
             ),
             XAssetType::IMAGE => XAssetGeneric::Image(
                 self.asset_data
                     .cast::<GfxImageRaw>()
-                    .xfile_into(de, ())?,
+                    .xfile_deserialize_into(de, ())?,
             ),
             XAssetType::SOUND => XAssetGeneric::Sound(
                 self.asset_data
                     .cast::<SndBankRaw>()
-                    .xfile_into(de, ())?,
+                    .xfile_deserialize_into(de, ())?,
             ),
             XAssetType::SOUND_PATCH => XAssetGeneric::SoundPatch(
                 self.asset_data
                     .cast::<SndPatchRaw>()
-                    .xfile_into(de, ())?,
+                    .xfile_deserialize_into(de, ())?,
             ),
             XAssetType::CLIPMAP => XAssetGeneric::ClipMap(
                 self.asset_data
                     .cast::<ClipMapRaw>()
-                    .xfile_into(de, ())?,
+                    .xfile_deserialize_into(de, ())?,
             ),
             XAssetType::CLIPMAP_PVS => XAssetGeneric::ClipMapPVS(
                 self.asset_data
                     .cast::<ClipMapRaw>()
-                    .xfile_into(de, ())?,
+                    .xfile_deserialize_into(de, ())?,
             ),
             XAssetType::COMWORLD => XAssetGeneric::ComWorld(
                 self.asset_data
                     .cast::<ComWorldRaw>()
-                    .xfile_into(de, ())?,
+                    .xfile_deserialize_into(de, ())?,
             ),
             XAssetType::GAMEWORLD_SP => XAssetGeneric::GameWorldSp(
                 self.asset_data
                     .cast::<GameWorldSpRaw>()
-                    .xfile_into(de, ())?,
+                    .xfile_deserialize_into(de, ())?,
             ),
             XAssetType::GAMEWORLD_MP => XAssetGeneric::GameWorldMp(
                 self.asset_data
                     .cast::<GameWorldMpRaw>()
-                    .xfile_into(de, ())?,
+                    .xfile_deserialize_into(de, ())?,
             ),
             XAssetType::MAP_ENTS => {
-                XAssetGeneric::MapEnts(self.asset_data.cast::<MapEntsRaw>().xfile_into(de, ())?)
+                XAssetGeneric::MapEnts(self.asset_data.cast::<MapEntsRaw>().xfile_deserialize_into(de, ())?)
             }
             XAssetType::GFXWORLD => XAssetGeneric::GfxWorld(
                 self.asset_data
                     .cast::<GfxWorldRaw<MAX_LOCAL_CLIENTS>>()
-                    .xfile_into(de, ())?,
+                    .xfile_deserialize_into(de, ())?,
             ),
             XAssetType::LIGHT_DEF => XAssetGeneric::LightDef(
                 self.asset_data
                     .cast::<GfxLightDefRaw>()
-                    .xfile_into(de, ())?,
+                    .xfile_deserialize_into(de, ())?,
             ),
             XAssetType::FONT => {
-                XAssetGeneric::Font(self.asset_data.cast::<FontRaw>().xfile_into(de, ())?)
+                XAssetGeneric::Font(self.asset_data.cast::<FontRaw>().xfile_deserialize_into(de, ())?)
             }
             XAssetType::MENULIST => XAssetGeneric::MenuList(
                 self.asset_data
                     .cast::<MenuListRaw<MAX_LOCAL_CLIENTS>>()
-                    .xfile_into(de, ())?,
+                    .xfile_deserialize_into(de, ())?,
             ),
             XAssetType::MENU => XAssetGeneric::Menu(
                 self.asset_data
                     .cast::<MenuDefRaw<MAX_LOCAL_CLIENTS>>()
-                    .xfile_into(de, ())?,
+                    .xfile_deserialize_into(de, ())?,
             ),
             XAssetType::LOCALIZE_ENTRY => XAssetGeneric::LocalizeEntry(
                 self.asset_data
                     .cast::<LocalizeEntryRaw>()
-                    .xfile_into(de, ())?,
+                    .xfile_deserialize_into(de, ())?,
             ),
             XAssetType::WEAPON => XAssetGeneric::Weapon(
                 self.asset_data
                     .cast::<WeaponVariantDefRaw>()
-                    .xfile_into(de, ())?,
+                    .xfile_deserialize_into(de, ())?,
             ),
             XAssetType::SNDDRIVER_GLOBALS => XAssetGeneric::SndDriverGlobals(
                 self.asset_data
                     .cast::<SndDriverGlobalsRaw>()
-                    .xfile_into(de, ())?,
+                    .xfile_deserialize_into(de, ())?,
             ),
             XAssetType::FX => XAssetGeneric::Fx(
                 self.asset_data
                     .cast::<FxEffectDefRaw>()
-                    .xfile_into(de, ())?,
+                    .xfile_deserialize_into(de, ())?,
             ),
             XAssetType::IMPACT_FX => XAssetGeneric::ImpactFx(
                 self.asset_data
                     .cast::<FxImpactTableRaw>()
-                    .xfile_into(de, ())?,
+                    .xfile_deserialize_into(de, ())?,
             ),
             XAssetType::RAWFILE => {
-                XAssetGeneric::RawFile(self.asset_data.cast::<RawFileRaw>().xfile_into(de, ())?)
+                XAssetGeneric::RawFile(self.asset_data.cast::<RawFileRaw>().xfile_deserialize_into(de, ())?)
             }
             XAssetType::STRINGTABLE => XAssetGeneric::StringTable(
                 self.asset_data
                     .cast::<StringTableRaw>()
-                    .xfile_into(de, ())?,
+                    .xfile_deserialize_into(de, ())?,
             ),
             XAssetType::PACKINDEX => {
-                XAssetGeneric::PackIndex(self.asset_data.cast::<PackIndexRaw>().xfile_into(de, ())?)
+                XAssetGeneric::PackIndex(self.asset_data.cast::<PackIndexRaw>().xfile_deserialize_into(de, ())?)
             }
             XAssetType::XGLOBALS => {
-                XAssetGeneric::XGlobals(self.asset_data.cast::<XGlobalsRaw>().xfile_into(de, ())?)
+                XAssetGeneric::XGlobals(self.asset_data.cast::<XGlobalsRaw>().xfile_deserialize_into(de, ())?)
             }
             XAssetType::DDL => XAssetGeneric::Ddl(
                 self.asset_data
                     .cast::<DdlRootRaw>()
-                    .xfile_into(de, ())?,
+                    .xfile_deserialize_into(de, ())?,
             ),
             XAssetType::GLASSES => {
-                XAssetGeneric::Glasses(self.asset_data.cast::<GlassesRaw>().xfile_into(de, ())?)
+                XAssetGeneric::Glasses(self.asset_data.cast::<GlassesRaw>().xfile_deserialize_into(de, ())?)
             }
             XAssetType::EMBLEMSET => {
-                XAssetGeneric::EmblemSet(self.asset_data.cast::<EmblemSetRaw>().xfile_into(de, ())?)
+                XAssetGeneric::EmblemSet(self.asset_data.cast::<EmblemSetRaw>().xfile_deserialize_into(de, ())?)
             }
             _ => {
                 //dbg!(asset_type);

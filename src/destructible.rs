@@ -3,7 +3,7 @@ use alloc::{boxed::Box, string::String, vec::Vec};
 use crate::{
     assert_size, fx::{FxEffectDef, FxEffectDefRaw}, 
     xmodel::{PhysConstraints, PhysConstraintsRaw, PhysPreset, PhysPresetRaw, XModel, XModelRaw}, 
-    FatPointerCountFirstU32, Ptr32, Result, ScriptString, T5XFileDeserializer, XFileInto, XString
+    FatPointerCountFirstU32, Ptr32, Result, ScriptString, T5XFileDeserializer, XFileDeserializeInto, XString
 };
 
 use serde::{Deserialize, Serialize};
@@ -29,13 +29,13 @@ pub struct DestructibleDef {
     pub client_only: bool,
 }
 
-impl<'a> XFileInto<DestructibleDef, ()> for DestructibleDefRaw<'a> {
-    fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<DestructibleDef> {
+impl<'a> XFileDeserializeInto<DestructibleDef, ()> for DestructibleDefRaw<'a> {
+    fn xfile_deserialize_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<DestructibleDef> {
         Ok(DestructibleDef {
-            name: self.name.xfile_into(de, ())?,
-            model: self.model.xfile_into(de, ())?,
-            pristine_model: self.pristine_model.xfile_into(de, ())?,
-            pieces: self.pieces.xfile_into(de, ())?,
+            name: self.name.xfile_deserialize_into(de, ())?,
+            model: self.model.xfile_deserialize_into(de, ())?,
+            pristine_model: self.pristine_model.xfile_deserialize_into(de, ())?,
+            pieces: self.pieces.xfile_deserialize_into(de, ())?,
             client_only: self.client_only != 0,
         })
     }
@@ -86,15 +86,15 @@ pub struct DestructiblePiece {
     pub hide_bones: [i32; 5],
 }
 
-impl<'a> XFileInto<DestructiblePiece, ()> for DestructiblePieceRaw<'a> {
-    fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<DestructiblePiece> {
+impl<'a> XFileDeserializeInto<DestructiblePiece, ()> for DestructiblePieceRaw<'a> {
+    fn xfile_deserialize_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<DestructiblePiece> {
         Ok(DestructiblePiece {
             stages: [
-                self.stages[0].xfile_into(de, ())?,
-                self.stages[1].xfile_into(de, ())?,
-                self.stages[2].xfile_into(de, ())?,
-                self.stages[3].xfile_into(de, ())?,
-                self.stages[4].xfile_into(de, ())?,
+                self.stages[0].xfile_deserialize_into(de, ())?,
+                self.stages[1].xfile_deserialize_into(de, ())?,
+                self.stages[2].xfile_deserialize_into(de, ())?,
+                self.stages[3].xfile_deserialize_into(de, ())?,
+                self.stages[4].xfile_deserialize_into(de, ())?,
             ],
             parent_piece: self.parent_piece,
             parent_damage_percent: self.parent_damage_percent,
@@ -103,11 +103,11 @@ impl<'a> XFileInto<DestructiblePiece, ()> for DestructiblePieceRaw<'a> {
             melee_damage_scale: self.melee_damage_scale,
             impact_damage_scael: self.impact_damage_scael,
             entity_damage_transfer: self.entity_damage_transfer,
-            phys_constraints: self.phys_constraints.xfile_into(de, ())?,
+            phys_constraints: self.phys_constraints.xfile_deserialize_into(de, ())?,
             health: self.health,
-            damage_sound: self.damage_sound.xfile_into(de, ())?,
-            burn_effect: self.burn_effect.xfile_into(de, ())?,
-            burn_sound: self.burn_sound.xfile_into(de, ())?,
+            damage_sound: self.damage_sound.xfile_deserialize_into(de, ())?,
+            burn_effect: self.burn_effect.xfile_deserialize_into(de, ())?,
+            burn_sound: self.burn_sound.xfile_deserialize_into(de, ())?,
             enable_label: self.enable_label,
             hide_bones: self.hide_bones,
         })
@@ -145,23 +145,23 @@ pub struct DestructibleStage {
     pub phys_preset: Option<Box<PhysPreset>>,
 }
 
-impl<'a> XFileInto<DestructibleStage, ()> for DestructibleStageRaw<'a> {
-    fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<DestructibleStage> {
+impl<'a> XFileDeserializeInto<DestructibleStage, ()> for DestructibleStageRaw<'a> {
+    fn xfile_deserialize_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<DestructibleStage> {
         Ok(DestructibleStage {
             show_bone: self.show_bone.to_string(de).unwrap_or_default(),
             break_health: self.break_health,
             max_time: self.max_time,
             flags: self.flags,
-            break_effect: self.break_effect.xfile_into(de, ())?,
-            break_sound: self.break_sound.xfile_into(de, ())?,
-            break_notify: self.break_notify.xfile_into(de, ())?,
-            loop_sound: self.loop_sound.xfile_into(de, ())?,
+            break_effect: self.break_effect.xfile_deserialize_into(de, ())?,
+            break_sound: self.break_sound.xfile_deserialize_into(de, ())?,
+            break_notify: self.break_notify.xfile_deserialize_into(de, ())?,
+            loop_sound: self.loop_sound.xfile_deserialize_into(de, ())?,
             spawn_model: [
-                self.spawn_model[0].xfile_into(de, ())?,
-                self.spawn_model[1].xfile_into(de, ())?,
-                self.spawn_model[2].xfile_into(de, ())?,
+                self.spawn_model[0].xfile_deserialize_into(de, ())?,
+                self.spawn_model[1].xfile_deserialize_into(de, ())?,
+                self.spawn_model[2].xfile_deserialize_into(de, ())?,
             ],
-            phys_preset: self.phys_preset.xfile_into(de, ())?,
+            phys_preset: self.phys_preset.xfile_deserialize_into(de, ())?,
         })
     }
 }

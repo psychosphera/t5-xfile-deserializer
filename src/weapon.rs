@@ -5,7 +5,7 @@ use crate::{
     techset,
     xmodel,
     fx,
-    XString, Ptr32, Ptr32ArrayConst, ScriptString, Result, Error, ErrorKind, XFileInto, T5XFileDeserializer, FatPointer,
+    XString, Ptr32, Ptr32ArrayConst, ScriptString, Result, Error, ErrorKind, XFileDeserializeInto, T5XFileDeserializer, FatPointer,
     assert_size, file_line_col,
 };
 
@@ -129,25 +129,25 @@ pub struct WeaponVariantDef {
     pub left_hand_ui_viewer_rotation: Vec3,
 }
 
-impl<'a> XFileInto<WeaponVariantDef, ()> for WeaponVariantDefRaw<'a> {
-    fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<WeaponVariantDef> {
-        let internal_name = self.internal_name.xfile_into(de, ())?;
-        let weap_def = self.weap_def.xfile_into(de, ())?;
-        let display_name = self.display_name.xfile_into(de, ())?;
-        let xanims = self.xanims.xfile_into(de, ())?;
-        let alt_weapon_name = self.alt_weapon_name.xfile_into(de, ())?;
+impl<'a> XFileDeserializeInto<WeaponVariantDef, ()> for WeaponVariantDefRaw<'a> {
+    fn xfile_deserialize_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<WeaponVariantDef> {
+        let internal_name = self.internal_name.xfile_deserialize_into(de, ())?;
+        let weap_def = self.weap_def.xfile_deserialize_into(de, ())?;
+        let display_name = self.display_name.xfile_deserialize_into(de, ())?;
+        let xanims = self.xanims.xfile_deserialize_into(de, ())?;
+        let alt_weapon_name = self.alt_weapon_name.xfile_deserialize_into(de, ())?;
         let hide_tags = self
             .hide_tags
             .to_vec(de)?
             .into_iter()
             .map(|s| s.to_string(de).unwrap_or_default())
             .collect();
-        let ammo_name = self.ammo_name.xfile_into(de, ())?;
-        let clip_name = self.clip_name.xfile_into(de, ())?;
+        let ammo_name = self.ammo_name.xfile_deserialize_into(de, ())?;
+        let clip_name = self.clip_name.xfile_deserialize_into(de, ())?;
         let oo_pos_anim_length = self.oo_pos_anim_length.into();
-        let overlay_material = self.overlay_material.xfile_into(de, ())?;
-        let overlay_material_low_res = self.overlay_material_low_res.xfile_into(de, ())?;
-        let dpad_icon = self.dpad_icon.xfile_into(de, ())?;
+        let overlay_material = self.overlay_material.xfile_deserialize_into(de, ())?;
+        let overlay_material_low_res = self.overlay_material_low_res.xfile_deserialize_into(de, ())?;
+        let dpad_icon = self.dpad_icon.xfile_deserialize_into(de, ())?;
         let dpad_icon_ratio = FromPrimitive::from_u32(self.dpad_icon_ratio).ok_or(Error::new(
             file_line_col!(),
             de.stream_pos()? as _,
@@ -1495,21 +1495,21 @@ pub struct WeaponDef {
     pub max_gib_distance: f32,
 }
 
-impl<'a> XFileInto<WeaponDef, ()> for WeaponDefRaw<'a> {
-    fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<WeaponDef> {
-        let overlay_name = self.overlay_name.xfile_into(de, ())?;
+impl<'a> XFileDeserializeInto<WeaponDef, ()> for WeaponDefRaw<'a> {
+    fn xfile_deserialize_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<WeaponDef> {
+        let overlay_name = self.overlay_name.xfile_deserialize_into(de, ())?;
         let gun_xmodel = if self.gun_xmodel.is_null() {
             None
         } else {
             Some(
                 self.gun_xmodel
-                    .xfile_into(de, ())?
+                    .xfile_deserialize_into(de, ())?
                     .try_into()
                     .unwrap_or_default(),
             )
         };
-        let hand_xmodel = self.hand_xmodel.xfile_into(de, ())?;
-        let mode_name = self.mode_name.xfile_into(de, ())?;
+        let hand_xmodel = self.hand_xmodel.xfile_deserialize_into(de, ())?;
+        let mode_name = self.mode_name.xfile_deserialize_into(de, ())?;
         let notetrack_sound_map_keys = if self.notetrack_sound_map_keys.is_null() {
             None
         } else {
@@ -1571,7 +1571,7 @@ impl<'a> XFileInto<WeaponDef, ()> for WeaponDefRaw<'a> {
             de.stream_pos()? as _,
             ErrorKind::BadFromPrimitive(self.clip_type as _),
         ))?;
-        let parent_weapon_name = self.parent_weapon_name.xfile_into(de, ())?;
+        let parent_weapon_name = self.parent_weapon_name.xfile_deserialize_into(de, ())?;
         let offhand_class = FromPrimitive::from_u32(self.offhand_class).ok_or(Error::new(
             file_line_col!(),
             de.stream_pos()? as _,
@@ -1587,89 +1587,89 @@ impl<'a> XFileInto<WeaponDef, ()> for WeaponDefRaw<'a> {
             de.stream_pos()? as _,
             ErrorKind::BadFromPrimitive(self.stance as _),
         ))?;
-        let view_flash_effect = self.view_flash_effect.xfile_into(de, ())?;
-        let world_flash_effect = self.world_flash_effect.xfile_into(de, ())?;
-        let pickup_sound = self.pickup_sound.xfile_into(de, ())?;
-        let pickup_sound_player = self.pickup_sound_player.xfile_into(de, ())?;
-        let ammo_pickup_sound = self.ammo_pickup_sound.xfile_into(de, ())?;
-        let ammo_pickup_sound_player = self.ammo_pickup_sound_player.xfile_into(de, ())?;
-        let projectile_sound = self.projectile_sound.xfile_into(de, ())?;
-        let pullback_sound = self.pullback_sound.xfile_into(de, ())?;
-        let pullback_sound_player = self.pullback_sound_player.xfile_into(de, ())?;
-        let fire_sound = self.fire_sound.xfile_into(de, ())?;
-        let fire_sound_player = self.fire_sound_player.xfile_into(de, ())?;
-        let fire_loop_sound = self.fire_loop_sound.xfile_into(de, ())?;
-        let fire_loop_sound_player = self.fire_loop_sound_player.xfile_into(de, ())?;
-        let fire_loop_end_sound = self.fire_loop_end_sound.xfile_into(de, ())?;
-        let fire_loop_end_sound_player = self.fire_loop_end_sound_player.xfile_into(de, ())?;
-        let fire_stop_sound = self.fire_stop_sound.xfile_into(de, ())?;
-        let fire_stop_sound_player = self.fire_stop_sound_player.xfile_into(de, ())?;
-        let fire_last_sound = self.fire_last_sound.xfile_into(de, ())?;
-        let fire_last_sound_player = self.fire_last_sound_player.xfile_into(de, ())?;
-        let empty_fire_sound = self.empty_fire_sound.xfile_into(de, ())?;
-        let empty_fire_sound_player = self.empty_fire_sound_player.xfile_into(de, ())?;
-        let crack_sound = self.crack_sound.xfile_into(de, ())?;
-        let whiz_by_sound = self.whiz_by_sound.xfile_into(de, ())?;
-        let melee_swipe_sound = self.melee_swipe_sound.xfile_into(de, ())?;
-        let melee_swipe_sound_player = self.melee_swipe_sound_player.xfile_into(de, ())?;
-        let melee_hit_sound = self.melee_hit_sound.xfile_into(de, ())?;
-        let melee_miss_sound = self.melee_miss_sound.xfile_into(de, ())?;
-        let rechamber_sound = self.rechamber_sound.xfile_into(de, ())?;
-        let rechamber_sound_player = self.rechamber_sound_player.xfile_into(de, ())?;
-        let reload_sound = self.reload_sound.xfile_into(de, ())?;
-        let reload_sound_player = self.reload_sound_player.xfile_into(de, ())?;
-        let reload_empty_sound = self.reload_empty_sound.xfile_into(de, ())?;
-        let reload_empty_sound_player = self.reload_empty_sound_player.xfile_into(de, ())?;
-        let reload_start_sound = self.reload_start_sound.xfile_into(de, ())?;
-        let reload_start_sound_player = self.reload_start_sound_player.xfile_into(de, ())?;
-        let reload_end_sound = self.reload_end_sound.xfile_into(de, ())?;
-        let reload_end_sound_player = self.reload_end_sound_player.xfile_into(de, ())?;
-        let rotate_loop_sound = self.rotate_loop_sound.xfile_into(de, ())?;
-        let rotate_loop_sound_player = self.rotate_loop_sound_player.xfile_into(de, ())?;
-        let deploy_sound = self.deploy_sound.xfile_into(de, ())?;
-        let deploy_sound_player = self.deploy_sound_player.xfile_into(de, ())?;
-        let finish_deploy_sound = self.finish_deploy_sound.xfile_into(de, ())?;
-        let finish_deploy_sound_player = self.finish_deploy_sound_player.xfile_into(de, ())?;
-        let breakdown_sound = self.breakdown_sound.xfile_into(de, ())?;
-        let breakdown_sound_player = self.breakdown_sound_player.xfile_into(de, ())?;
-        let finish_breakdown_sound = self.finish_breakdown_sound.xfile_into(de, ())?;
+        let view_flash_effect = self.view_flash_effect.xfile_deserialize_into(de, ())?;
+        let world_flash_effect = self.world_flash_effect.xfile_deserialize_into(de, ())?;
+        let pickup_sound = self.pickup_sound.xfile_deserialize_into(de, ())?;
+        let pickup_sound_player = self.pickup_sound_player.xfile_deserialize_into(de, ())?;
+        let ammo_pickup_sound = self.ammo_pickup_sound.xfile_deserialize_into(de, ())?;
+        let ammo_pickup_sound_player = self.ammo_pickup_sound_player.xfile_deserialize_into(de, ())?;
+        let projectile_sound = self.projectile_sound.xfile_deserialize_into(de, ())?;
+        let pullback_sound = self.pullback_sound.xfile_deserialize_into(de, ())?;
+        let pullback_sound_player = self.pullback_sound_player.xfile_deserialize_into(de, ())?;
+        let fire_sound = self.fire_sound.xfile_deserialize_into(de, ())?;
+        let fire_sound_player = self.fire_sound_player.xfile_deserialize_into(de, ())?;
+        let fire_loop_sound = self.fire_loop_sound.xfile_deserialize_into(de, ())?;
+        let fire_loop_sound_player = self.fire_loop_sound_player.xfile_deserialize_into(de, ())?;
+        let fire_loop_end_sound = self.fire_loop_end_sound.xfile_deserialize_into(de, ())?;
+        let fire_loop_end_sound_player = self.fire_loop_end_sound_player.xfile_deserialize_into(de, ())?;
+        let fire_stop_sound = self.fire_stop_sound.xfile_deserialize_into(de, ())?;
+        let fire_stop_sound_player = self.fire_stop_sound_player.xfile_deserialize_into(de, ())?;
+        let fire_last_sound = self.fire_last_sound.xfile_deserialize_into(de, ())?;
+        let fire_last_sound_player = self.fire_last_sound_player.xfile_deserialize_into(de, ())?;
+        let empty_fire_sound = self.empty_fire_sound.xfile_deserialize_into(de, ())?;
+        let empty_fire_sound_player = self.empty_fire_sound_player.xfile_deserialize_into(de, ())?;
+        let crack_sound = self.crack_sound.xfile_deserialize_into(de, ())?;
+        let whiz_by_sound = self.whiz_by_sound.xfile_deserialize_into(de, ())?;
+        let melee_swipe_sound = self.melee_swipe_sound.xfile_deserialize_into(de, ())?;
+        let melee_swipe_sound_player = self.melee_swipe_sound_player.xfile_deserialize_into(de, ())?;
+        let melee_hit_sound = self.melee_hit_sound.xfile_deserialize_into(de, ())?;
+        let melee_miss_sound = self.melee_miss_sound.xfile_deserialize_into(de, ())?;
+        let rechamber_sound = self.rechamber_sound.xfile_deserialize_into(de, ())?;
+        let rechamber_sound_player = self.rechamber_sound_player.xfile_deserialize_into(de, ())?;
+        let reload_sound = self.reload_sound.xfile_deserialize_into(de, ())?;
+        let reload_sound_player = self.reload_sound_player.xfile_deserialize_into(de, ())?;
+        let reload_empty_sound = self.reload_empty_sound.xfile_deserialize_into(de, ())?;
+        let reload_empty_sound_player = self.reload_empty_sound_player.xfile_deserialize_into(de, ())?;
+        let reload_start_sound = self.reload_start_sound.xfile_deserialize_into(de, ())?;
+        let reload_start_sound_player = self.reload_start_sound_player.xfile_deserialize_into(de, ())?;
+        let reload_end_sound = self.reload_end_sound.xfile_deserialize_into(de, ())?;
+        let reload_end_sound_player = self.reload_end_sound_player.xfile_deserialize_into(de, ())?;
+        let rotate_loop_sound = self.rotate_loop_sound.xfile_deserialize_into(de, ())?;
+        let rotate_loop_sound_player = self.rotate_loop_sound_player.xfile_deserialize_into(de, ())?;
+        let deploy_sound = self.deploy_sound.xfile_deserialize_into(de, ())?;
+        let deploy_sound_player = self.deploy_sound_player.xfile_deserialize_into(de, ())?;
+        let finish_deploy_sound = self.finish_deploy_sound.xfile_deserialize_into(de, ())?;
+        let finish_deploy_sound_player = self.finish_deploy_sound_player.xfile_deserialize_into(de, ())?;
+        let breakdown_sound = self.breakdown_sound.xfile_deserialize_into(de, ())?;
+        let breakdown_sound_player = self.breakdown_sound_player.xfile_deserialize_into(de, ())?;
+        let finish_breakdown_sound = self.finish_breakdown_sound.xfile_deserialize_into(de, ())?;
         let finish_breakdown_sound_player =
-            self.finish_breakdown_sound_player.xfile_into(de, ())?;
-        let detonate_sound = self.detonate_sound.xfile_into(de, ())?;
-        let detonate_sound_player = self.detonate_sound_player.xfile_into(de, ())?;
-        let night_vision_wear_sound = self.night_vision_wear_sound.xfile_into(de, ())?;
+            self.finish_breakdown_sound_player.xfile_deserialize_into(de, ())?;
+        let detonate_sound = self.detonate_sound.xfile_deserialize_into(de, ())?;
+        let detonate_sound_player = self.detonate_sound_player.xfile_deserialize_into(de, ())?;
+        let night_vision_wear_sound = self.night_vision_wear_sound.xfile_deserialize_into(de, ())?;
         let night_vision_wear_sound_player =
-            self.night_vision_wear_sound_player.xfile_into(de, ())?;
-        let night_vision_remove_sound = self.night_vision_remove_sound.xfile_into(de, ())?;
+            self.night_vision_wear_sound_player.xfile_deserialize_into(de, ())?;
+        let night_vision_remove_sound = self.night_vision_remove_sound.xfile_deserialize_into(de, ())?;
         let night_vision_remove_sound_player =
-            self.night_vision_remove_sound_player.xfile_into(de, ())?;
-        let alt_switch_sound = self.alt_switch_sound.xfile_into(de, ())?;
-        let alt_switch_sound_player = self.alt_switch_sound_player.xfile_into(de, ())?;
-        let raise_sound = self.raise_sound.xfile_into(de, ())?;
-        let raise_sound_player = self.raise_sound_player.xfile_into(de, ())?;
-        let first_raise_sound = self.first_raise_sound.xfile_into(de, ())?;
-        let first_raise_sound_player = self.first_raise_sound_player.xfile_into(de, ())?;
-        let put_away_sound = self.put_away_sound.xfile_into(de, ())?;
-        let put_away_sound_player = self.put_away_sound_player.xfile_into(de, ())?;
-        let overheat_sound = self.overheat_sound.xfile_into(de, ())?;
-        let overheat_sound_player = self.overheat_sound_player.xfile_into(de, ())?;
-        let ads_zoom_sound = self.ads_zoom_sound.xfile_into(de, ())?;
+            self.night_vision_remove_sound_player.xfile_deserialize_into(de, ())?;
+        let alt_switch_sound = self.alt_switch_sound.xfile_deserialize_into(de, ())?;
+        let alt_switch_sound_player = self.alt_switch_sound_player.xfile_deserialize_into(de, ())?;
+        let raise_sound = self.raise_sound.xfile_deserialize_into(de, ())?;
+        let raise_sound_player = self.raise_sound_player.xfile_deserialize_into(de, ())?;
+        let first_raise_sound = self.first_raise_sound.xfile_deserialize_into(de, ())?;
+        let first_raise_sound_player = self.first_raise_sound_player.xfile_deserialize_into(de, ())?;
+        let put_away_sound = self.put_away_sound.xfile_deserialize_into(de, ())?;
+        let put_away_sound_player = self.put_away_sound_player.xfile_deserialize_into(de, ())?;
+        let overheat_sound = self.overheat_sound.xfile_deserialize_into(de, ())?;
+        let overheat_sound_player = self.overheat_sound_player.xfile_deserialize_into(de, ())?;
+        let ads_zoom_sound = self.ads_zoom_sound.xfile_deserialize_into(de, ())?;
         let bounce_sound = if self.bounce_sound.is_null() {
             None
         } else {
             Some(Box::new(
-                self.bounce_sound.xfile_into(de, ())?.try_into().unwrap(),
+                self.bounce_sound.xfile_deserialize_into(de, ())?.try_into().unwrap(),
             ))
         };
-        let stand_mounted_weapdef = self.stand_mounted_weapdef.xfile_into(de, ())?;
-        let crouch_mounted_weapdef = self.crouch_mounted_weapdef.xfile_into(de, ())?;
-        let prone_mounted_weapdef = self.prone_mounted_weapdef.xfile_into(de, ())?;
-        let view_shell_eject_effect = self.view_shell_eject_effect.xfile_into(de, ())?;
-        let world_shell_eject_effect = self.world_shell_eject_effect.xfile_into(de, ())?;
-        let view_last_shot_eject_effect = self.view_last_shot_eject_effect.xfile_into(de, ())?;
-        let world_last_shot_eject_effect = self.world_last_shot_eject_effect.xfile_into(de, ())?;
-        let reticle_center = self.reticle_center.xfile_into(de, ())?;
-        let reticle_side = self.reticle_side.xfile_into(de, ())?;
+        let stand_mounted_weapdef = self.stand_mounted_weapdef.xfile_deserialize_into(de, ())?;
+        let crouch_mounted_weapdef = self.crouch_mounted_weapdef.xfile_deserialize_into(de, ())?;
+        let prone_mounted_weapdef = self.prone_mounted_weapdef.xfile_deserialize_into(de, ())?;
+        let view_shell_eject_effect = self.view_shell_eject_effect.xfile_deserialize_into(de, ())?;
+        let world_shell_eject_effect = self.world_shell_eject_effect.xfile_deserialize_into(de, ())?;
+        let view_last_shot_eject_effect = self.view_last_shot_eject_effect.xfile_deserialize_into(de, ())?;
+        let world_last_shot_eject_effect = self.world_last_shot_eject_effect.xfile_deserialize_into(de, ())?;
+        let reticle_center = self.reticle_center.xfile_deserialize_into(de, ())?;
+        let reticle_side = self.reticle_side.xfile_deserialize_into(de, ())?;
         let active_reticle_type =
             FromPrimitive::from_u32(self.active_reticle_type).ok_or(Error::new(
                 file_line_col!(),
@@ -1681,29 +1681,29 @@ impl<'a> XFileInto<WeaponDef, ()> for WeaponDefRaw<'a> {
         } else {
             Some(Box::new(
                 self.world_model
-                    .xfile_into(de, ())?
+                    .xfile_deserialize_into(de, ())?
                     .try_into()
                     .unwrap_or_default(),
             ))
         };
-        let world_clip_model = self.world_clip_model.xfile_into(de, ())?;
-        let rocket_model = self.rocket_model.xfile_into(de, ())?;
-        let mounted_model = self.mounted_model.xfile_into(de, ())?;
-        let additional_melee_model = self.additional_melee_model.xfile_into(de, ())?;
-        let hud_icon = self.hud_icon.xfile_into(de, ())?;
+        let world_clip_model = self.world_clip_model.xfile_deserialize_into(de, ())?;
+        let rocket_model = self.rocket_model.xfile_deserialize_into(de, ())?;
+        let mounted_model = self.mounted_model.xfile_deserialize_into(de, ())?;
+        let additional_melee_model = self.additional_melee_model.xfile_deserialize_into(de, ())?;
+        let hud_icon = self.hud_icon.xfile_deserialize_into(de, ())?;
         let hud_icon_ratio = FromPrimitive::from_u32(self.hud_icon_ratio).ok_or(Error::new(
             file_line_col!(),
             de.stream_pos()? as _,
             ErrorKind::BadFromPrimitive(self.hud_icon_ratio as _),
         ))?;
-        let indicator_icon = self.indicator_icon.xfile_into(de, ())?;
+        let indicator_icon = self.indicator_icon.xfile_deserialize_into(de, ())?;
         let indicator_icon_ratio =
             FromPrimitive::from_u32(self.indicator_icon_ratio).ok_or(Error::new(
                 file_line_col!(),
                 de.stream_pos()? as _,
                 ErrorKind::BadFromPrimitive(self.indicator_icon_ratio as _),
             ))?;
-        let ammo_counter_icon = self.ammo_counter_icon.xfile_into(de, ())?;
+        let ammo_counter_icon = self.ammo_counter_icon.xfile_deserialize_into(de, ())?;
         let ammo_counter_icon_ratio =
             FromPrimitive::from_u32(self.ammo_counter_icon_ratio).ok_or(Error::new(
                 file_line_col!(),
@@ -1716,15 +1716,15 @@ impl<'a> XFileInto<WeaponDef, ()> for WeaponDefRaw<'a> {
                 de.stream_pos()? as _,
                 ErrorKind::BadFromPrimitive(self.ammo_counter_clip as _),
             ))?;
-        let shared_ammo_cap_name = self.shared_ammo_cap_name.xfile_into(de, ())?;
+        let shared_ammo_cap_name = self.shared_ammo_cap_name.xfile_deserialize_into(de, ())?;
         let explosion_tag = self.explosion_tag.to_string(de).unwrap_or_default();
-        let spin_loop_sound = self.spin_loop_sound.xfile_into(de, ())?;
-        let spin_loop_sound_player = self.spin_loop_sound_player.xfile_into(de, ())?;
-        let start_spin_sound = self.start_spin_sound.xfile_into(de, ())?;
-        let start_spin_sound_player = self.start_spin_sound_player.xfile_into(de, ())?;
-        let stop_spin_sound = self.stop_spin_sound.xfile_into(de, ())?;
-        let stop_spin_sound_player = self.stop_spin_sound_player.xfile_into(de, ())?;
-        let stack_sound = self.stack_sound.xfile_into(de, ())?;
+        let spin_loop_sound = self.spin_loop_sound.xfile_deserialize_into(de, ())?;
+        let spin_loop_sound_player = self.spin_loop_sound_player.xfile_deserialize_into(de, ())?;
+        let start_spin_sound = self.start_spin_sound.xfile_deserialize_into(de, ())?;
+        let start_spin_sound_player = self.start_spin_sound_player.xfile_deserialize_into(de, ())?;
+        let stop_spin_sound = self.stop_spin_sound.xfile_deserialize_into(de, ())?;
+        let stop_spin_sound_player = self.stop_spin_sound_player.xfile_deserialize_into(de, ())?;
+        let stack_sound = self.stack_sound.xfile_deserialize_into(de, ())?;
         let overlay_reticle = FromPrimitive::from_u32(self.overlay_reticle).ok_or(Error::new(
             file_line_col!(),
             de.stream_pos()? as _,
@@ -1736,30 +1736,30 @@ impl<'a> XFileInto<WeaponDef, ()> for WeaponDefRaw<'a> {
                 de.stream_pos()? as _,
                 ErrorKind::BadFromPrimitive(self.overlay_interface as _),
             ))?;
-        let kill_icon = self.kill_icon.xfile_into(de, ())?;
+        let kill_icon = self.kill_icon.xfile_deserialize_into(de, ())?;
         let kill_icon_ratio = FromPrimitive::from_u32(self.kill_icon_ratio).ok_or(Error::new(
             file_line_col!(),
             de.stream_pos()? as _,
             ErrorKind::BadFromPrimitive(self.kill_icon_ratio as _),
         ))?;
-        let spawned_grenade_weapon_name = self.spawned_grenade_weapon_name.xfile_into(de, ())?;
-        let dual_wield_weapon_name = self.dual_wield_weapon_name.xfile_into(de, ())?;
-        let projectile_model = self.projectile_model.xfile_into(de, ())?;
+        let spawned_grenade_weapon_name = self.spawned_grenade_weapon_name.xfile_deserialize_into(de, ())?;
+        let dual_wield_weapon_name = self.dual_wield_weapon_name.xfile_deserialize_into(de, ())?;
+        let projectile_model = self.projectile_model.xfile_deserialize_into(de, ())?;
         let proj_explosion = FromPrimitive::from_u32(self.proj_explosion).ok_or(Error::new(
             file_line_col!(),
             de.stream_pos()? as _,
             ErrorKind::BadFromPrimitive(self.proj_explosion as _),
         ))?;
-        let proj_explosion_effect = self.proj_explosion_effect.xfile_into(de, ())?;
-        let proj_explosion_effect_2 = self.proj_explosion_effect_2.xfile_into(de, ())?;
-        let proj_explosion_effect_3 = self.proj_explosion_effect_3.xfile_into(de, ())?;
-        let proj_explosion_effect_4 = self.proj_explosion_effect_4.xfile_into(de, ())?;
-        let proj_explosion_effect_5 = self.proj_explosion_effect_5.xfile_into(de, ())?;
-        let proj_dud_effect = self.proj_dud_effect.xfile_into(de, ())?;
-        let proj_explosion_sound = self.proj_explosion_sound.xfile_into(de, ())?;
-        let proj_dud_sound = self.proj_dud_sound.xfile_into(de, ())?;
-        let mortar_shell_sound = self.mortar_shell_sound.xfile_into(de, ())?;
-        let tank_shell_sound = self.tank_shell_sound.xfile_into(de, ())?;
+        let proj_explosion_effect = self.proj_explosion_effect.xfile_deserialize_into(de, ())?;
+        let proj_explosion_effect_2 = self.proj_explosion_effect_2.xfile_deserialize_into(de, ())?;
+        let proj_explosion_effect_3 = self.proj_explosion_effect_3.xfile_deserialize_into(de, ())?;
+        let proj_explosion_effect_4 = self.proj_explosion_effect_4.xfile_deserialize_into(de, ())?;
+        let proj_explosion_effect_5 = self.proj_explosion_effect_5.xfile_deserialize_into(de, ())?;
+        let proj_dud_effect = self.proj_dud_effect.xfile_deserialize_into(de, ())?;
+        let proj_explosion_sound = self.proj_explosion_sound.xfile_deserialize_into(de, ())?;
+        let proj_dud_sound = self.proj_dud_sound.xfile_deserialize_into(de, ())?;
+        let mortar_shell_sound = self.mortar_shell_sound.xfile_deserialize_into(de, ())?;
+        let tank_shell_sound = self.tank_shell_sound.xfile_deserialize_into(de, ())?;
         let stickiness = FromPrimitive::from_u32(self.stickiness).ok_or(Error::new(
             file_line_col!(),
             de.stream_pos()? as _,
@@ -1790,21 +1790,21 @@ impl<'a> XFileInto<WeaponDef, ()> for WeaponDefRaw<'a> {
                     .unwrap_or_default(),
             ))
         };
-        let proj_tail_effect = self.proj_tail_effect.xfile_into(de, ())?;
+        let proj_tail_effect = self.proj_tail_effect.xfile_deserialize_into(de, ())?;
         let guided_missile_type =
             FromPrimitive::from_u32(self.guided_missile_type).ok_or(Error::new(
                 file_line_col!(),
                 de.stream_pos()? as _,
                 ErrorKind::BadFromPrimitive(self.guided_missile_type as _),
             ))?;
-        let proj_ignition_effect = self.proj_ignition_effect.xfile_into(de, ())?;
-        let proj_ignition_sound = self.proj_ignition_sound.xfile_into(de, ())?;
+        let proj_ignition_effect = self.proj_ignition_effect.xfile_deserialize_into(de, ())?;
+        let proj_ignition_sound = self.proj_ignition_sound.xfile_deserialize_into(de, ())?;
 
         let mut accuracy_graph_name = [const { String::new() }; 2];
         let mut accuracy_graph_knots = [const { Vec::new() }; 2];
         let mut original_accuracy_graph_knots = [const { Vec::new() }; 2];
         for i in 0..=1 {
-            accuracy_graph_name[i] = self.accuracy_graph_name[i].xfile_into(de, ())?;
+            accuracy_graph_name[i] = self.accuracy_graph_name[i].xfile_deserialize_into(de, ())?;
             accuracy_graph_knots[i] = self.accuracy_graph_knots[i]
                 .to_array(self.accuracy_graph_knot_count[i] as _)
                 .to_vec_into(de)?;
@@ -1813,9 +1813,9 @@ impl<'a> XFileInto<WeaponDef, ()> for WeaponDefRaw<'a> {
                 .to_vec_into(de)?;
         }
 
-        let use_hint_string = self.use_hint_string.xfile_into(de, ())?;
-        let drop_hint_string = self.drop_hint_string.xfile_into(de, ())?;
-        let script = self.script.xfile_into(de, ())?;
+        let use_hint_string = self.use_hint_string.xfile_deserialize_into(de, ())?;
+        let drop_hint_string = self.drop_hint_string.xfile_deserialize_into(de, ())?;
+        let script = self.script.xfile_deserialize_into(de, ())?;
         let location_damage_multipliers = if self.location_damage_multipliers.is_null() {
             None
         } else {
@@ -1826,15 +1826,15 @@ impl<'a> XFileInto<WeaponDef, ()> for WeaponDefRaw<'a> {
                     .unwrap_or_default(),
             ))
         };
-        let fire_rumble = self.fire_rumble.xfile_into(de, ())?;
-        let melee_impact_rumble = self.melee_impact_rumble.xfile_into(de, ())?;
-        let reload_rumble = self.reload_rumble.xfile_into(de, ())?;
-        let flame_table_first_person = self.flame_table_first_person.xfile_into(de, ())?;
-        let flame_table_third_person = self.flame_table_third_person.xfile_into(de, ())?;
-        let flame_table_first_person_ptr = self.flame_table_first_person_ptr.xfile_into(de, ())?;
-        let flame_table_third_person_ptr = self.flame_table_third_person_ptr.xfile_into(de, ())?;
-        let tag_fx_preparation_effect = self.tag_fx_preparation_effect.xfile_into(de, ())?;
-        let tag_flash_preparation_effect = self.tag_flash_preparation_effect.xfile_into(de, ())?;
+        let fire_rumble = self.fire_rumble.xfile_deserialize_into(de, ())?;
+        let melee_impact_rumble = self.melee_impact_rumble.xfile_deserialize_into(de, ())?;
+        let reload_rumble = self.reload_rumble.xfile_deserialize_into(de, ())?;
+        let flame_table_first_person = self.flame_table_first_person.xfile_deserialize_into(de, ())?;
+        let flame_table_third_person = self.flame_table_third_person.xfile_deserialize_into(de, ())?;
+        let flame_table_first_person_ptr = self.flame_table_first_person_ptr.xfile_deserialize_into(de, ())?;
+        let flame_table_third_person_ptr = self.flame_table_third_person_ptr.xfile_deserialize_into(de, ())?;
+        let tag_fx_preparation_effect = self.tag_fx_preparation_effect.xfile_deserialize_into(de, ())?;
+        let tag_flash_preparation_effect = self.tag_flash_preparation_effect.xfile_deserialize_into(de, ())?;
 
         Ok(WeaponDef {
             overlay_name,
@@ -2590,21 +2590,21 @@ pub struct FlameTable {
     pub flame_cooldown_sound: String,
 }
 
-impl<'a> XFileInto<FlameTable, ()> for FlameTableRaw<'a> {
-    fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<FlameTable> {
-        let name = self.name.xfile_into(de, ())?;
-        let fire = self.fire.xfile_into(de, ())?;
-        let smoke = self.smoke.xfile_into(de, ())?;
-        let heat = self.heat.xfile_into(de, ())?;
-        let drips = self.drips.xfile_into(de, ())?;
-        let stream_fuel = self.stream_fuel.xfile_into(de, ())?;
-        let stream_fuel_2 = self.stream_fuel_2.xfile_into(de, ())?;
-        let stream_flame = self.stream_flame.xfile_into(de, ())?;
-        let stream_flame_2 = self.stream_flame_2.xfile_into(de, ())?;
-        let flame_off_loop_sound = self.flame_off_loop_sound.xfile_into(de, ())?;
-        let flame_ignite_sound = self.flame_ignite_sound.xfile_into(de, ())?;
-        let flame_on_loop_sound = self.flame_on_loop_sound.xfile_into(de, ())?;
-        let flame_cooldown_sound = self.flame_cooldown_sound.xfile_into(de, ())?;
+impl<'a> XFileDeserializeInto<FlameTable, ()> for FlameTableRaw<'a> {
+    fn xfile_deserialize_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<FlameTable> {
+        let name = self.name.xfile_deserialize_into(de, ())?;
+        let fire = self.fire.xfile_deserialize_into(de, ())?;
+        let smoke = self.smoke.xfile_deserialize_into(de, ())?;
+        let heat = self.heat.xfile_deserialize_into(de, ())?;
+        let drips = self.drips.xfile_deserialize_into(de, ())?;
+        let stream_fuel = self.stream_fuel.xfile_deserialize_into(de, ())?;
+        let stream_fuel_2 = self.stream_fuel_2.xfile_deserialize_into(de, ())?;
+        let stream_flame = self.stream_flame.xfile_deserialize_into(de, ())?;
+        let stream_flame_2 = self.stream_flame_2.xfile_deserialize_into(de, ())?;
+        let flame_off_loop_sound = self.flame_off_loop_sound.xfile_deserialize_into(de, ())?;
+        let flame_ignite_sound = self.flame_ignite_sound.xfile_deserialize_into(de, ())?;
+        let flame_on_loop_sound = self.flame_on_loop_sound.xfile_deserialize_into(de, ())?;
+        let flame_cooldown_sound = self.flame_cooldown_sound.xfile_deserialize_into(de, ())?;
 
         Ok(FlameTable {
             flame_var_stream_chunk_gravity_start: self.flame_var_stream_chunk_gravity_start,

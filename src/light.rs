@@ -1,7 +1,7 @@
 use alloc::{boxed::Box, string::String};
 use serde::{Deserialize, Serialize};
 
-use crate::{assert_size, techset::{GfxImage, GfxImageRaw}, Ptr32, Result, T5XFileDeserializer, XFileInto, XString};
+use crate::{assert_size, techset::{GfxImage, GfxImageRaw}, Ptr32, Result, T5XFileDeserializer, XFileDeserializeInto, XString};
 
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Debug, Deserialize)]
@@ -20,13 +20,13 @@ pub struct GfxLightDef {
     pub lmap_lookup_start: i32,
 }
 
-impl<'a> XFileInto<GfxLightDef, ()> for GfxLightDefRaw<'a> {
-    fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<GfxLightDef> {
+impl<'a> XFileDeserializeInto<GfxLightDef, ()> for GfxLightDefRaw<'a> {
+    fn xfile_deserialize_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<GfxLightDef> {
         //dbg!(self);
-        let name = self.name.xfile_into(de, ())?;
+        let name = self.name.xfile_deserialize_into(de, ())?;
         //dbg!(&name);
         //dbg!(de.stream_pos()?);
-        let attenuation = self.attenuation.xfile_into(de, ())?;
+        let attenuation = self.attenuation.xfile_deserialize_into(de, ())?;
         //dbg!(&attenuation);
         //dbg!(de.stream_pos()?);
         Ok(GfxLightDef {
@@ -53,11 +53,11 @@ pub struct GfxLightImage {
     pub sampler_state: u8,
 }
 
-impl<'a> XFileInto<GfxLightImage, ()> for GfxLightImageRaw<'a> {
-    fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<GfxLightImage> {
+impl<'a> XFileDeserializeInto<GfxLightImage, ()> for GfxLightImageRaw<'a> {
+    fn xfile_deserialize_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<GfxLightImage> {
         //dbg!(self);
         //dbg!(de.stream_pos()?);
-        let image = self.image.xfile_into(de, ())?;
+        let image = self.image.xfile_deserialize_into(de, ())?;
         //dbg!(&image);
         //dbg!(de.stream_pos()?);
         Ok(GfxLightImage {

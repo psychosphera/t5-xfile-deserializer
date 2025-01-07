@@ -4,7 +4,7 @@ use alloc::{boxed::Box, string::String, vec::Vec};
 
 use crate::{
     assert_size, common::{Vec2, Vec3}, file_line_col, Error, ErrorKind, FatPointerCountFirstU16, 
-    FatPointerCountFirstU32, Ptr32, ScriptString, T5XFileDeserializer, XFileInto, XString, Result, FatPointer
+    FatPointerCountFirstU32, Ptr32, ScriptString, T5XFileDeserializer, XFileDeserializeInto, XString, Result, FatPointer
 };
 
 use serde::{Deserialize, Serialize};
@@ -25,11 +25,11 @@ pub struct GameWorldSp {
     pub path: PathData,
 }
 
-impl<'a> XFileInto<GameWorldSp, ()> for GameWorldSpRaw<'a> {
-    fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<GameWorldSp> {
+impl<'a> XFileDeserializeInto<GameWorldSp, ()> for GameWorldSpRaw<'a> {
+    fn xfile_deserialize_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<GameWorldSp> {
         Ok(GameWorldSp {
-            name: self.name.xfile_into(de, ())?,
-            path: self.path.xfile_into(de, ())?,
+            name: self.name.xfile_deserialize_into(de, ())?,
+            path: self.path.xfile_deserialize_into(de, ())?,
         })
     }
 }
@@ -48,11 +48,11 @@ pub struct GameWorldMp {
     pub path: PathData,
 }
 
-impl<'a> XFileInto<GameWorldMp, ()> for GameWorldMpRaw<'a> {
-    fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<GameWorldMp> {
+impl<'a> XFileDeserializeInto<GameWorldMp, ()> for GameWorldMpRaw<'a> {
+    fn xfile_deserialize_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<GameWorldMp> {
         Ok(GameWorldMp {
-            name: self.name.xfile_into(de, ())?,
-            path: self.path.xfile_into(de, ())?,
+            name: self.name.xfile_deserialize_into(de, ())?,
+            path: self.path.xfile_deserialize_into(de, ())?,
         })
     }
 }
@@ -83,12 +83,12 @@ pub struct PathData {
     pub node_tree: Vec<PathNodeTree>,
 }
 
-impl<'a> XFileInto<PathData, ()> for PathDataRaw<'a> {
-    fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<PathData> {
+impl<'a> XFileDeserializeInto<PathData, ()> for PathDataRaw<'a> {
+    fn xfile_deserialize_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<PathData> {
         let nodes = self
             .nodes
             .to_array(self.node_count as usize + 128)
-            .xfile_into(de, ())?;
+            .xfile_deserialize_into(de, ())?;
         let basenodes = self
             .basenodes
             .to_array(self.node_count as usize + 128)
@@ -102,7 +102,7 @@ impl<'a> XFileInto<PathData, ()> for PathDataRaw<'a> {
             .to_array(self.node_count as _)
             .to_vec(de)?;
         let path_vis = self.path_vis.to_vec(de)?;
-        let node_tree = self.node_tree.xfile_into(de, ())?;
+        let node_tree = self.node_tree.xfile_deserialize_into(de, ())?;
 
         Ok(PathData {
             node_count: self.node_count as _,
@@ -133,10 +133,10 @@ pub struct PathNode {
     pub transient: PathNodeTransient,
 }
 
-impl<'a> XFileInto<PathNode, ()> for PathNodeRaw<'a> {
-    fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<PathNode> {
+impl<'a> XFileDeserializeInto<PathNode, ()> for PathNodeRaw<'a> {
+    fn xfile_deserialize_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<PathNode> {
         Ok(PathNode {
-            constant: self.constant.xfile_into(de, ())?,
+            constant: self.constant.xfile_deserialize_into(de, ())?,
             dynamic: self.dynamic.into(),
             transient: self.transient.into(),
         })
@@ -252,8 +252,8 @@ pub struct PathNodeConstant {
     pub links: Vec<PathLink>,
 }
 
-impl<'a> XFileInto<PathNodeConstant, ()> for PathNodeConstantRaw<'a> {
-    fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<PathNodeConstant> {
+impl<'a> XFileDeserializeInto<PathNodeConstant, ()> for PathNodeConstantRaw<'a> {
+    fn xfile_deserialize_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<PathNodeConstant> {
         Ok(PathNodeConstant {
             type_: num::FromPrimitive::from_u16(self.type_).ok_or(Error::new(
                 file_line_col!(),
@@ -435,11 +435,11 @@ pub struct PathNodeTree {
     pub u: PathNodeTreeInfo,
 }
 
-impl XFileInto<PathNodeTree, ()> for PathNodeTreeRaw {
-    fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<PathNodeTree> {
+impl XFileDeserializeInto<PathNodeTree, ()> for PathNodeTreeRaw {
+    fn xfile_deserialize_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<PathNodeTree> {
         let u = if self.axis < 0 {
             PathNodeTreeInfo::S(
-                unsafe { transmute::<_, PathNodeTreeNodesRaw>(self.u) }.xfile_into(de, ())?,
+                unsafe { transmute::<_, PathNodeTreeNodesRaw>(self.u) }.xfile_deserialize_into(de, ())?,
             )
         } else {
             unimplemented!()
@@ -466,8 +466,8 @@ pub struct PathNodeTreeNodes {
     pub nodes: Vec<u16>,
 }
 
-impl<'a> XFileInto<PathNodeTreeNodes, ()> for PathNodeTreeNodesRaw<'a> {
-    fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<PathNodeTreeNodes> {
+impl<'a> XFileDeserializeInto<PathNodeTreeNodes, ()> for PathNodeTreeNodesRaw<'a> {
+    fn xfile_deserialize_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<PathNodeTreeNodes> {
         Ok(PathNodeTreeNodes {
             nodes: self.nodes.to_vec(de)?,
         })

@@ -1,6 +1,6 @@
 use alloc::{boxed::Box, string::String, vec::Vec};
 
-use crate::{assert_size, techset::{Material, MaterialRaw}, FatPointer, Ptr32, Result, T5XFileDeserializer, XFileInto, XString};
+use crate::{assert_size, techset::{Material, MaterialRaw}, FatPointer, Ptr32, Result, T5XFileDeserializer, XFileDeserializeInto, XString};
 
 use serde::{Deserialize, Serialize};
 
@@ -26,13 +26,13 @@ pub struct Font {
     pub glyphs: Vec<Glyph>,
 }
 
-impl<'a> XFileInto<Font, ()> for FontRaw<'a> {
-    fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<Font> {
+impl<'a> XFileDeserializeInto<Font, ()> for FontRaw<'a> {
+    fn xfile_deserialize_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<Font> {
         Ok(Font {
-            font_name: self.font_name.xfile_into(de, ())?,
+            font_name: self.font_name.xfile_deserialize_into(de, ())?,
             pixel_height: self.pixel_height,
-            material: self.material.xfile_into(de, ())?,
-            glow_material: self.glow_material.xfile_into(de, ())?,
+            material: self.material.xfile_deserialize_into(de, ())?,
+            glow_material: self.glow_material.xfile_deserialize_into(de, ())?,
             glyphs: self.glyphs.to_array(self.glyph_count as _).to_vec(de)?,
         })
     }

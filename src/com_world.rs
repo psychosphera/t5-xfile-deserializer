@@ -3,7 +3,7 @@ use alloc::{boxed::Box, string::String, vec::Vec};
 use crate::{
     assert_size, 
     common::{Vec3, Vec4}, 
-    FatPointer, FatPointerCountFirstU32, Ptr32ArrayConst, Result, T5XFileDeserializer, XFileInto, XString
+    FatPointer, FatPointerCountFirstU32, Ptr32ArrayConst, Result, T5XFileDeserializer, XFileDeserializeInto, XString
 };
 
 use serde::{Deserialize, Serialize};
@@ -32,12 +32,12 @@ pub struct ComWorld {
     pub burnable_cells: Vec<ComBurnableCell>,
 }
 
-impl<'a> XFileInto<ComWorld, ()> for ComWorldRaw<'a> {
-    fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<ComWorld> {
-        let name = self.name.xfile_into(de, ())?;
-        let primary_lights = self.primary_lights.xfile_into(de, ())?;
+impl<'a> XFileDeserializeInto<ComWorld, ()> for ComWorldRaw<'a> {
+    fn xfile_deserialize_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<ComWorld> {
+        let name = self.name.xfile_deserialize_into(de, ())?;
+        let primary_lights = self.primary_lights.xfile_deserialize_into(de, ())?;
         let water_cells = self.water_cells.to_vec(de)?;
-        let burnable_cells = self.burnable_cells.xfile_into(de, ())?;
+        let burnable_cells = self.burnable_cells.xfile_deserialize_into(de, ())?;
 
         Ok(ComWorld {
             name,
@@ -114,8 +114,8 @@ pub struct ComPrimaryLight {
     pub def_name: String,
 }
 
-impl<'a> XFileInto<ComPrimaryLight, ()> for ComPrimaryLightRaw<'a> {
-    fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<ComPrimaryLight> {
+impl<'a> XFileDeserializeInto<ComPrimaryLight, ()> for ComPrimaryLightRaw<'a> {
+    fn xfile_deserialize_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<ComPrimaryLight> {
         let color = self.color.into();
         let dir = self.dir.into();
         let origin = self.origin.into();
@@ -128,7 +128,7 @@ impl<'a> XFileInto<ComPrimaryLight, ()> for ComPrimaryLightRaw<'a> {
         let cookie_control_0 = self.cookie_control_0.into();
         let cookie_control_1 = self.cookie_control_1.into();
         let cookie_control_2 = self.cookie_control_2.into();
-        let def_name = self.def_name.xfile_into(de, ())?;
+        let def_name = self.def_name.xfile_deserialize_into(de, ())?;
 
         Ok(ComPrimaryLight {
             type_: self.type_,
@@ -207,8 +207,8 @@ pub struct ComBurnableCell {
     pub data: Option<Box<[ComBurnableSample; 32]>>,
 }
 
-impl<'a> XFileInto<ComBurnableCell, ()> for ComBurnableCellRaw<'a> {
-    fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<ComBurnableCell> {
+impl<'a> XFileDeserializeInto<ComBurnableCell, ()> for ComBurnableCellRaw<'a> {
+    fn xfile_deserialize_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<ComBurnableCell> {
         let data = if self.data.is_null() {
             None
         } else {

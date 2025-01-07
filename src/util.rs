@@ -7,7 +7,7 @@ use alloc::{ffi::CString, format, string::String, vec::Vec, boxed::Box};
 
 use std::io::{Seek, SeekFrom};
 
-use crate::{Error, ErrorKind, Result, T5XFileDeserializer, file_line_col};
+use crate::{file_line_col, Error, ErrorKind, Result, T5XFileDeserializer, T5XFileSerializer};
 
 use serde::{
     de::{DeserializeOwned, SeqAccess, Visitor},
@@ -118,8 +118,8 @@ impl<'a> XString<'a> {
     }
 }
 
-impl<'a> XFileInto<String, ()> for XString<'a> {
-    fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<String> {
+impl<'a> XFileDeserializeInto<String, ()> for XString<'a> {
+    fn xfile_deserialize_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<String> {
         if self.0.is_null() {
             return Ok(String::new());
         }
@@ -170,6 +170,7 @@ pub(crate) fn xfile_read_string(de: &mut T5XFileDeserializer) -> Result<String> 
         .to_string())
 }
 
+// ============================================================================
 /// Trait to deserialize [`Self`] from [`xfile`], then convert [`Self`] to
 /// [`T`].
 ///
@@ -177,7 +178,7 @@ pub(crate) fn xfile_read_string(de: &mut T5XFileDeserializer) -> Result<String> 
 /// that make them very unergonomic to use. Since, if we were to deserialze them without
 /// any such conversion, we'd probably end up converting them separately later
 /// anyways, it's a nice touch to have both done in one go.
-pub(crate) trait XFileInto<T, U: Copy> {
+pub(crate) trait XFileDeserializeInto<T, U: Copy> {
     /// Deserialize [`Self`] from [`xfile`], then convert [`Self`] to [`T`].
     ///
     /// [`Self`] may have [`repr`] attributes ([`C`], [`packed`]) or members
@@ -186,25 +187,49 @@ pub(crate) trait XFileInto<T, U: Copy> {
     /// without any such conversion, we'd probably end up converting them
     /// separately later anyways, it's a nice touch to have both done in one
     /// go.
-    fn xfile_into(&self, de: &mut T5XFileDeserializer, data: U) -> Result<T>;
+    fn xfile_deserialize_into(&self, de: &mut T5XFileDeserializer, data: U) -> Result<T>;
 }
 
-impl<'a, T, U, V, const N: usize> XFileInto<[U; N], V> for [T; N]
+impl<'a, T, U, V, const N: usize> XFileDeserializeInto<[U; N], V> for [T; N]
 where
     U: Debug + 'a,
     [U; N]: TryFrom<&'a [U]>,
     <&'a [U] as TryInto<[U; N]>>::Error: Debug,
-    T: DeserializeOwned + Clone + Debug + XFileInto<U, V>,
+    T: DeserializeOwned + Clone + Debug + XFileDeserializeInto<U, V>,
     V: Copy,
 {
-    fn xfile_into(&self, de: &mut T5XFileDeserializer, data: V) -> Result<[U; N]> {
+    fn xfile_deserialize_into(&self, de: &mut T5XFileDeserializer, data: V) -> Result<[U; N]> {
         self.iter()
             .cloned()
-            .map(|t| t.xfile_into(de, data))
+            .map(|t| t.xfile_deserialize_into(de, data))
             .collect::<Result<Vec<_>>>()
             .map(|v| TryInto::<[U; N]>::try_into(v).unwrap())
     }
 }
+// ============================================================================
+
+// ============================================================================
+pub(crate) trait XFileSerializeInto<T, U: Copy> {
+    fn xfile_serialize_into(&self, ser: &mut T5XFileSerializer, data: U) -> Result<T>;
+}
+
+impl<'a, T, U, V, const N: usize> XFileSerializeInto<[U; N], V> for [T; N]
+where
+    U: Debug + 'a,
+    [U; N]: TryFrom<&'a [U]>,
+    <&'a [U] as TryInto<[U; N]>>::Error: Debug,
+    T: Serialize + Clone + Debug + XFileSerializeInto<U, V>,
+    V: Copy,
+{
+    fn xfile_serialize_into(&self, de: &mut T5XFileSerializer, data: V) -> Result<[U; N]> {
+        self.iter()
+            .cloned()
+            .map(|t| t.xfile_serialize_into(de, data))
+            .collect::<Result<Vec<_>>>()
+            .map(|v| TryInto::<[U; N]>::try_into(v).unwrap())
+    }
+}
+// ============================================================================
 
 /// Newtype to handle pointer members of serialized structs.
 ///
@@ -269,10 +294,10 @@ impl<'a, T> Ptr32<'a, T> {
     }
 }
 
-impl<'a, T: DeserializeOwned + Clone + Debug + XFileInto<U, V>, U, V: Copy>
-    XFileInto<Option<Box<U>>, V> for Ptr32<'a, T>
+impl<'a, T: DeserializeOwned + Clone + Debug + XFileDeserializeInto<U, V>, U, V: Copy>
+    XFileDeserializeInto<Option<Box<U>>, V> for Ptr32<'a, T>
 {
-    fn xfile_into(&self, de: &mut T5XFileDeserializer, data: V) -> Result<Option<Box<U>>> {
+    fn xfile_deserialize_into(&self, de: &mut T5XFileDeserializer, data: V) -> Result<Option<Box<U>>> {
         if self.is_null() {
             return Ok(None);
         }
@@ -323,7 +348,7 @@ impl<'a, T: DeserializeOwned + Clone + Debug + XFileInto<U, V>, U, V: Copy>
             t
         };
 
-        t.xfile_into(de, data).map(Box::new).map(Some)
+        t.xfile_deserialize_into(de, data).map(Box::new).map(Some)
     }
 }
 
@@ -647,16 +672,16 @@ impl<'a, T: Debug + Clone + DeserializeOwned + 'a, const N: usize> FatPointer<'a
 macro_rules! impl_xfile_into_for_fat_pointer {
     ($($s:ident,)+) => {
         $(
-            impl<'a, T, U, V> XFileInto<Vec<U>, V> for $s<'a, T>
+            impl<'a, T, U, V> XFileDeserializeInto<Vec<U>, V> for $s<'a, T>
             where
-                T: DeserializeOwned + Debug + Clone + XFileInto<U, V>,
+                T: DeserializeOwned + Debug + Clone + XFileDeserializeInto<U, V>,
                 V: Copy,
             {
-                fn xfile_into(&self, de: &mut T5XFileDeserializer, data: V) -> Result<Vec<U>> {
+                fn xfile_deserialize_into(&self, de: &mut T5XFileDeserializer, data: V) -> Result<Vec<U>> {
                     self.clone()
                         .to_vec(de)?
                         .into_iter()
-                        .map(|a| a.xfile_into(de, data))
+                        .map(|a| a.xfile_deserialize_into(de, data))
                         .collect()
                 }
             }
@@ -673,16 +698,16 @@ impl_xfile_into_for_fat_pointer!(
 );
 
 // Can't use the macro for this since it has the const generic parameter
-impl<'a, T, U, V, const N: usize> XFileInto<Vec<U>, V> for Ptr32ArrayConst<'a, T, N>
+impl<'a, T, U, V, const N: usize> XFileDeserializeInto<Vec<U>, V> for Ptr32ArrayConst<'a, T, N>
 where
-    T: DeserializeOwned + Debug + Clone + XFileInto<U, V>,
+    T: DeserializeOwned + Debug + Clone + XFileDeserializeInto<U, V>,
     V: Copy,
 {
-    fn xfile_into(&self, de: &mut T5XFileDeserializer, data: V) -> Result<Vec<U>> {
+    fn xfile_deserialize_into(&self, de: &mut T5XFileDeserializer, data: V) -> Result<Vec<U>> {
         self.clone()
             .to_vec(de)?
             .into_iter()
-            .map(|a| a.xfile_into(de, data))
+            .map(|a| a.xfile_deserialize_into(de, data))
             .collect()
     }
 }
