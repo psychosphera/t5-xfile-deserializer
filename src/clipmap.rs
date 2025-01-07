@@ -1,21 +1,22 @@
 use alloc::{boxed::Box, string::String, vec::Vec};
 
 use crate::{
-    assert_size, file_line_col,
-    common::{Mat3, Vec3, Vec4}, 
-    fx::{FxEffectDef, FxEffectDefRaw}, 
-    techset::{Material, MaterialRaw}, 
+    assert_size,
+    common::{Mat3, Vec3, Vec4},
+    file_line_col,
+    fx::{FxEffectDef, FxEffectDefRaw},
+    techset::{Material, MaterialRaw},
     xmodel::{
-        CBrushSide, CBrushSideRaw, CPlane, CPlaneRaw, PhysConstraint, PhysConstraintRaw, PhysPreset,
-        PhysPresetRaw, XModel, XModelPieces, XModelPiecesRaw, XModelRaw,
-    }, 
-    Error, ErrorKind, FatPointer, FatPointerCountFirstU32, MapEnts, 
-    MapEntsRaw, Ptr32, Result, ScriptString, T5XFileDeserializer, XFileDeserializeInto, XString
+        CBrushSide, CBrushSideRaw, CPlane, CPlaneRaw, PhysConstraint, PhysConstraintRaw,
+        PhysPreset, PhysPresetRaw, XModel, XModelPieces, XModelPiecesRaw, XModelRaw,
+    },
+    Error, ErrorKind, FatPointer, FatPointerCountFirstU32, MapEnts, MapEntsRaw, Ptr32, Result,
+    ScriptString, T5XFileDeserializer, XFileDeserializeInto, XString,
 };
 
-use serde::{Serialize, Deserialize};
 use num::FromPrimitive;
 use num_derive::FromPrimitive;
+use serde::{Deserialize, Serialize};
 
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
@@ -259,7 +260,11 @@ pub struct CStaticModel {
 }
 
 impl<'a> XFileDeserializeInto<CStaticModel, ()> for CStaticModelRaw<'a> {
-    fn xfile_deserialize_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<CStaticModel> {
+    fn xfile_deserialize_into(
+        &self,
+        de: &mut T5XFileDeserializer,
+        _data: (),
+    ) -> Result<CStaticModel> {
         let xmodel = self.xmodel.xfile_deserialize_into(de, ())?;
         let origin = self.origin.into();
         let inv_scaled_axis = self.inv_scaled_axis.into();
@@ -423,8 +428,14 @@ pub struct CLeafBrushNode {
 }
 
 impl<'a> XFileDeserializeInto<CLeafBrushNode, ()> for CLeafBrushNodeRaw<'a> {
-    fn xfile_deserialize_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<CLeafBrushNode> {
-        let data = self.data.xfile_deserialize_into(de, self.leaf_brush_count)?;
+    fn xfile_deserialize_into(
+        &self,
+        de: &mut T5XFileDeserializer,
+        _data: (),
+    ) -> Result<CLeafBrushNode> {
+        let data = self
+            .data
+            .xfile_deserialize_into(de, self.leaf_brush_count)?;
 
         Ok(CLeafBrushNode {
             axis: self.axis,
@@ -566,7 +577,11 @@ pub struct CollisionPartition {
 }
 
 impl<'a> XFileDeserializeInto<CollisionPartition, ()> for CollisionPartitionRaw<'a> {
-    fn xfile_deserialize_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<CollisionPartition> {
+    fn xfile_deserialize_into(
+        &self,
+        de: &mut T5XFileDeserializer,
+        _data: (),
+    ) -> Result<CollisionPartition> {
         let borders = self.borders.xfile_get(de)?.map(Into::into).map(Box::new);
 
         Ok(CollisionPartition {
@@ -742,7 +757,11 @@ pub struct DynEntityDef {
 }
 
 impl<'a> XFileDeserializeInto<DynEntityDef, ()> for DynEntityDefRaw<'a> {
-    fn xfile_deserialize_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<DynEntityDef> {
+    fn xfile_deserialize_into(
+        &self,
+        de: &mut T5XFileDeserializer,
+        _data: (),
+    ) -> Result<DynEntityDef> {
         let type_ = FromPrimitive::from_i32(self.type_).ok_or(Error::new(
             file_line_col!(),
             de.stream_pos()? as _,

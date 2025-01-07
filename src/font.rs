@@ -1,6 +1,10 @@
 use alloc::{boxed::Box, string::String, vec::Vec};
 
-use crate::{assert_size, techset::{Material, MaterialRaw}, FatPointer, Ptr32, Result, T5XFileDeserializer, XFileDeserializeInto, XString};
+use crate::{
+    assert_size,
+    techset::{Material, MaterialRaw},
+    FatPointer, Ptr32, Result, T5XFileDeserializer, XFileDeserializeInto, XString,
+};
 
 use serde::{Deserialize, Serialize};
 

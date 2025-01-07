@@ -3,7 +3,7 @@ use core::{
     marker::PhantomData,
 };
 
-use alloc::{ffi::CString, format, string::String, vec::Vec, boxed::Box};
+use alloc::{boxed::Box, ffi::CString, format, string::String, vec::Vec};
 
 use std::io::{Seek, SeekFrom};
 
@@ -297,7 +297,11 @@ impl<'a, T> Ptr32<'a, T> {
 impl<'a, T: DeserializeOwned + Clone + Debug + XFileDeserializeInto<U, V>, U, V: Copy>
     XFileDeserializeInto<Option<Box<U>>, V> for Ptr32<'a, T>
 {
-    fn xfile_deserialize_into(&self, de: &mut T5XFileDeserializer, data: V) -> Result<Option<Box<U>>> {
+    fn xfile_deserialize_into(
+        &self,
+        de: &mut T5XFileDeserializer,
+        data: V,
+    ) -> Result<Option<Box<U>>> {
         if self.is_null() {
             return Ok(None);
         }

@@ -3,13 +3,16 @@ use core::marker::PhantomData;
 use alloc::collections::VecDeque;
 use serde::de::DeserializeOwned;
 
-use std::{io::{Cursor, Read, Seek, Write}, path::Path};
+use std::{
+    io::{Cursor, Read, Seek, Write},
+    path::Path,
+};
 
 use crate::{
-    file_line_col, size_of, 
-    xasset::{XAsset, XAssetListRaw, XAssetRaw}, 
-    BincodeOptions, Error, ErrorKind, FatPointer, Result, StreamLen, 
-    XFile, XFileHeader, XFileDeserializeInto, XFilePlatform, XFileVersion
+    file_line_col, size_of,
+    xasset::{XAsset, XAssetListRaw, XAssetRaw},
+    BincodeOptions, Error, ErrorKind, FatPointer, Result, StreamLen, XFile, XFileDeserializeInto,
+    XFileHeader, XFilePlatform, XFileVersion,
 };
 
 pub enum InflateSuccess {
@@ -21,7 +24,6 @@ pub enum CacheSuccess {
     CacheCreated,
     CacheOverwritten,
 }
-
 
 #[cfg(feature = "d3d9")]
 pub struct D3D9State<'a> {
@@ -71,7 +73,11 @@ pub struct T5XFileDeserializerBuilder<'a> {
 }
 
 impl<'a> T5XFileDeserializerBuilder<'a> {
-    pub fn from_file(file: &'a mut std::fs::File, platform: XFilePlatform, allow_unsupported_platforms: bool) -> Self {
+    pub fn from_file(
+        file: &'a mut std::fs::File,
+        platform: XFilePlatform,
+        allow_unsupported_platforms: bool,
+    ) -> Self {
         Self {
             file: Some(file),
             cache_file: None,
@@ -82,7 +88,11 @@ impl<'a> T5XFileDeserializerBuilder<'a> {
         }
     }
 
-    pub fn from_cache_file(cache_file: &'a mut std::fs::File, platform: XFilePlatform, allow_unsupported_platforms: bool) -> Self {
+    pub fn from_cache_file(
+        cache_file: &'a mut std::fs::File,
+        platform: XFilePlatform,
+        allow_unsupported_platforms: bool,
+    ) -> Self {
         Self {
             file: None,
             cache_file: Some(cache_file),
@@ -189,7 +199,6 @@ impl<'a> T5XFileDeserializer<'a, T5XFileDeserializerDeflated> {
                      Windows Fastfiles (being an Aspyr port and all), but the\
                      author of this library hasn't yet verified that to be true,\
                      and as such, they are unsupported."
-
                 );
                 return Err(Error::new(
                     file_line_col!(),
@@ -332,7 +341,6 @@ impl<'a> T5XFileDeserializer<'a, T5XFileDeserializerDeflated> {
                      Windows Fastfiles (being an Aspyr port and all), but the\
                      author of this library hasn't yet verified that to be true,\
                      and as such, they are unsupported."
-
                 );
                 return Err(Error::new(
                     file_line_col!(),

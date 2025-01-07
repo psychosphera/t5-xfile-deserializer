@@ -8,8 +8,8 @@ use num_derive::FromPrimitive;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    assert_size, file_line_col, Error, ErrorKind, FatPointerCountFirstU32, FatPointerCountLastU32,
-    FatPointer, Ptr32, Result, T5XFileDeserializer, XFileDeserializeInto, XString
+    assert_size, file_line_col, Error, ErrorKind, FatPointer, FatPointerCountFirstU32,
+    FatPointerCountLastU32, Ptr32, Result, T5XFileDeserializer, XFileDeserializeInto, XString,
 };
 
 #[cfg_attr(feature = "serde", derive(Serialize))]
@@ -81,7 +81,11 @@ pub struct SndAliasList {
 }
 
 impl<'a> XFileDeserializeInto<SndAliasList, ()> for SndAliasListRaw<'a> {
-    fn xfile_deserialize_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<SndAliasList> {
+    fn xfile_deserialize_into(
+        &self,
+        de: &mut T5XFileDeserializer,
+        _data: (),
+    ) -> Result<SndAliasList> {
         let name = self.name.xfile_deserialize_into(de, ())?;
         let aliases = self.aliases.xfile_deserialize_into(de, ())?;
 
@@ -280,14 +284,22 @@ pub enum SoundFileRef {
 }
 
 impl<'a> XFileDeserializeInto<SoundFileRef, u8> for SoundFileRefRaw<'a> {
-    fn xfile_deserialize_into(&self, de: &mut T5XFileDeserializer, type_: u8) -> Result<SoundFileRef> {
+    fn xfile_deserialize_into(
+        &self,
+        de: &mut T5XFileDeserializer,
+        type_: u8,
+    ) -> Result<SoundFileRef> {
         if type_ == 1 {
             Ok(SoundFileRef::Loaded(
-                self.0.cast::<LoadedSoundRaw>().xfile_deserialize_into(de, ())?,
+                self.0
+                    .cast::<LoadedSoundRaw>()
+                    .xfile_deserialize_into(de, ())?,
             ))
         } else {
             Ok(SoundFileRef::Streamed(
-                self.0.cast::<StreamedSoundRaw>().xfile_deserialize_into(de, ())?,
+                self.0
+                    .cast::<StreamedSoundRaw>()
+                    .xfile_deserialize_into(de, ())?,
             ))
         }
     }
@@ -309,7 +321,11 @@ pub struct LoadedSound {
 }
 
 impl<'a> XFileDeserializeInto<LoadedSound, ()> for LoadedSoundRaw<'a> {
-    fn xfile_deserialize_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<LoadedSound> {
+    fn xfile_deserialize_into(
+        &self,
+        de: &mut T5XFileDeserializer,
+        _data: (),
+    ) -> Result<LoadedSound> {
         let name = self.name.xfile_deserialize_into(de, ())?;
         //dbg!(&name);
         let sound = self.sound.xfile_deserialize_into(de, ())?;
@@ -445,7 +461,11 @@ pub struct StreamedSound {
 }
 
 impl<'a> XFileDeserializeInto<StreamedSound, ()> for StreamedSoundRaw<'a> {
-    fn xfile_deserialize_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<StreamedSound> {
+    fn xfile_deserialize_into(
+        &self,
+        de: &mut T5XFileDeserializer,
+        _data: (),
+    ) -> Result<StreamedSound> {
         let filename = self.filename.xfile_deserialize_into(de, ())?;
         //dbg!(&filename);
         let prime_snd = self.prime_snd.xfile_deserialize_into(de, ())?;
@@ -692,7 +712,11 @@ pub struct SndDriverGlobals {
 }
 
 impl<'a> XFileDeserializeInto<SndDriverGlobals, ()> for SndDriverGlobalsRaw<'a> {
-    fn xfile_deserialize_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<SndDriverGlobals> {
+    fn xfile_deserialize_into(
+        &self,
+        de: &mut T5XFileDeserializer,
+        _data: (),
+    ) -> Result<SndDriverGlobals> {
         let name = self.name.xfile_deserialize_into(de, ())?;
         //dbg!(&name);
         let groups = self

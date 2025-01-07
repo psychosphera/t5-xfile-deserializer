@@ -4,7 +4,11 @@ use serde::Serialize;
 
 use std::io::{Cursor, Seek};
 
-use crate::{file_line_col, xasset::{XAsset, XAssetList}, BincodeOptions, Error, ErrorKind, Result, StreamLen, XFile, XFileHeader, XFilePlatform};
+use crate::{
+    file_line_col,
+    xasset::{XAsset, XAssetList},
+    BincodeOptions, Error, ErrorKind, Result, StreamLen, XFile, XFileHeader, XFilePlatform,
+};
 
 pub struct T5XFileSerializerBuilder {
     silent: bool,
@@ -25,10 +29,7 @@ impl T5XFileSerializerBuilder {
     }
 
     pub fn build(self) -> Result<T5XFileSerializer<T5XFileSerializerSerialize>> {
-        T5XFileSerializer::new(
-            self.silent,
-            self.platform,
-        )
+        T5XFileSerializer::new(self.silent, self.platform)
     }
 }
 
@@ -44,8 +45,7 @@ impl T5XFileSerializerTypestate for T5XFileSerializerInflated {}
 impl T5XFileSerializerTypestate for T5XFileSerializerDeflated {}
 
 #[allow(private_bounds, private_interfaces)]
-pub struct T5XFileSerializer<T: T5XFileSerializerTypestate = T5XFileSerializerSerialize>
-{
+pub struct T5XFileSerializer<T: T5XFileSerializerTypestate = T5XFileSerializerSerialize> {
     _silent: bool,
     xfile: XFile,
     xasset_list: XAssetList,
@@ -57,10 +57,7 @@ pub struct T5XFileSerializer<T: T5XFileSerializerTypestate = T5XFileSerializerSe
 }
 
 impl<'a> T5XFileSerializer<T5XFileSerializerSerialize> {
-    pub fn new(
-        silent: bool,
-        platform: XFilePlatform,
-    ) -> Result<Self> {
+    pub fn new(silent: bool, platform: XFilePlatform) -> Result<Self> {
         Ok(Self {
             _silent: silent,
             xfile: XFile::default(),
@@ -73,7 +70,10 @@ impl<'a> T5XFileSerializer<T5XFileSerializerSerialize> {
         })
     }
 
-    pub fn serialize<const MAX_LOCAL_CLIENTS: usize>(&mut self, assets: impl Iterator<Item = XAsset>) -> Result<()> {
+    pub fn serialize<const MAX_LOCAL_CLIENTS: usize>(
+        &mut self,
+        assets: impl Iterator<Item = XAsset>,
+    ) -> Result<()> {
         for asset in assets {
             self.store_into_xfile(asset.clone())?;
             self.xasset_list.assets.push(asset);
@@ -97,13 +97,15 @@ impl<'a> T5XFileSerializer<T5XFileSerializerSerialize> {
 
         let mut blob = Cursor::new(Vec::new());
 
-        self.opts.serialize_into(&mut blob, self.xfile).map_err(|e| {
-            Error::new(
-                file_line_col!(),
-                self.stream_pos().unwrap() as _,
-                ErrorKind::Bincode(e),
-            )
-        })?;
+        self.opts
+            .serialize_into(&mut blob, self.xfile)
+            .map_err(|e| {
+                Error::new(
+                    file_line_col!(),
+                    self.stream_pos().unwrap() as _,
+                    ErrorKind::Bincode(e),
+                )
+            })?;
 
         // TODO: serialize XAssets
 

@@ -6,7 +6,14 @@ use num::FromPrimitive;
 use num_derive::FromPrimitive;
 use serde::{Deserialize, Serialize};
 
-use crate::{assert_size, common::Vec4, file_line_col, techset::{Material, MaterialRaw}, Error, ErrorKind, FatPointerCountFirstU32, FatPointerCountLastU32, Ptr32, Result, T5XFileDeserializer, XFileDeserializeInto, XString};
+use crate::{
+    assert_size,
+    common::Vec4,
+    file_line_col,
+    techset::{Material, MaterialRaw},
+    Error, ErrorKind, FatPointerCountFirstU32, FatPointerCountLastU32, Ptr32, Result,
+    T5XFileDeserializer, XFileDeserializeInto, XString,
+};
 
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
@@ -466,7 +473,11 @@ pub struct GenericEventHandler {
 }
 
 impl<'a> XFileDeserializeInto<GenericEventHandler, ()> for GenericEventHandlerRaw<'a> {
-    fn xfile_deserialize_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<GenericEventHandler> {
+    fn xfile_deserialize_into(
+        &self,
+        de: &mut T5XFileDeserializer,
+        _data: (),
+    ) -> Result<GenericEventHandler> {
         let name = self.name.xfile_deserialize_into(de, ())?;
         let event_script = self.event_script.xfile_deserialize_into(de, ())?;
         let next = if self.next.is_null() {
@@ -512,7 +523,11 @@ pub struct GenericEventScript {
 }
 
 impl<'a> XFileDeserializeInto<GenericEventScript, ()> for GenericEventScriptRaw<'a> {
-    fn xfile_deserialize_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<GenericEventScript> {
+    fn xfile_deserialize_into(
+        &self,
+        de: &mut T5XFileDeserializer,
+        _data: (),
+    ) -> Result<GenericEventScript> {
         let prerequisites = self.prerequisites.xfile_deserialize_into(de, ())?;
         let condition = self.condition.xfile_deserialize_into(de, ())?;
         let action = self.action.xfile_deserialize_into(de, ())?;
@@ -556,7 +571,11 @@ pub struct ScriptCondition {
 }
 
 impl<'a> XFileDeserializeInto<ScriptCondition, ()> for ScriptConditionRaw<'a> {
-    fn xfile_deserialize_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<ScriptCondition> {
+    fn xfile_deserialize_into(
+        &self,
+        de: &mut T5XFileDeserializer,
+        _data: (),
+    ) -> Result<ScriptCondition> {
         let next = if self.next.is_null() {
             None
         } else {
@@ -590,7 +609,11 @@ pub struct ExpressionStatement {
 }
 
 impl<'a> XFileDeserializeInto<ExpressionStatement, ()> for ExpressionStatementRaw<'a> {
-    fn xfile_deserialize_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<ExpressionStatement> {
+    fn xfile_deserialize_into(
+        &self,
+        de: &mut T5XFileDeserializer,
+        _data: (),
+    ) -> Result<ExpressionStatement> {
         let filename = self.filename.xfile_deserialize_into(de, ())?;
         let rpn = self.rpn.xfile_deserialize_into(de, ())?;
 
@@ -617,7 +640,11 @@ pub struct ExpressionRpn {
 }
 
 impl XFileDeserializeInto<ExpressionRpn, ()> for ExpressionRpnRaw {
-    fn xfile_deserialize_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<ExpressionRpn> {
+    fn xfile_deserialize_into(
+        &self,
+        de: &mut T5XFileDeserializer,
+        _data: (),
+    ) -> Result<ExpressionRpn> {
         let data = self.data.xfile_deserialize_into(de, self.type_)?;
         Ok(ExpressionRpn { data })
     }
@@ -708,9 +735,9 @@ impl XFileDeserializeInto<OperandInternalDataUnion, ExpDataType> for OperandInte
         Ok(match data_type {
             ExpDataType::INT => OperandInternalDataUnion::Int(self.0 as _),
             ExpDataType::FLOAT => OperandInternalDataUnion::Float(f32::from_bits(self.0)),
-            ExpDataType::STRING => {
-                OperandInternalDataUnion::String(XString::from_u32(self.0).xfile_deserialize_into(de, ())?)
-            }
+            ExpDataType::STRING => OperandInternalDataUnion::String(
+                XString::from_u32(self.0).xfile_deserialize_into(de, ())?,
+            ),
         })
     }
 }
@@ -733,7 +760,11 @@ pub struct ItemKeyHandler {
 }
 
 impl<'a> XFileDeserializeInto<ItemKeyHandler, ()> for ItemKeyHandlerRaw<'a> {
-    fn xfile_deserialize_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<ItemKeyHandler> {
+    fn xfile_deserialize_into(
+        &self,
+        de: &mut T5XFileDeserializer,
+        _data: (),
+    ) -> Result<ItemKeyHandler> {
         let key_script = self.key_script.xfile_deserialize_into(de, ())?;
         let next = if self.next.is_null() {
             None
@@ -887,7 +918,8 @@ pub enum ItemDefData<const MAX_LOCAL_CLIENTS: usize> {
     OwnerDrawDef(Option<Box<OwnerDrawDef>>),
 }
 
-impl<'a, const MAX_LOCAL_CLIENTS: usize> XFileDeserializeInto<Option<ItemDefData<MAX_LOCAL_CLIENTS>>, i32>
+impl<'a, const MAX_LOCAL_CLIENTS: usize>
+    XFileDeserializeInto<Option<ItemDefData<MAX_LOCAL_CLIENTS>>, i32>
     for ItemDefDataRaw<'a, MAX_LOCAL_CLIENTS>
 {
     fn xfile_deserialize_into(
@@ -900,7 +932,9 @@ impl<'a, const MAX_LOCAL_CLIENTS: usize> XFileDeserializeInto<Option<ItemDefData
             Ok(None)
         } else if type_ == 2 {
             Ok(Some(ItemDefData::ImageDef(
-                self.0.cast::<ImageDefRaw>().xfile_deserialize_into(de, ())?,
+                self.0
+                    .cast::<ImageDefRaw>()
+                    .xfile_deserialize_into(de, ())?,
             )))
         } else if type_ == 21 || type_ == 19 {
             Ok(Some(ItemDefData::BlankButtonDef(
@@ -910,7 +944,9 @@ impl<'a, const MAX_LOCAL_CLIENTS: usize> XFileDeserializeInto<Option<ItemDefData
             )))
         } else if type_ == 6 {
             Ok(Some(ItemDefData::OwnerDrawDef(
-                self.0.cast::<OwnerDrawDefRaw>().xfile_deserialize_into(de, ())?,
+                self.0
+                    .cast::<OwnerDrawDefRaw>()
+                    .xfile_deserialize_into(de, ())?,
             )))
         } else if type_ == 17 || type_ > 22 {
             Err(Error::new(
@@ -1048,7 +1084,8 @@ pub enum TextDefData<const MAX_LOCAL_CLIENTS: usize> {
     GameMsgDef(Option<Box<GameMsgDef>>),
 }
 
-impl<'a, const MAX_LOCAL_CLIENTS: usize> XFileDeserializeInto<Option<TextDefData<MAX_LOCAL_CLIENTS>>, i32>
+impl<'a, const MAX_LOCAL_CLIENTS: usize>
+    XFileDeserializeInto<Option<TextDefData<MAX_LOCAL_CLIENTS>>, i32>
     for TextDefDataRaw<'a, MAX_LOCAL_CLIENTS>
 {
     fn xfile_deserialize_into(
@@ -1150,7 +1187,8 @@ pub enum FocusDefData<const MAX_LOCAL_CLIENTS: usize> {
     EnumDvar(Option<Box<EnumDvarDef>>),
 }
 
-impl<'a, const MAX_LOCAL_CLIENTS: usize> XFileDeserializeInto<Option<FocusDefData<MAX_LOCAL_CLIENTS>>, i32>
+impl<'a, const MAX_LOCAL_CLIENTS: usize>
+    XFileDeserializeInto<Option<FocusDefData<MAX_LOCAL_CLIENTS>>, i32>
     for FocusDefDataRaw<'a, MAX_LOCAL_CLIENTS>
 {
     fn xfile_deserialize_into(
@@ -1169,11 +1207,15 @@ impl<'a, const MAX_LOCAL_CLIENTS: usize> XFileDeserializeInto<Option<FocusDefDat
             )))
         } else if type_ == 10 {
             Ok(Some(FocusDefData::Multi(
-                self.0.cast::<MultiDefRaw>().xfile_deserialize_into(de, ())?,
+                self.0
+                    .cast::<MultiDefRaw>()
+                    .xfile_deserialize_into(de, ())?,
             )))
         } else if type_ == 11 {
             Ok(Some(FocusDefData::EnumDvar(
-                self.0.cast::<EnumDvarDefRaw>().xfile_deserialize_into(de, ())?,
+                self.0
+                    .cast::<EnumDvarDefRaw>()
+                    .xfile_deserialize_into(de, ())?,
             )))
         } else if type_ == 5
             || type_ == 7
@@ -1317,7 +1359,9 @@ impl<'a, const MAX_LOCAL_CLIENTS: usize> XFileDeserializeInto<ListBoxDef<MAX_LOC
         let element_highlight_color = self.element_highlight_color.into();
         let element_background_color = self.element_background_color.into();
         let select_icon = self.select_icon.xfile_deserialize_into(de, ())?;
-        let background_item_listbox = self.background_item_listbox.xfile_deserialize_into(de, ())?;
+        let background_item_listbox = self
+            .background_item_listbox
+            .xfile_deserialize_into(de, ())?;
         let highlight_texture = self.highlight_texture.xfile_deserialize_into(de, ())?;
         let no_blinking_highlight = self.no_blinking_highlight != 0;
         let rows = self.rows.xfile_deserialize_into(de, self.num_columns)?;
@@ -1404,8 +1448,15 @@ pub struct MenuRow {
 }
 
 impl<'a> XFileDeserializeInto<MenuRow, i32> for MenuRowRaw<'a> {
-    fn xfile_deserialize_into(&self, de: &mut T5XFileDeserializer, num_columns: i32) -> Result<MenuRow> {
-        let cells = self.cells.to_array(num_columns as _).xfile_deserialize_into(de, ())?;
+    fn xfile_deserialize_into(
+        &self,
+        de: &mut T5XFileDeserializer,
+        num_columns: i32,
+    ) -> Result<MenuRow> {
+        let cells = self
+            .cells
+            .to_array(num_columns as _)
+            .xfile_deserialize_into(de, ())?;
         let event_name = self.event_name.xfile_deserialize_into(de, ())?;
         let on_focus_event_name = self.on_focus_event_name.xfile_deserialize_into(de, ())?;
 
@@ -1547,7 +1598,11 @@ pub struct EnumDvarDef {
 }
 
 impl<'a> XFileDeserializeInto<EnumDvarDef, ()> for EnumDvarDefRaw<'a> {
-    fn xfile_deserialize_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<EnumDvarDef> {
+    fn xfile_deserialize_into(
+        &self,
+        de: &mut T5XFileDeserializer,
+        _data: (),
+    ) -> Result<EnumDvarDef> {
         let enum_dvar_name = self.enum_dvar_name.xfile_deserialize_into(de, ())?;
 
         Ok(EnumDvarDef { enum_dvar_name })
@@ -1597,7 +1652,11 @@ pub struct OwnerDrawDef {
 }
 
 impl<'a> XFileDeserializeInto<OwnerDrawDef, ()> for OwnerDrawDefRaw<'a> {
-    fn xfile_deserialize_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<OwnerDrawDef> {
+    fn xfile_deserialize_into(
+        &self,
+        de: &mut T5XFileDeserializer,
+        _data: (),
+    ) -> Result<OwnerDrawDef> {
         let data_exp = self.data_exp.xfile_deserialize_into(de, ())?;
 
         Ok(OwnerDrawDef { data_exp })
@@ -1663,7 +1722,11 @@ pub struct UIAnimInfo {
 }
 
 impl<'a> XFileDeserializeInto<UIAnimInfo, ()> for UIAnimInfoRaw<'a> {
-    fn xfile_deserialize_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<UIAnimInfo> {
+    fn xfile_deserialize_into(
+        &self,
+        de: &mut T5XFileDeserializer,
+        _data: (),
+    ) -> Result<UIAnimInfo> {
         let anim_states = self
             .anim_states
             .xfile_deserialize_into(de, ())?
@@ -1717,7 +1780,11 @@ pub struct AnimParamsDef {
 }
 
 impl<'a> XFileDeserializeInto<AnimParamsDef, ()> for AnimParamsDefRaw<'a> {
-    fn xfile_deserialize_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<AnimParamsDef> {
+    fn xfile_deserialize_into(
+        &self,
+        de: &mut T5XFileDeserializer,
+        _data: (),
+    ) -> Result<AnimParamsDef> {
         let name = self.name.xfile_deserialize_into(de, ())?;
         let rect_client = self.rect_client.into();
         let fore_color = self.fore_color.into();

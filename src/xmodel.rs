@@ -5,10 +5,12 @@ use num_derive::FromPrimitive;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    common::{GfxIndexBuffer, GfxVertexBuffer, Mat3, Vec3, Vec4}, 
-    techset::{Material, MaterialRaw}, 
-    assert_size, file_line_col, Error, ErrorKind, FatPointerCountFirstU32, FatPointerCountLastU32, 
-    Ptr32, Result, ScriptString, T5XFileDeserializer, XFileDeserializeInto, XString, FatPointer,
+    assert_size,
+    common::{GfxIndexBuffer, GfxVertexBuffer, Mat3, Vec3, Vec4},
+    file_line_col,
+    techset::{Material, MaterialRaw},
+    Error, ErrorKind, FatPointer, FatPointerCountFirstU32, FatPointerCountLastU32, Ptr32, Result,
+    ScriptString, T5XFileDeserializer, XFileDeserializeInto, XString,
 };
 
 #[cfg_attr(feature = "serde", derive(Serialize))]
@@ -174,7 +176,10 @@ impl<'a> XFileDeserializeInto<XModel, ()> for XModelRaw<'a> {
             .to_vec_into(de)?;
         //dbg!(&base_mat);
         //dbg!(de.stream_pos()?);
-        let surfs = self.surfs.to_array(self.numsurfs as _).xfile_deserialize_into(de, ())?;
+        let surfs = self
+            .surfs
+            .to_array(self.numsurfs as _)
+            .xfile_deserialize_into(de, ())?;
         //dbg!(&surfs);
         //dbg!(de.stream_pos()?);
         let material_handles = self
@@ -402,7 +407,11 @@ pub struct XSurfaceVertexInfo {
 }
 
 impl<'a> XFileDeserializeInto<XSurfaceVertexInfo, ()> for XSurfaceVertexInfoRaw<'a> {
-    fn xfile_deserialize_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<XSurfaceVertexInfo> {
+    fn xfile_deserialize_into(
+        &self,
+        de: &mut T5XFileDeserializer,
+        _data: (),
+    ) -> Result<XSurfaceVertexInfo> {
         let blend_count = self.vert_count[0] as usize
             + self.vert_count[1] as usize * 3
             + self.vert_count[2] as usize * 5
@@ -494,7 +503,11 @@ pub struct XRigidVertList {
 }
 
 impl<'a> XFileDeserializeInto<XRigidVertList, ()> for XRigidVertListRaw<'a> {
-    fn xfile_deserialize_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<XRigidVertList> {
+    fn xfile_deserialize_into(
+        &self,
+        de: &mut T5XFileDeserializer,
+        _data: (),
+    ) -> Result<XRigidVertList> {
         //dbg!(&self);
 
         Ok(XRigidVertList {
@@ -527,7 +540,11 @@ pub struct XSurfaceCollisionTree {
 }
 
 impl<'a> XFileDeserializeInto<XSurfaceCollisionTree, ()> for XSurfaceCollisionTreeRaw<'a> {
-    fn xfile_deserialize_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<XSurfaceCollisionTree> {
+    fn xfile_deserialize_into(
+        &self,
+        de: &mut T5XFileDeserializer,
+        _data: (),
+    ) -> Result<XSurfaceCollisionTree> {
         //dbg!(&self);
 
         Ok(XSurfaceCollisionTree {
@@ -680,7 +697,11 @@ pub struct XModelCollSurf {
 }
 
 impl<'a> XFileDeserializeInto<XModelCollSurf, ()> for XModelCollSurfRaw<'a> {
-    fn xfile_deserialize_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<XModelCollSurf> {
+    fn xfile_deserialize_into(
+        &self,
+        de: &mut T5XFileDeserializer,
+        _data: (),
+    ) -> Result<XModelCollSurf> {
         Ok(XModelCollSurf {
             coll_tris: self.coll_tris.to_vec_into(de)?,
             mins: self.mins.into(),
@@ -764,7 +785,11 @@ pub struct XModelStreamInfo {
 }
 
 impl<'a> XFileDeserializeInto<XModelStreamInfo, u8> for XModelStreamInfoRaw<'a> {
-    fn xfile_deserialize_into(&self, de: &mut T5XFileDeserializer, numsurfs: u8) -> Result<XModelStreamInfo> {
+    fn xfile_deserialize_into(
+        &self,
+        de: &mut T5XFileDeserializer,
+        numsurfs: u8,
+    ) -> Result<XModelStreamInfo> {
         Ok(XModelStreamInfo {
             high_mip_bounds: self
                 .high_mip_bounds
@@ -840,7 +865,11 @@ pub struct PhysPreset {
 }
 
 impl<'a> XFileDeserializeInto<PhysPreset, ()> for PhysPresetRaw<'a> {
-    fn xfile_deserialize_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<PhysPreset> {
+    fn xfile_deserialize_into(
+        &self,
+        de: &mut T5XFileDeserializer,
+        _data: (),
+    ) -> Result<PhysPreset> {
         //dbg!(self);
         if self.flags > 1 {
             return Err(Error::new(
@@ -923,7 +952,11 @@ pub struct PhysGeomList {
 }
 
 impl<'a> XFileDeserializeInto<PhysGeomList, ()> for PhysGeomListRaw<'a> {
-    fn xfile_deserialize_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<PhysGeomList> {
+    fn xfile_deserialize_into(
+        &self,
+        de: &mut T5XFileDeserializer,
+        _data: (),
+    ) -> Result<PhysGeomList> {
         Ok(PhysGeomList {
             geoms: self.geoms.xfile_deserialize_into(de, ())?,
             contents: self.contents,
@@ -963,7 +996,11 @@ pub struct PhysGeomInfo {
 }
 
 impl<'a> XFileDeserializeInto<PhysGeomInfo, ()> for PhysGeomInfoRaw<'a> {
-    fn xfile_deserialize_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<PhysGeomInfo> {
+    fn xfile_deserialize_into(
+        &self,
+        de: &mut T5XFileDeserializer,
+        _data: (),
+    ) -> Result<PhysGeomInfo> {
         Ok(PhysGeomInfo {
             brush: self.brush.xfile_deserialize_into(de, ())?,
             type_: num::FromPrimitive::from_i32(self.type_).ok_or(Error::new(
@@ -1006,7 +1043,11 @@ pub struct BrushWrapper {
 }
 
 impl<'a> XFileDeserializeInto<BrushWrapper, ()> for BrushWrapperRaw<'a> {
-    fn xfile_deserialize_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<BrushWrapper> {
+    fn xfile_deserialize_into(
+        &self,
+        de: &mut T5XFileDeserializer,
+        _data: (),
+    ) -> Result<BrushWrapper> {
         Ok(BrushWrapper {
             mins: self.mins.into(),
             contents: self.contents,
@@ -1041,7 +1082,11 @@ pub struct CBrushSide {
 }
 
 impl<'a> XFileDeserializeInto<CBrushSide, ()> for CBrushSideRaw<'a> {
-    fn xfile_deserialize_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<CBrushSide> {
+    fn xfile_deserialize_into(
+        &self,
+        de: &mut T5XFileDeserializer,
+        _data: (),
+    ) -> Result<CBrushSide> {
         Ok(CBrushSide {
             plane: self.plane.xfile_get(de)?.map(Into::into).map(Box::new),
             cflags: self.cflags,
@@ -1175,7 +1220,11 @@ pub struct PhysConstraints {
 }
 
 impl<'a> XFileDeserializeInto<PhysConstraints, ()> for PhysConstraintsRaw<'a> {
-    fn xfile_deserialize_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<PhysConstraints> {
+    fn xfile_deserialize_into(
+        &self,
+        de: &mut T5XFileDeserializer,
+        _data: (),
+    ) -> Result<PhysConstraints> {
         //dbg!(self.name, self.count);
 
         let name = self.name.xfile_deserialize_into(de, ())?;
@@ -1297,7 +1346,11 @@ pub struct PhysConstraint {
 }
 
 impl<'a> XFileDeserializeInto<PhysConstraint, ()> for PhysConstraintRaw<'a> {
-    fn xfile_deserialize_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<PhysConstraint> {
+    fn xfile_deserialize_into(
+        &self,
+        de: &mut T5XFileDeserializer,
+        _data: (),
+    ) -> Result<PhysConstraint> {
         //dbg!(self);
         let targetname = self.targetname.to_string(de).unwrap_or_default();
         let target_ent1 = self.target_ent1.to_string(de).unwrap_or_default();
@@ -1385,7 +1438,11 @@ pub struct XModelPieces {
 }
 
 impl<'a> XFileDeserializeInto<XModelPieces, ()> for XModelPiecesRaw<'a> {
-    fn xfile_deserialize_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<XModelPieces> {
+    fn xfile_deserialize_into(
+        &self,
+        de: &mut T5XFileDeserializer,
+        _data: (),
+    ) -> Result<XModelPieces> {
         let name = self.name.xfile_deserialize_into(de, ())?;
         let pieces = self.pieces.xfile_deserialize_into(de, ())?;
 
@@ -1409,7 +1466,11 @@ pub struct XModelPiece {
 }
 
 impl<'a> XFileDeserializeInto<XModelPiece, ()> for XModelPieceRaw<'a> {
-    fn xfile_deserialize_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<XModelPiece> {
+    fn xfile_deserialize_into(
+        &self,
+        de: &mut T5XFileDeserializer,
+        _data: (),
+    ) -> Result<XModelPiece> {
         let model = self.model.xfile_deserialize_into(de, ())?;
         let offset = self.offset.into();
 

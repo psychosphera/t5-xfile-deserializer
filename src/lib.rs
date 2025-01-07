@@ -116,7 +116,9 @@ pub mod xasset;
 pub mod xmodel;
 
 use alloc::{
-    boxed::Box, fmt::{Debug, Display}, string::String,
+    boxed::Box,
+    fmt::{Debug, Display},
+    string::String,
 };
 
 use std::io::{Read, Write};
@@ -150,10 +152,7 @@ impl XFileHeader {
         let magic = *b"IWffu100";
         let version = XFileVersion::from_platform(platform).as_u32();
 
-        Self {
-            magic,
-            version,
-        }
+        Self { magic, version }
     }
 
     pub fn magic_string(&self) -> String {
@@ -328,7 +327,7 @@ pub enum ErrorKind {
     /// Occurs when an XFile's platform is unimplemented (currently just Wii).
     UnimplementedPlatform(XFilePlatform),
     /// Occurs when an XFile's platform is unsupported (all platforms except Windows).
-    UnsupportedPlatform(XFilePlatform), 
+    UnsupportedPlatform(XFilePlatform),
     /// Occurs when some part of the library hasn't yet been implemented.
     Todo(String),
     /// Occurs when a [`ScriptString`] doesn't index [`T5XFileDeserializer::script_strings`].
@@ -445,7 +444,7 @@ impl BincodeOptions {
     fn serialize_into<T: Serialize>(&self, writer: impl Write, t: T) -> bincode::Result<()> {
         match self {
             Self::LE(opts) => opts.serialize_into(writer, &t),
-            Self::BE(opts) => opts.serialize_into(writer, &t), 
+            Self::BE(opts) => opts.serialize_into(writer, &t),
         }
     }
 }

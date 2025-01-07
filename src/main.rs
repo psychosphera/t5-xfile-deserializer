@@ -7,23 +7,22 @@ use clap::{arg, command};
 fn main() {
     let matches = command!()
         .arg(arg!([FILENAME] "Filename to use (should have .ff or .cache extension)"))
+        .arg(arg!(
+            -p --platform <PLATFORM>
+            "Specifies which platform the Fastfile is expected to be for. Should be one of:\n\
+             \twindows\n\
+             \tmacos\n\
+             \txbox360\n\
+             \tps3\n\
+             \twii"
+        ))
         .arg(
             arg!(
-                -p --platform <PLATFORM> 
-                "Specifies which platform the Fastfile is expected to be for. Should be one of:\n\
-                 \twindows\n\
-                 \tmacos\n\
-                 \txbox360\n\
-                 \tps3\n\
-                 \twii"
-            )
-        )
-        .arg(
-            arg!(
-                -a --allow_unsupported_platforms 
+                -a --allow_unsupported_platforms
                 "Permits the deserializer to operate on platforms that may not be fully supported. \
                  Will probably cause problems."
-            ).required(false)
+            )
+            .required(false),
         )
         .get_matches();
 
@@ -59,10 +58,16 @@ fn main() {
         std::fs::File::open(&filename).unwrap()
     };
 
-    let allow_unsupported_platforms = matches.get_one::<bool>("allow_unsupported_platforms").is_some();
+    let allow_unsupported_platforms = matches
+        .get_one::<bool>("allow_unsupported_platforms")
+        .is_some();
 
     let de = if cache_exists {
-        T5XFileDeserializerBuilder::from_cache_file(&mut file, platform, allow_unsupported_platforms)
+        T5XFileDeserializerBuilder::from_cache_file(
+            &mut file,
+            platform,
+            allow_unsupported_platforms,
+        )
     } else {
         T5XFileDeserializerBuilder::from_file(&mut file, platform, allow_unsupported_platforms)
     }

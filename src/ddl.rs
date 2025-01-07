@@ -1,8 +1,8 @@
 use alloc::{boxed::Box, string::String, vec::Vec};
 
 use crate::{
-    assert_size, Ptr32, Result, XFileDeserializeInto, XString, 
-    T5XFileDeserializer, FatPointerCountFirstU32, FatPointerCountLastU32
+    assert_size, FatPointerCountFirstU32, FatPointerCountLastU32, Ptr32, Result,
+    T5XFileDeserializer, XFileDeserializeInto, XString,
 };
 
 use serde::{Deserialize, Serialize};
@@ -95,7 +95,11 @@ pub struct DdlStructDef {
 }
 
 impl<'a> XFileDeserializeInto<DdlStructDef, ()> for DdlStructDefRaw<'a> {
-    fn xfile_deserialize_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<DdlStructDef> {
+    fn xfile_deserialize_into(
+        &self,
+        de: &mut T5XFileDeserializer,
+        _data: (),
+    ) -> Result<DdlStructDef> {
         let name = self.name.xfile_deserialize_into(de, ())?;
         let members = self.members.xfile_deserialize_into(de, ())?;
 
@@ -143,7 +147,11 @@ pub struct DdlMemberDef {
 }
 
 impl<'a> XFileDeserializeInto<DdlMemberDef, ()> for DdlMemberDefRaw<'a> {
-    fn xfile_deserialize_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<DdlMemberDef> {
+    fn xfile_deserialize_into(
+        &self,
+        de: &mut T5XFileDeserializer,
+        _data: (),
+    ) -> Result<DdlMemberDef> {
         let name = self.name.xfile_deserialize_into(de, ())?;
 
         Ok(DdlMemberDef {
@@ -179,7 +187,11 @@ pub struct DdlEnumDef {
 }
 
 impl<'a> XFileDeserializeInto<DdlEnumDef, ()> for DdlEnumDefRaw<'a> {
-    fn xfile_deserialize_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<DdlEnumDef> {
+    fn xfile_deserialize_into(
+        &self,
+        de: &mut T5XFileDeserializer,
+        _data: (),
+    ) -> Result<DdlEnumDef> {
         let name = self.name.xfile_deserialize_into(de, ())?;
         let members = self.members.xfile_deserialize_into(de, ())?;
 

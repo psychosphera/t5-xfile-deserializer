@@ -5,12 +5,15 @@ use core::ptr::addr_of_mut;
 use alloc::{boxed::Box, string::String, vec::Vec};
 
 use crate::{
-    assert_size, 
-    common::{GfxVertexBuffer, Mat3, Mat4, Vec2, Vec3, Vec4}, 
+    assert_size,
+    common::{GfxVertexBuffer, Mat3, Mat4, Vec2, Vec3, Vec4},
     light::{GfxLightDef, GfxLightDefRaw},
-    techset::{GfxDrawSurf, GfxImage, GfxImageRaw, GfxTexture, GfxTextureRaw, Material, MaterialRaw}, 
-    xmodel::{CPlane, CPlaneRaw, GfxColor, XModel, XModelDrawInfo, XModelRaw}, 
-    FatPointerCountFirstU32, FatPointerCountLastU32, FatPointerCountLastU8, FatPointer, Ptr32, Result, T5XFileDeserializer, XFileDeserializeInto, XString
+    techset::{
+        GfxDrawSurf, GfxImage, GfxImageRaw, GfxTexture, GfxTextureRaw, Material, MaterialRaw,
+    },
+    xmodel::{CPlane, CPlaneRaw, GfxColor, XModel, XModelDrawInfo, XModelRaw},
+    FatPointer, FatPointerCountFirstU32, FatPointerCountLastU32, FatPointerCountLastU8, Ptr32,
+    Result, T5XFileDeserializer, XFileDeserializeInto, XString,
 };
 
 use serde::{Deserialize, Serialize};
@@ -338,7 +341,11 @@ pub struct GfxWorldStreamInfo {
 }
 
 impl<'a> XFileDeserializeInto<GfxWorldStreamInfo, ()> for GfxWorldStreamInfoRaw<'a> {
-    fn xfile_deserialize_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<GfxWorldStreamInfo> {
+    fn xfile_deserialize_into(
+        &self,
+        de: &mut T5XFileDeserializer,
+        _data: (),
+    ) -> Result<GfxWorldStreamInfo> {
         let aabb_trees = self.aabb_trees.to_vec_into(de)?;
         let leaf_refs = self.leaf_refs.to_vec(de)?;
 
@@ -834,7 +841,11 @@ pub struct GfxAabbTree {
 }
 
 impl<'a> XFileDeserializeInto<GfxAabbTree, ()> for GfxAabbTreeRaw<'a> {
-    fn xfile_deserialize_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<GfxAabbTree> {
+    fn xfile_deserialize_into(
+        &self,
+        de: &mut T5XFileDeserializer,
+        _data: (),
+    ) -> Result<GfxAabbTree> {
         let mins = self.mins.into();
         let maxs = self.maxs.into();
         let smodel_indexes = self
@@ -915,7 +926,11 @@ pub struct GfxPortalWritable {
 }
 
 impl<'a> XFileDeserializeInto<GfxPortalWritable, ()> for GfxPortalWritableRaw<'a> {
-    fn xfile_deserialize_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<GfxPortalWritable> {
+    fn xfile_deserialize_into(
+        &self,
+        de: &mut T5XFileDeserializer,
+        _data: (),
+    ) -> Result<GfxPortalWritable> {
         let hull_points = self
             .hull_points
             .to_array(self.hull_point_count as _)
@@ -996,7 +1011,11 @@ pub struct GfxWorldDraw {
 }
 
 impl<'a> XFileDeserializeInto<GfxWorldDraw, ()> for GfxWorldDrawRaw<'a> {
-    fn xfile_deserialize_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<GfxWorldDraw> {
+    fn xfile_deserialize_into(
+        &self,
+        de: &mut T5XFileDeserializer,
+        _data: (),
+    ) -> Result<GfxWorldDraw> {
         let reflection_probes = self.reflection_probes.xfile_deserialize_into(de, ())?;
         let reflection_probe_textures = self
             .reflection_probe_textures
@@ -1026,7 +1045,9 @@ impl<'a> XFileDeserializeInto<GfxWorldDraw, ()> for GfxWorldDrawRaw<'a> {
             .try_into()
             .unwrap();
         let vd = self.vd.xfile_deserialize_into(de, self.vertex_count)?;
-        let vld = self.vld.xfile_deserialize_into(de, self.vertex_layer_data_size)?;
+        let vld = self
+            .vld
+            .xfile_deserialize_into(de, self.vertex_layer_data_size)?;
         let indices = self.indices.to_vec(de)?;
 
         Ok(GfxWorldDraw {
@@ -1065,7 +1086,11 @@ pub struct GfxReflectionProbe {
 }
 
 impl<'a> XFileDeserializeInto<GfxReflectionProbe, ()> for GfxReflectionProbeRaw<'a> {
-    fn xfile_deserialize_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<GfxReflectionProbe> {
+    fn xfile_deserialize_into(
+        &self,
+        de: &mut T5XFileDeserializer,
+        _data: (),
+    ) -> Result<GfxReflectionProbe> {
         let origin = self.origin.into();
         let image = self.image.xfile_deserialize_into(de, ())?;
         let probe_volumes = self.probe_volumes.to_vec_into(de)?;
@@ -1124,7 +1149,11 @@ pub struct GfxLightmapArray {
 }
 
 impl<'a> XFileDeserializeInto<GfxLightmapArray, ()> for GfxLightmapArrayRaw<'a> {
-    fn xfile_deserialize_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<GfxLightmapArray> {
+    fn xfile_deserialize_into(
+        &self,
+        de: &mut T5XFileDeserializer,
+        _data: (),
+    ) -> Result<GfxLightmapArray> {
         let primary = self.primary.xfile_deserialize_into(de, ())?;
         let secondary = self.secondary.xfile_deserialize_into(de, ())?;
         let secondary_b = self.secondary_b.xfile_deserialize_into(de, ())?;
@@ -1316,7 +1345,11 @@ pub struct GfxLightGrid {
 }
 
 impl<'a> XFileDeserializeInto<GfxLightGrid, ()> for GfxLightGridRaw<'a> {
-    fn xfile_deserialize_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<GfxLightGrid> {
+    fn xfile_deserialize_into(
+        &self,
+        de: &mut T5XFileDeserializer,
+        _data: (),
+    ) -> Result<GfxLightGrid> {
         let row_data_start = self
             .row_data_start
             .to_array(
@@ -1437,7 +1470,11 @@ pub struct MaterialMemory {
 }
 
 impl<'a> XFileDeserializeInto<MaterialMemory, ()> for MaterialMemoryRaw<'a> {
-    fn xfile_deserialize_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<MaterialMemory> {
+    fn xfile_deserialize_into(
+        &self,
+        de: &mut T5XFileDeserializer,
+        _data: (),
+    ) -> Result<MaterialMemory> {
         let material = self.material.xfile_deserialize_into(de, ())?;
 
         Ok(MaterialMemory {
@@ -1578,7 +1615,11 @@ pub struct GfxShadowGeometry {
 }
 
 impl<'a> XFileDeserializeInto<GfxShadowGeometry, ()> for GfxShadowGeometryRaw<'a> {
-    fn xfile_deserialize_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<GfxShadowGeometry> {
+    fn xfile_deserialize_into(
+        &self,
+        de: &mut T5XFileDeserializer,
+        _data: (),
+    ) -> Result<GfxShadowGeometry> {
         let sorted_surf_index = self
             .sorted_surf_index
             .to_array(self.surface_count as _)
@@ -1609,7 +1650,11 @@ pub struct GfxLightRegion {
 }
 
 impl<'a> XFileDeserializeInto<GfxLightRegion, ()> for GfxLightRegionRaw<'a> {
-    fn xfile_deserialize_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<GfxLightRegion> {
+    fn xfile_deserialize_into(
+        &self,
+        de: &mut T5XFileDeserializer,
+        _data: (),
+    ) -> Result<GfxLightRegion> {
         let hulls = self.hulls.xfile_deserialize_into(de, ())?;
 
         Ok(GfxLightRegion { hulls })
@@ -1634,7 +1679,11 @@ pub struct GfxLightRegionHull {
 }
 
 impl<'a> XFileDeserializeInto<GfxLightRegionHull, ()> for GfxLightRegionHullRaw<'a> {
-    fn xfile_deserialize_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<GfxLightRegionHull> {
+    fn xfile_deserialize_into(
+        &self,
+        de: &mut T5XFileDeserializer,
+        _data: (),
+    ) -> Result<GfxLightRegionHull> {
         let kdop_mid_point = self.kdop_mid_point.into();
         let kdop_half_size = self.kdop_half_size.into();
         let axis = self.axis.to_vec_into(de)?;
@@ -1889,7 +1938,11 @@ pub struct GfxSurface {
 }
 
 impl<'a> XFileDeserializeInto<GfxSurface, ()> for GfxSurfaceRaw<'a> {
-    fn xfile_deserialize_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<GfxSurface> {
+    fn xfile_deserialize_into(
+        &self,
+        de: &mut T5XFileDeserializer,
+        _data: (),
+    ) -> Result<GfxSurface> {
         let tris = self.tris.into();
         let material = self.material.xfile_deserialize_into(de, ())?;
         let bounds = [self.bounds[0].into(), self.bounds[1].into()];
@@ -2175,7 +2228,11 @@ pub struct GfxWaterBuffer {
 }
 
 impl<'a> XFileDeserializeInto<GfxWaterBuffer, ()> for GfxWaterBufferRaw<'a> {
-    fn xfile_deserialize_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<GfxWaterBuffer> {
+    fn xfile_deserialize_into(
+        &self,
+        de: &mut T5XFileDeserializer,
+        _data: (),
+    ) -> Result<GfxWaterBuffer> {
         let buffer = self.buffer.to_vec_into(de)?;
         Ok(GfxWaterBuffer { buffer })
     }

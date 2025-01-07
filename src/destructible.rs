@@ -1,9 +1,11 @@
 use alloc::{boxed::Box, string::String, vec::Vec};
 
 use crate::{
-    assert_size, fx::{FxEffectDef, FxEffectDefRaw}, 
-    xmodel::{PhysConstraints, PhysConstraintsRaw, PhysPreset, PhysPresetRaw, XModel, XModelRaw}, 
-    FatPointerCountFirstU32, Ptr32, Result, ScriptString, T5XFileDeserializer, XFileDeserializeInto, XString
+    assert_size,
+    fx::{FxEffectDef, FxEffectDefRaw},
+    xmodel::{PhysConstraints, PhysConstraintsRaw, PhysPreset, PhysPresetRaw, XModel, XModelRaw},
+    FatPointerCountFirstU32, Ptr32, Result, ScriptString, T5XFileDeserializer,
+    XFileDeserializeInto, XString,
 };
 
 use serde::{Deserialize, Serialize};
@@ -30,7 +32,11 @@ pub struct DestructibleDef {
 }
 
 impl<'a> XFileDeserializeInto<DestructibleDef, ()> for DestructibleDefRaw<'a> {
-    fn xfile_deserialize_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<DestructibleDef> {
+    fn xfile_deserialize_into(
+        &self,
+        de: &mut T5XFileDeserializer,
+        _data: (),
+    ) -> Result<DestructibleDef> {
         Ok(DestructibleDef {
             name: self.name.xfile_deserialize_into(de, ())?,
             model: self.model.xfile_deserialize_into(de, ())?,
@@ -87,7 +93,11 @@ pub struct DestructiblePiece {
 }
 
 impl<'a> XFileDeserializeInto<DestructiblePiece, ()> for DestructiblePieceRaw<'a> {
-    fn xfile_deserialize_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<DestructiblePiece> {
+    fn xfile_deserialize_into(
+        &self,
+        de: &mut T5XFileDeserializer,
+        _data: (),
+    ) -> Result<DestructiblePiece> {
         Ok(DestructiblePiece {
             stages: [
                 self.stages[0].xfile_deserialize_into(de, ())?,
@@ -146,7 +156,11 @@ pub struct DestructibleStage {
 }
 
 impl<'a> XFileDeserializeInto<DestructibleStage, ()> for DestructibleStageRaw<'a> {
-    fn xfile_deserialize_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<DestructibleStage> {
+    fn xfile_deserialize_into(
+        &self,
+        de: &mut T5XFileDeserializer,
+        _data: (),
+    ) -> Result<DestructibleStage> {
         Ok(DestructibleStage {
             show_bone: self.show_bone.to_string(de).unwrap_or_default(),
             break_health: self.break_health,

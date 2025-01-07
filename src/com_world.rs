@@ -1,9 +1,10 @@
 use alloc::{boxed::Box, string::String, vec::Vec};
 
 use crate::{
-    assert_size, 
-    common::{Vec3, Vec4}, 
-    FatPointer, FatPointerCountFirstU32, Ptr32ArrayConst, Result, T5XFileDeserializer, XFileDeserializeInto, XString
+    assert_size,
+    common::{Vec3, Vec4},
+    FatPointer, FatPointerCountFirstU32, Ptr32ArrayConst, Result, T5XFileDeserializer,
+    XFileDeserializeInto, XString,
 };
 
 use serde::{Deserialize, Serialize};
@@ -115,7 +116,11 @@ pub struct ComPrimaryLight {
 }
 
 impl<'a> XFileDeserializeInto<ComPrimaryLight, ()> for ComPrimaryLightRaw<'a> {
-    fn xfile_deserialize_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<ComPrimaryLight> {
+    fn xfile_deserialize_into(
+        &self,
+        de: &mut T5XFileDeserializer,
+        _data: (),
+    ) -> Result<ComPrimaryLight> {
         let color = self.color.into();
         let dir = self.dir.into();
         let origin = self.origin.into();
@@ -208,7 +213,11 @@ pub struct ComBurnableCell {
 }
 
 impl<'a> XFileDeserializeInto<ComBurnableCell, ()> for ComBurnableCellRaw<'a> {
-    fn xfile_deserialize_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<ComBurnableCell> {
+    fn xfile_deserialize_into(
+        &self,
+        de: &mut T5XFileDeserializer,
+        _data: (),
+    ) -> Result<ComBurnableCell> {
         let data = if self.data.is_null() {
             None
         } else {
