@@ -1,16 +1,15 @@
+use alloc::{boxed::Box, format, string::String, vec::Vec};
 use bitflags::bitflags;
 use num::FromPrimitive;
+use num_derive::FromPrimitive;
+use serde::{Deserialize, Serialize};
 
-use crate::{common::*, *};
-
-// 0x6638D (418701)
-// 0x65E41 (417345)
-// ----------------
-//   0x54C   (1356)
-
-// 0x6638D (418701)
-// 0x65E75 (417397)
-//   0x518    (518)
+use crate::{
+    common::{GfxIndexBuffer, GfxVertexBuffer, Mat3, Vec3, Vec4}, 
+    techset::{Material, MaterialRaw}, 
+    assert_size, file_line_col, Error, ErrorKind, FatPointerCountFirstU32, FatPointerCountLastU32, 
+    Ptr32, Result, ScriptString, T5XFileDeserializer, XFileInto, XString, FatPointer,
+};
 
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
@@ -27,7 +26,7 @@ pub(crate) struct XModelRaw<'a> {
     pub part_classification: Ptr32<'a, u8>,
     pub base_mat: Ptr32<'a, DObjAnimMatRaw>,
     pub surfs: Ptr32<'a, XSurfaceRaw<'a>>,
-    pub material_handles: Ptr32<'a, Ptr32<'a, techset::MaterialRaw<'a>>>,
+    pub material_handles: Ptr32<'a, Ptr32<'a, MaterialRaw<'a>>>,
     pub lod_info: [XModelLodInfoRaw; MAX_LODS],
     pub load_dist_auto_generated: u8,
     #[allow(dead_code)]
@@ -79,7 +78,7 @@ pub struct XModel {
     pub part_classification: Vec<u8>,
     pub base_mat: Vec<DObjAnimMat>,
     pub surfs: Vec<XSurface>,
-    pub material_handles: Vec<Box<techset::Material>>,
+    pub material_handles: Vec<Box<Material>>,
     pub lod_info: [XModelLodInfo; MAX_LODS],
     pub load_dist_auto_generated: u8,
     pub coll_surfs: Vec<XModelCollSurf>,
@@ -102,11 +101,11 @@ pub struct XModel {
 impl<'a> XFileInto<XModel, ()> for XModelRaw<'a> {
     fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<XModel> {
         //dbg!(self);
-        //////dbg!(xfile.stream_position()?);
+        //dbg!(xfile.stream_position()?);
 
         let name = self.name.xfile_into(de, ())?;
-        ////dbg!(&name);
-        //////dbg!(xfile.stream_position()?);
+        //dbg!(&name);
+        //dbg!(xfile.stream_position()?);
 
         if self.num_bones < self.num_root_bones {
             return Err(Error::new(
@@ -143,41 +142,41 @@ impl<'a> XFileInto<XModel, ()> for XModelRaw<'a> {
             .into_iter()
             .map(|s| s.to_string(de).unwrap_or_default())
             .collect();
-        ////dbg!(&bone_names);
-        ////dbg!(de.stream_pos()?);
+        //dbg!(&bone_names);
+        //dbg!(de.stream_pos()?);
         let parent_list = self
             .parent_list
             .to_array(self.num_bones as usize - self.num_root_bones as usize)
             .to_vec(de)?;
-        //////dbg!(&parent_list);
-        ////dbg!(de.stream_pos()?);
+        //dbg!(&parent_list);
+        //dbg!(de.stream_pos()?);
         let quats = self
             .quats
             .to_array((self.num_bones as usize - self.num_root_bones as usize) * 4)
             .to_vec(de)?;
-        //////dbg!(&quats);
-        ////dbg!(de.stream_pos()?);
+        //dbg!(&quats);
+        //dbg!(de.stream_pos()?);
         let trans = self
             .trans
             .to_array((self.num_bones as usize - self.num_root_bones as usize) * 4)
             .to_vec(de)?;
-        //////dbg!(&trans);
-        ////dbg!(de.stream_pos()?);
+        //dbg!(&trans);
+        //dbg!(de.stream_pos()?);
         let part_classification = self
             .part_classification
             .to_array(self.num_bones as _)
             .to_vec(de)?;
-        //////dbg!(&part_classification);
-        ////dbg!(de.stream_pos()?);
+        //dbg!(&part_classification);
+        //dbg!(de.stream_pos()?);
         let base_mat = self
             .base_mat
             .to_array(self.num_bones as _)
             .to_vec_into(de)?;
-        ////dbg!(&base_mat);
-        ////dbg!(de.stream_pos()?);
+        //dbg!(&base_mat);
+        //dbg!(de.stream_pos()?);
         let surfs = self.surfs.to_array(self.numsurfs as _).xfile_into(de, ())?;
-        //////dbg!(&surfs);
-        ////dbg!(de.stream_pos()?);
+        //dbg!(&surfs);
+        //dbg!(de.stream_pos()?);
         let material_handles = self
             .material_handles
             .to_array(self.numsurfs as _)
@@ -185,8 +184,8 @@ impl<'a> XFileInto<XModel, ()> for XModelRaw<'a> {
             .into_iter()
             .flatten()
             .collect();
-        ////dbg!(&material_handles);
-        ////dbg!(de.stream_pos()?);
+        //dbg!(&material_handles);
+        //dbg!(de.stream_pos()?);
         let lod_info = [
             self.lod_info[0].try_into()?,
             self.lod_info[1].try_into()?,
@@ -194,14 +193,14 @@ impl<'a> XFileInto<XModel, ()> for XModelRaw<'a> {
             self.lod_info[3].try_into()?,
         ];
         let coll_surfs = self.coll_surfs.xfile_into(de, ())?;
-        ////dbg!(&coll_surfs);
-        ////dbg!(de.stream_pos()?);
+        //dbg!(&coll_surfs);
+        //dbg!(de.stream_pos()?);
         let bone_info = self
             .bone_info
             .to_array(self.num_bones as _)
             .to_vec_into(de)?;
-        ////dbg!(&bone_info);
-        ////dbg!(de.stream_pos()?);
+        //dbg!(&bone_info);
+        //dbg!(de.stream_pos()?);
 
         if self.num_lods > MAX_LODS as i16 {
             return Err(Error::new(
@@ -226,17 +225,17 @@ impl<'a> XFileInto<XModel, ()> for XModelRaw<'a> {
         }
 
         let stream_info = self.stream_info.xfile_into(de, self.numsurfs)?;
-        ////dbg!(&stream_info);
-        ////dbg!(de.stream_pos()?);
+        //dbg!(&stream_info);
+        //dbg!(de.stream_pos()?);
         let phys_preset = self.phys_preset.xfile_into(de, ())?;
-        ////dbg!(&phys_preset);
-        ////dbg!(de.stream_pos()?);
+        //dbg!(&phys_preset);
+        //dbg!(de.stream_pos()?);
         let collmaps = self.collmaps.xfile_into(de, ())?;
-        ////dbg!(&collmaps);
-        ////dbg!(de.stream_pos()?);
+        //dbg!(&collmaps);
+        //dbg!(de.stream_pos()?);
         let phys_constraints = self.phys_constraints.xfile_into(de, ())?;
-        ////dbg!(&phys_constraints);
-        ////dbg!(de.stream_pos()?);
+        //dbg!(&phys_constraints);
+        //dbg!(de.stream_pos()?);
 
         Ok(XModel {
             name,
@@ -349,9 +348,9 @@ pub struct XSurface {
 
 impl<'a> XFileInto<XSurface, ()> for XSurfaceRaw<'a> {
     fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<XSurface> {
-        //////dbg!(self);
+        //dbg!(self);
         //let pos = de.stream_pos()?;
-        ////dbg!(pos);
+        //dbg!(pos);
 
         let flags = XSurfaceFlags::from_bits(self.flags).ok_or(Error::new(
             file_line_col!(),
@@ -496,7 +495,7 @@ pub struct XRigidVertList {
 
 impl<'a> XFileInto<XRigidVertList, ()> for XRigidVertListRaw<'a> {
     fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<XRigidVertList> {
-        //////dbg!(&self);
+        //dbg!(&self);
 
         Ok(XRigidVertList {
             bone_offset: self.bone_offset as _,
@@ -529,7 +528,7 @@ pub struct XSurfaceCollisionTree {
 
 impl<'a> XFileInto<XSurfaceCollisionTree, ()> for XSurfaceCollisionTreeRaw<'a> {
     fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<XSurfaceCollisionTree> {
-        //////dbg!(&self);
+        //dbg!(&self);
 
         Ok(XSurfaceCollisionTree {
             trans: self.trans.into(),
@@ -842,7 +841,7 @@ pub struct PhysPreset {
 
 impl<'a> XFileInto<PhysPreset, ()> for PhysPresetRaw<'a> {
     fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<PhysPreset> {
-        ////dbg!(self);
+        //dbg!(self);
         if self.flags > 1 {
             return Err(Error::new(
                 file_line_col!(),
@@ -863,9 +862,9 @@ impl<'a> XFileInto<PhysPreset, ()> for PhysPresetRaw<'a> {
         }
 
         let name = self.name.xfile_into(de, ())?;
-        ////dbg!(&name);
+        //dbg!(&name);
         let snd_alias_prefix = self.snd_alias_prefix.xfile_into(de, ())?;
-        ////dbg!(&snd_alias_prefix);
+        //dbg!(&snd_alias_prefix);
 
         Ok(PhysPreset {
             name,
@@ -1177,10 +1176,10 @@ pub struct PhysConstraints {
 
 impl<'a> XFileInto<PhysConstraints, ()> for PhysConstraintsRaw<'a> {
     fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<PhysConstraints> {
-        ////dbg!(self.name, self.count);
+        //dbg!(self.name, self.count);
 
         let name = self.name.xfile_into(de, ())?;
-        ////dbg!(&name);
+        //dbg!(&name);
         Ok(PhysConstraints {
             name,
             count: self.count as usize,
@@ -1227,7 +1226,7 @@ pub(crate) struct PhysConstraintRaw<'a> {
     pub spin_scale: f32,
     pub min_angle: f32,
     pub max_angle: f32,
-    pub material: Ptr32<'a, techset::MaterialRaw<'a>>,
+    pub material: Ptr32<'a, MaterialRaw<'a>>,
     pub constraint_handle: i32,
     pub rope_index: i32,
     pub centity_num: [i32; 4],
@@ -1291,7 +1290,7 @@ pub struct PhysConstraint {
     pub spin_scale: f32,
     pub min_angle: f32,
     pub max_angle: f32,
-    pub material: Option<Box<techset::Material>>,
+    pub material: Option<Box<Material>>,
     pub constraint_handle: i32,
     pub rope_index: usize,
     pub centity_num: [i32; 4],
@@ -1299,18 +1298,18 @@ pub struct PhysConstraint {
 
 impl<'a> XFileInto<PhysConstraint, ()> for PhysConstraintRaw<'a> {
     fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<PhysConstraint> {
-        //////dbg!(self);
+        //dbg!(self);
         let targetname = self.targetname.to_string(de).unwrap_or_default();
         let target_ent1 = self.target_ent1.to_string(de).unwrap_or_default();
         let target_bone1 = self.target_bone1.xfile_into(de, ())?;
         let target_ent2 = self.target_ent2.to_string(de).unwrap_or_default();
         let target_bone2 = self.target_bone2.xfile_into(de, ())?;
         let material = self.material.xfile_into(de, ())?;
-        //////dbg!(&targetname);
-        ////dbg!(&target_ent1);
-        //////dbg!(&target_bone1);
-        ////dbg!(&target_ent2);
-        ////dbg!(&target_bone2);
+        //dbg!(&targetname);
+        //dbg!(&target_ent1);
+        //dbg!(&target_bone1);
+        //dbg!(&target_ent2);
+        //dbg!(&target_bone2);
 
         Ok(PhysConstraint {
             targetname,

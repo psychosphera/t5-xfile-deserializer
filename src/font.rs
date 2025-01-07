@@ -1,4 +1,8 @@
-use crate::*;
+use alloc::{boxed::Box, string::String, vec::Vec};
+
+use crate::{assert_size, techset::{Material, MaterialRaw}, FatPointer, Ptr32, Result, T5XFileDeserializer, XFileInto, XString};
+
+use serde::{Deserialize, Serialize};
 
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Debug, Deserialize)]
@@ -6,8 +10,8 @@ pub(crate) struct FontRaw<'a> {
     pub font_name: XString<'a>,
     pub pixel_height: i32,
     pub glyph_count: i32,
-    pub material: Ptr32<'a, techset::MaterialRaw<'a>>,
-    pub glow_material: Ptr32<'a, techset::MaterialRaw<'a>>,
+    pub material: Ptr32<'a, MaterialRaw<'a>>,
+    pub glow_material: Ptr32<'a, MaterialRaw<'a>>,
     pub glyphs: Ptr32<'a, Glyph>,
 }
 assert_size!(FontRaw, 24);
@@ -17,8 +21,8 @@ assert_size!(FontRaw, 24);
 pub struct Font {
     pub font_name: String,
     pub pixel_height: i32,
-    pub material: Option<Box<techset::Material>>,
-    pub glow_material: Option<Box<techset::Material>>,
+    pub material: Option<Box<Material>>,
+    pub glow_material: Option<Box<Material>>,
     pub glyphs: Vec<Glyph>,
 }
 

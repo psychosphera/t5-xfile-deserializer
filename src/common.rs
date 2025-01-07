@@ -1,14 +1,16 @@
 #![allow(clippy::clone_on_copy)]
 #![allow(clippy::unit_arg)]
 
-use crate::*;
-
 #[cfg(feature = "serde")]
 use core::mem::transmute;
+
+use crate::{assert_size, size_of};
+
 #[cfg(feature = "serde")]
 use serde::de::Visitor;
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
+
 #[cfg(all(feature = "serde", feature = "cgmath"))]
 #[cfg(feature = "cgmath")]
 #[derive(Copy, Clone, Debug)]
@@ -456,7 +458,7 @@ impl<'de> Visitor<'de> for D3D9Visitor {
 impl<'de> Visitor<'de> for D3D9Visitor {
     type Value = ();
 
-    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+    fn expecting(&self, formatter: &mut core::fmt::Formatter) -> core::fmt::Result {
         formatter.write_str("()")
     }
 
@@ -476,7 +478,7 @@ pub struct GfxVertexShader(pub D3D9VS);
 #[cfg(feature = "serde")]
 impl Serialize for GfxVertexShader {
     fn serialize<S: Serializer>(&self, serializer: S) -> core::result::Result<S::Ok, S::Error> {
-        unsafe { transmute::<_, [u8; sizeof!(D3D9VS)]>(self.0.clone()) }.serialize(serializer)
+        unsafe { transmute::<_, [u8; size_of!(D3D9VS)]>(self.0.clone()) }.serialize(serializer)
     }
 }
 #[cfg(all(feature = "serde", feature = "d3d9"))]
@@ -503,7 +505,7 @@ pub struct GfxPixelShader(pub D3D9PS);
 #[cfg(feature = "serde")]
 impl Serialize for GfxPixelShader {
     fn serialize<S: Serializer>(&self, serializer: S) -> core::result::Result<S::Ok, S::Error> {
-        unsafe { transmute::<_, [u8; sizeof!(D3D9PS)]>(self.0.clone()) }.serialize(serializer)
+        unsafe { transmute::<_, [u8; size_of!(D3D9PS)]>(self.0.clone()) }.serialize(serializer)
     }
 }
 #[cfg(all(feature = "serde", feature = "d3d9"))]
@@ -535,7 +537,7 @@ pub struct GfxTexture(D3D9Tex);
 #[cfg(feature = "serde")]
 impl Serialize for GfxTexture {
     fn serialize<S: Serializer>(&self, serializer: S) -> core::result::Result<S::Ok, S::Error> {
-        unsafe { transmute::<_, [u8; sizeof!(D3D9Tex)]>(self.0.clone()) }.serialize(serializer)
+        unsafe { transmute::<_, [u8; size_of!(D3D9Tex)]>(self.0.clone()) }.serialize(serializer)
     }
 }
 #[cfg(all(feature = "serde", feature = "d3d9"))]
@@ -562,7 +564,7 @@ pub struct GfxVolumeTexture(D3D9VolTex);
 #[cfg(feature = "serde")]
 impl Serialize for GfxVolumeTexture {
     fn serialize<S: Serializer>(&self, serializer: S) -> core::result::Result<S::Ok, S::Error> {
-        unsafe { transmute::<_, [u8; sizeof!(D3D9VolTex)]>(self.0.clone()) }.serialize(serializer)
+        unsafe { transmute::<_, [u8; size_of!(D3D9VolTex)]>(self.0.clone()) }.serialize(serializer)
     }
 }
 #[cfg(all(feature = "serde", feature = "d3d9"))]
@@ -590,7 +592,7 @@ pub struct GfxCubeTexture(D3D9Tex);
 #[cfg(feature = "serde")]
 impl Serialize for GfxCubeTexture {
     fn serialize<S: Serializer>(&self, serializer: S) -> core::result::Result<S::Ok, S::Error> {
-        unsafe { transmute::<_, [u8; sizeof!(D3D9CubeTex)]>(self.0.clone()) }.serialize(serializer)
+        unsafe { transmute::<_, [u8; size_of!(D3D9CubeTex)]>(self.0.clone()) }.serialize(serializer)
     }
 }
 #[cfg(all(feature = "serde", feature = "d3d9"))]
@@ -617,7 +619,7 @@ pub struct GfxVertexBuffer(pub D3D9VB);
 #[cfg(feature = "serde")]
 impl Serialize for GfxVertexBuffer {
     fn serialize<S: Serializer>(&self, serializer: S) -> core::result::Result<S::Ok, S::Error> {
-        unsafe { transmute::<_, [u8; sizeof!(D3D9VB)]>(self.0.clone()) }.serialize(serializer)
+        unsafe { transmute::<_, [u8; size_of!(D3D9VB)]>(self.0.clone()) }.serialize(serializer)
     }
 }
 #[cfg(all(feature = "serde", feature = "d3d9"))]
@@ -644,7 +646,7 @@ pub struct GfxIndexBuffer(D3D9IB);
 #[cfg(feature = "serde")]
 impl Serialize for GfxIndexBuffer {
     fn serialize<S: Serializer>(&self, serializer: S) -> core::result::Result<S::Ok, S::Error> {
-        unsafe { transmute::<_, [u8; sizeof!(D3D9IB)]>(self.0.clone()) }.serialize(serializer)
+        unsafe { transmute::<_, [u8; size_of!(D3D9IB)]>(self.0.clone()) }.serialize(serializer)
     }
 }
 #[cfg(all(feature = "serde", feature = "d3d9"))]

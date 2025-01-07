@@ -1,6 +1,9 @@
-use std::mem::transmute;
+use core::mem::transmute;
 
-use crate::{common::Vec3, *};
+use alloc::{boxed::Box, string::String, vec::Vec};
+use serde::{Deserialize, Serialize};
+
+use crate::{assert_size, common::Vec3, Ptr32, ScriptString, T5XFileDeserializer, XFileInto, XString, Result, FatPointer};
 
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Debug, Default, Deserialize)]
@@ -76,9 +79,9 @@ pub struct XAnimParts {
 
 impl<'a> XFileInto<XAnimParts, ()> for XAnimPartsRaw<'a> {
     fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<XAnimParts> {
-        dbg!(self);
+        //dbg!(self);
         let name = self.name.xfile_into(de, ())?;
-        dbg!(&name);
+        //dbg!(&name);
         let names = self
             .names
             .to_array(self.bone_count[PART_TYPE_ALL] as _)
@@ -86,48 +89,48 @@ impl<'a> XFileInto<XAnimParts, ()> for XAnimPartsRaw<'a> {
             .into_iter()
             .map(|s| s.to_string(de))
             .collect::<Result<Vec<_>>>()?;
-        dbg!(&names);
+        //dbg!(&names);
         let notify = self
             .notify
             .to_array(self.notify_count as _)
             .xfile_into(de, ())?;
-        dbg!(&notify);
+        //dbg!(&notify);
         let delta_part = self.delta_part.xfile_into(de, self.numframes)?;
-        dbg!(&delta_part);
+        //dbg!(&delta_part);
         let data_byte = self
             .data_byte
             .to_array(self.data_byte_count as _)
             .to_vec(de)?;
-        dbg!(&data_byte.len());
+        //dbg!(&data_byte.len());
         let data_short = self
             .data_short
             .to_array(self.data_short_count as _)
             .to_vec(de)?;
-        dbg!(&data_short.len());
+        //dbg!(&data_short.len());
         let data_int = self
             .data_int
             .to_array(self.data_int_count as _)
             .to_vec(de)?;
-        dbg!(&data_int.len());
+        //dbg!(&data_int.len());
         let random_data_byte = self
             .random_data_byte
             .to_array(self.random_data_byte_count as _)
             .to_vec(de)?;
-        dbg!(&random_data_byte.len());
+        //dbg!(&random_data_byte.len());
         let random_data_short = self
             .random_data_short
             .to_array(self.random_data_short_count as _)
             .to_vec(de)?;
-        dbg!(&random_data_short.len());
+        //dbg!(&random_data_short.len());
         let random_data_int = self
             .random_data_int
             .to_array(self.random_data_int_count as _)
             .to_vec(de)?;
-        dbg!(&random_data_int.len());
+        //dbg!(&random_data_int.len());
         let indices = self
             .indices
             .xfile_into(de, (self.numframes, self.index_count))?;
-        dbg!(&indices);
+        //dbg!(&indices);
 
         Ok(XAnimParts {
             name,
@@ -232,7 +235,7 @@ pub struct XAnimDeltaPart {
 
 impl<'a> XFileInto<XAnimDeltaPart, u16> for XAnimDeltaPartRaw<'a> {
     fn xfile_into(&self, de: &mut T5XFileDeserializer, numframes: u16) -> Result<XAnimDeltaPart> {
-        dbg!(self);
+        //dbg!(self);
         Ok(XAnimDeltaPart {
             trans: self.trans.xfile_into(de, numframes)?,
             quat: self.quat.xfile_into(de, numframes)?,
@@ -260,7 +263,7 @@ pub struct XAnimPartTrans {
 
 impl XFileInto<XAnimPartTrans, u16> for XAnimPartTransRaw {
     fn xfile_into(&self, de: &mut T5XFileDeserializer, numframes: u16) -> Result<XAnimPartTrans> {
-        dbg!(self);
+        //dbg!(self);
         Ok(XAnimPartTrans {
             size: self.size,
             small_trans: self.small_trans,
@@ -326,7 +329,7 @@ impl<'a> XFileInto<XAnimPartTransFrames, (u16, u8, u16)> for XAnimPartTransFrame
         de: &mut T5XFileDeserializer,
         (numframes, small_trans, size): (u16, u8, u16),
     ) -> Result<XAnimPartTransFrames> {
-        dbg!(self);
+        //dbg!(self);
         let indices = self.indices.xfile_into(de, (numframes, size))?;
         let frames = self.frames.xfile_into(de, (small_trans, size))?;
         Ok(XAnimPartTransFrames {

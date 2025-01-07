@@ -1,13 +1,21 @@
-use common::{Mat3, Vec3, Vec4};
-use fx::{FxEffectDef, FxEffectDefRaw};
-use num::FromPrimitive;
-use techset::{Material, MaterialRaw};
-use xmodel::{
-    CBrushSide, CBrushSideRaw, CPlane, CPlaneRaw, PhysConstraint, PhysConstraintRaw, PhysPreset,
-    PhysPresetRaw, XModel, XModelPieces, XModelPiecesRaw, XModelRaw,
+use alloc::{boxed::Box, string::String, vec::Vec};
+
+use crate::{
+    assert_size, file_line_col,
+    common::{Mat3, Vec3, Vec4}, 
+    fx::{FxEffectDef, FxEffectDefRaw}, 
+    techset::{Material, MaterialRaw}, 
+    xmodel::{
+        CBrushSide, CBrushSideRaw, CPlane, CPlaneRaw, PhysConstraint, PhysConstraintRaw, PhysPreset,
+        PhysPresetRaw, XModel, XModelPieces, XModelPiecesRaw, XModelRaw,
+    }, 
+    Error, ErrorKind, FatPointer, FatPointerCountFirstU32, MapEnts, 
+    MapEntsRaw, Ptr32, Result, ScriptString, T5XFileDeserializer, XFileInto, XString
 };
 
-use crate::*;
+use serde::{Serialize, Deserialize};
+use num::FromPrimitive;
+use num_derive::FromPrimitive;
 
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
@@ -280,8 +288,8 @@ assert_size!(CStaticModelWritable, 2);
 #[derive(Copy, Clone, Debug, Deserialize)]
 pub(crate) struct DMaterialName(#[serde(with = "serde_arrays")] [u8; 64]);
 
-impl Display for DMaterialName {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Display for DMaterialName {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         let len = self
             .0
             .into_iter()

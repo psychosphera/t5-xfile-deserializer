@@ -1,9 +1,12 @@
-use std::mem::transmute;
+use core::mem::transmute;
 
-use common::Vec4;
+use alloc::{boxed::Box, format, string::String, vec::Vec};
+
 use num::FromPrimitive;
+use num_derive::FromPrimitive;
+use serde::{Deserialize, Serialize};
 
-use crate::*;
+use crate::{assert_size, common::Vec4, file_line_col, techset::{Material, MaterialRaw}, Error, ErrorKind, FatPointerCountFirstU32, FatPointerCountLastU32, Ptr32, Result, T5XFileDeserializer, XFileInto, XString};
 
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
@@ -28,18 +31,18 @@ impl<'a, const MAX_LOCAL_CLIENTS: usize> XFileInto<MenuList<MAX_LOCAL_CLIENTS>, 
         de: &mut T5XFileDeserializer,
         _data: (),
     ) -> Result<MenuList<MAX_LOCAL_CLIENTS>> {
-        ////dbg!(self);
+        //dbg!(self);
         let name = self.name.xfile_into(de, ())?;
         //dbg!(&name);
-        ////dbg!(de.stream_pos()?);
+        //dbg!(de.stream_pos()?);
         let menus = self
             .menus
             .xfile_into(de, ())?
             .into_iter()
             .flatten()
             .collect();
-        ////dbg!(&menus);
-        ////dbg!(de.stream_pos()?);
+        //dbg!(&menus);
+        //dbg!(de.stream_pos()?);
 
         Ok(MenuList { name, menus })
     }
@@ -295,7 +298,7 @@ pub(crate) struct WindowDefRaw<'a, const MAX_LOCAL_CLIENTS: usize> {
     pub border_color: [f32; 4],
     pub outline_color: [f32; 4],
     pub rotation: f32,
-    pub background: Ptr32<'a, techset::MaterialRaw<'a>>,
+    pub background: Ptr32<'a, MaterialRaw<'a>>,
 }
 assert_size!(WindowDefRaw<1>, 164);
 
@@ -353,7 +356,7 @@ pub struct WindowDef<const MAX_LOCAL_CLIENTS: usize> {
     pub border_color: Vec4,
     pub outline_color: Vec4,
     pub rotation: f32,
-    pub background: Option<Box<techset::Material>>,
+    pub background: Option<Box<Material>>,
 }
 
 impl<'a, const MAX_LOCAL_CLIENTS: usize> XFileInto<WindowDef<MAX_LOCAL_CLIENTS>, ()>
@@ -364,16 +367,16 @@ impl<'a, const MAX_LOCAL_CLIENTS: usize> XFileInto<WindowDef<MAX_LOCAL_CLIENTS>,
         de: &mut T5XFileDeserializer,
         _data: (),
     ) -> Result<WindowDef<MAX_LOCAL_CLIENTS>> {
-        ////dbg!(de.stream_pos()?);
+        //dbg!(de.stream_pos()?);
         let name = self.name.xfile_into(de, ())?;
-        ////dbg!(&name);
-        ////dbg!(de.stream_pos()?);
+        //dbg!(&name);
+        //dbg!(de.stream_pos()?);
         let group = self.group.xfile_into(de, ())?;
-        ////dbg!(&group);
-        ////dbg!(de.stream_pos()?);
+        //dbg!(&group);
+        //dbg!(de.stream_pos()?);
         let background = self.background.xfile_into(de, ())?;
-        ////dbg!(&background);
-        ////dbg!(de.stream_pos()?);
+        //dbg!(&background);
+        //dbg!(de.stream_pos()?);
 
         let rect = self.rect.into();
         let rect_client = self.rect_client.into();
@@ -819,7 +822,7 @@ impl<'a, const MAX_LOCAL_CLIENTS: usize> XFileInto<ItemDef<MAX_LOCAL_CLIENTS>, (
         //dbg!(&enable_dvar);
         let type_data = self.type_data.xfile_into(de, self.type_)?;
         //dbg!(de.stream_pos().unwrap());
-        //dbg!(&type_data);
+        ////dbg!(&type_data);
         let parent = if self.parent.is_null() || self.parent.is_real() {
             None
         } else {
@@ -1223,9 +1226,9 @@ pub(crate) struct ListBoxDefRaw<'a, const MAX_LOCAL_CLIENTS: usize> {
     pub focus_color: [f32; 4],
     pub element_highlight_color: [f32; 4],
     pub element_background_color: [f32; 4],
-    pub select_icon: Ptr32<'a, techset::MaterialRaw<'a>>,
-    pub background_item_listbox: Ptr32<'a, techset::MaterialRaw<'a>>,
-    pub highlight_texture: Ptr32<'a, techset::MaterialRaw<'a>>,
+    pub select_icon: Ptr32<'a, MaterialRaw<'a>>,
+    pub background_item_listbox: Ptr32<'a, MaterialRaw<'a>>,
+    pub highlight_texture: Ptr32<'a, MaterialRaw<'a>>,
     pub no_blinking_highlight: i32,
     pub rows: FatPointerCountLastU32<'a, MenuRowRaw<'a>>,
     #[allow(dead_code)]
@@ -1288,9 +1291,9 @@ pub struct ListBoxDef<const MAX_LOCAL_CLIENTS: usize> {
     pub focus_color: Vec4,
     pub element_highlight_color: Vec4,
     pub element_background_color: Vec4,
-    pub select_icon: Option<Box<techset::Material>>,
-    pub background_item_listbox: Option<Box<techset::Material>>,
-    pub highlight_texture: Option<Box<techset::Material>>,
+    pub select_icon: Option<Box<Material>>,
+    pub background_item_listbox: Option<Box<Material>>,
+    pub highlight_texture: Option<Box<Material>>,
     pub no_blinking_highlight: bool,
     pub rows: Vec<MenuRow>,
 }

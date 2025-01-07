@@ -17,6 +17,7 @@ cgmath = { version = "0.18.0", optional = true }
 windows = { version = "0.52.0", optional = true, features = ["Win32_Foundation", "Win32_Graphics_Direct3D9"] }
 bitflags = { version = "2.4.1", features = ["serde"] }
 serde_arrays = "0.1.0"
+clap = { version = "4.5.23", features = ["cargo", "derive"] }
 
 [features]
 cgmath = ["dep:cgmath"]

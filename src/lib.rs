@@ -85,6 +85,9 @@
 #![allow(clippy::wrong_self_convention)]
 #![allow(clippy::from_over_into)]
 #![allow(clippy::needless_borrows_for_generic_args)]
+//#![no_std]
+
+extern crate alloc;
 
 pub mod clipmap;
 pub mod com_world;
@@ -106,20 +109,18 @@ pub mod xanim;
 pub mod xasset;
 pub mod xmodel;
 
-use std::{
-    collections::VecDeque,
-    ffi::CString,
-    fmt::{Debug, Display},
-    io::{Cursor, Read, Seek, Write},
-    marker::PhantomData,
-    path::Path,
+use core::marker::PhantomData;
+
+use alloc::{
+    boxed::Box, collections::VecDeque, fmt::{Debug, Display}, string::String, vec::Vec
 };
+
+use std::{path::Path, io::{Cursor, Read, Seek, Write}};
 
 use bincode::{
     config::{BigEndian, FixintEncoding, LittleEndian, WithOtherEndian, WithOtherIntEncoding},
     DefaultOptions, Options,
 };
-use num_derive::FromPrimitive;
 use serde::{de::DeserializeOwned, Deserialize};
 
 #[cfg(feature = "serde")]
@@ -129,7 +130,7 @@ use serde::Serialize;
 use windows::Win32::Graphics::Direct3D9::IDirect3DDevice9;
 
 pub use misc::*;
-use util::{StreamLen, *};
+use util::*;
 use xasset::{XAsset, XAssetList, XAssetRaw, XAssetType};
 
 #[cfg_attr(feature = "serde", derive(Serialize))]
@@ -244,7 +245,7 @@ pub enum XFilePlatform {
 }
 
 impl Display for XFilePlatform {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         let s = match self {
             Self::Windows => "Windows",
             Self::macOS => "macOS",
@@ -348,8 +349,10 @@ pub enum ErrorKind {
     WrongVersion(u32),
     /// Occurs when an XFile has the wrong endianness for the given platform.
     WrongEndiannessForPlatform(XFilePlatform),
-    /// Occurs when an XFile's platform is unsupported (currently just Wii).
-    UnsupportedPlatform(XFilePlatform),
+    /// Occurs when an XFile's platform is unimplemented (currently just Wii).
+    UnimplementedPlatform(XFilePlatform),
+    /// Occurs when an XFile's platform is unsupported (all platforms except Windows).
+    UnsupportedPlatform(XFilePlatform), 
     /// Occurs when some part of the library hasn't yet been implemented.
     Todo(String),
     /// Occurs when a [`ScriptString`] doesn't index [`T5XFileDeserializer::script_strings`].
@@ -389,12 +392,13 @@ impl From<windows::core::Error> for ErrorKind {
     }
 }
 
-#[macro_export]
 macro_rules! file_line_col {
     () => {
-        format!("{}:{}:{}", file!(), line!(), column!())
+        alloc::format!("{}:{}:{}", file!(), line!(), column!())
     };
 }
+
+pub(crate) use file_line_col;
 
 #[derive(Debug)]
 pub struct Error {
@@ -474,36 +478,44 @@ pub enum CacheSuccess {
 }
 
 pub struct T5XFileDeserializerBuilder<'a> {
-    silent: bool,
     file: Option<&'a mut std::fs::File>,
     cache_file: Option<&'a mut std::fs::File>,
+    silent: bool,
     platform: XFilePlatform,
+    allow_unsupported_platforms: bool,
     d3d9_state: Option<D3D9State<'a>>,
 }
 
 impl<'a> T5XFileDeserializerBuilder<'a> {
-    pub fn from_file(file: &'a mut std::fs::File, platform: XFilePlatform) -> Self {
+    pub fn from_file(file: &'a mut std::fs::File, platform: XFilePlatform, allow_unsupported_platforms: bool) -> Self {
         Self {
             file: Some(file),
             cache_file: None,
             platform,
             silent: false,
+            allow_unsupported_platforms,
             d3d9_state: None,
         }
     }
 
-    pub fn from_cache_file(cache_file: &'a mut std::fs::File, platform: XFilePlatform) -> Self {
+    pub fn from_cache_file(cache_file: &'a mut std::fs::File, platform: XFilePlatform, allow_unsupported_platforms: bool) -> Self {
         Self {
             file: None,
             cache_file: Some(cache_file),
             platform,
             silent: false,
+            allow_unsupported_platforms,
             d3d9_state: None,
         }
     }
 
     pub fn with_silent(mut self, silent: bool) -> Self {
         self.silent = silent;
+        self
+    }
+
+    pub fn with_allow_unsupported_platforms(mut self, allow_unsupported_platforms: bool) -> Self {
+        self.allow_unsupported_platforms = allow_unsupported_platforms;
         self
     }
 
@@ -518,6 +530,7 @@ impl<'a> T5XFileDeserializerBuilder<'a> {
             T5XFileDeserializer::from_file(
                 self.file.take().unwrap(),
                 self.silent,
+                self.allow_unsupported_platforms,
                 self.platform,
                 self.d3d9_state,
             )
@@ -525,6 +538,7 @@ impl<'a> T5XFileDeserializerBuilder<'a> {
             T5XFileDeserializer::from_cache_file(
                 self.cache_file.take().unwrap(),
                 self.silent,
+                self.allow_unsupported_platforms,
                 self.platform,
                 self.d3d9_state,
             )
@@ -538,36 +552,67 @@ impl<'a> T5XFileDeserializer<'a, T5XFileDeserializerUninflated> {
     fn from_file(
         file: &'a mut std::fs::File,
         silent: bool,
+        allow_unsupported_platforms: bool,
         platform: XFilePlatform,
         d3d9_state: Option<D3D9State<'a>>,
     ) -> Result<Self> {
         if platform == XFilePlatform::Wii {
             if !silent {
-                println!("Wii Fastfiles aren't supported.");
+                println!("Error: Wii Fastfiles are unimplemented.");
             }
+
             return Err(Error::new(
                 file_line_col!(),
                 0,
-                ErrorKind::UnsupportedPlatform(platform),
+                ErrorKind::UnimplementedPlatform(platform),
             ));
         }
 
-        if !silent && (platform == XFilePlatform::Xbox360 || platform == XFilePlatform::PS3) {
-            println!(
-                "Warning: {} Fastfiles might (and probably do) have differences\
-                 from Windows Fastfiles that aren't accounted for in this\
-                 library. Expect problems.",
-                platform
-            );
+        if platform == XFilePlatform::Xbox360 || platform == XFilePlatform::PS3 {
+            if allow_unsupported_platforms && !silent {
+                println!(
+                    "Warning: {platform} Fastfiles might (and probably do) have differences\
+                     from Windows Fastfiles that aren't accounted for in this\
+                     library. Expect problems."
+                );
+            } else {
+                if !silent {
+                    println!(
+                        "Error: {platform} Fastfiles might (and probably do) have differences\
+                         from Windows Fastfiles that aren't accounted for in this\
+                         library, and as such, they are unsupported."
+                    );
+                }
+                return Err(Error::new(
+                    file_line_col!(),
+                    0,
+                    ErrorKind::UnsupportedPlatform(platform),
+                ));
+            }
         }
 
         if !silent && platform == XFilePlatform::macOS {
-            println!(
-                "Warning: macOS Fastfiles are *presumably* identical to\
-                 Windows Fastfiles (being an Aspyr port and all), but the\
-                 author of this library hasn't yet verified that to be true.\
-                 Problems may arise."
-            );
+            if allow_unsupported_platforms {
+                println!(
+                    "Warning: macOS Fastfiles are *presumably* identical to\
+                     Windows Fastfiles (being an Aspyr port and all), but the\
+                     author of this library hasn't yet verified that to be true.\
+                     Problems may arise."
+                );
+            } else {
+                println!(
+                    "Error: macOS Fastfiles are *presumably* identical to\
+                     Windows Fastfiles (being an Aspyr port and all), but the\
+                     author of this library hasn't yet verified that to be true,\
+                     and as such, they are unsupported."
+
+                );
+                return Err(Error::new(
+                    file_line_col!(),
+                    0,
+                    ErrorKind::UnsupportedPlatform(platform),
+                ));
+            }
         }
 
         if !silent {
@@ -597,8 +642,7 @@ impl<'a> T5XFileDeserializer<'a, T5XFileDeserializerUninflated> {
             if !silent {
                 println!(
                     "Fastfile header is valid, but it has the wrong endianness\
-                     for {} (probably for a different platform).",
-                    platform
+                     for {platform} (probably for a different platform)."
                 );
             }
             return Err(Error::new(
@@ -651,18 +695,67 @@ impl<'a> T5XFileDeserializer<'a, T5XFileDeserializerUninflated> {
     fn from_cache_file(
         file: &'a mut std::fs::File,
         silent: bool,
+        allow_unsupported_platforms: bool,
         platform: XFilePlatform,
         d3d9_state: Option<D3D9State<'a>>,
     ) -> Result<Self> {
         if platform == XFilePlatform::Wii {
             if !silent {
-                println!("Wii Fastfiles aren't supported (does Wii even use Fastfiles?)");
+                println!("Error: Wii Fastfiles are unimplemented.");
             }
+
             return Err(Error::new(
                 file_line_col!(),
                 0,
-                ErrorKind::UnsupportedPlatform(platform),
+                ErrorKind::UnimplementedPlatform(platform),
             ));
+        }
+
+        if platform == XFilePlatform::Xbox360 || platform == XFilePlatform::PS3 {
+            if allow_unsupported_platforms && !silent {
+                println!(
+                    "Warning: {platform} Fastfiles might (and probably do) have differences\
+                     from Windows Fastfiles that aren't accounted for in this\
+                     library. Expect problems."
+                );
+            } else {
+                if !silent {
+                    println!(
+                        "Error: {platform} Fastfiles might (and probably do) have differences\
+                         from Windows Fastfiles that aren't accounted for in this\
+                         library, and as such, they are unsupported."
+                    );
+                }
+                return Err(Error::new(
+                    file_line_col!(),
+                    0,
+                    ErrorKind::UnsupportedPlatform(platform),
+                ));
+            }
+        }
+
+        if !silent && platform == XFilePlatform::macOS {
+            if allow_unsupported_platforms {
+                println!(
+                    "Warning: macOS Fastfiles are *presumably* identical to\
+                     Windows Fastfiles (being an Aspyr port and all), but the\
+                     author of this library hasn't yet verified that to be true.\
+                     Problems may arise."
+                );
+            } else {
+                println!(
+                    "Error: macOS Fastfiles are *presumably* identical to\
+                     Windows Fastfiles (being an Aspyr port and all), but the\
+                     author of this library hasn't yet verified that to be true,\
+                     and as such, they are unsupported."
+
+                );
+                return Err(Error::new(
+                    file_line_col!(),
+                    0,
+                    ErrorKind::UnsupportedPlatform(platform),
+                ));
+            }
         }
 
         if !silent {
@@ -697,7 +790,7 @@ impl<'a> T5XFileDeserializer<'a, T5XFileDeserializerUninflated> {
             Cursor::new(decompressed_payload)
         } else if let Some(f) = self.file.take() {
             let mut compressed_payload = Vec::new();
-            f.seek(std::io::SeekFrom::Start(sizeof!(XFileHeader) as _))
+            f.seek(std::io::SeekFrom::Start(size_of!(XFileHeader) as _))
                 .map_err(|e| Error::new(file_line_col!(), 0, ErrorKind::Io(e)))?;
             dbg!(f.stream_position().map_err(|e| Error::new(
                 file_line_col!(),
@@ -733,25 +826,25 @@ impl<'a> T5XFileDeserializer<'a, T5XFileDeserializerUninflated> {
                 .deserialize_from::<XFile>(&mut file)
                 .map_err(|e| Error::new(file_line_col!(), 0, ErrorKind::Bincode(e)))?;
 
-            dbg!(xfile);
-            dbg!(StreamLen::stream_len(&mut file)?);
+            //dbg!(xfile);
+            //dbg!(StreamLen::stream_len(&mut file)?);
             self.xfile = xfile;
 
-            dbg!(file.stream_position().map_err(|e| Error::new(
-                file_line_col!(),
-                0,
-                ErrorKind::Io(e)
-            ))?);
+            // dbg!(file.stream_position().map_err(|e| Error::new(
+            //     file_line_col!(),
+            //     0,
+            //     ErrorKind::Io(e)
+            // ))?);
             let xasset_list = self
                 .opts
                 .deserialize_from::<XAssetList>(&mut file)
                 .map_err(|e| Error::new(file_line_col!(), 0, ErrorKind::Bincode(e)))?;
-            dbg!(&xasset_list);
-            dbg!(file.stream_position().map_err(|e| Error::new(
-                file_line_col!(),
-                0,
-                ErrorKind::Io(e)
-            ))?);
+            //dbg!(&xasset_list);
+            // dbg!(file.stream_position().map_err(|e| Error::new(
+            //     file_line_col!(),
+            //     0,
+            //     ErrorKind::Io(e)
+            // ))?);
             xasset_list
         };
 

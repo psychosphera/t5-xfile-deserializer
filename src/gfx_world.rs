@@ -1,9 +1,20 @@
-use common::{GfxVertexBuffer, Mat3, Mat4, Vec2, Vec3, Vec4};
-
-use crate::*;
-
+use core::fmt::Display;
 #[cfg(feature = "d3d9")]
-use std::ptr::addr_of_mut;
+use core::ptr::addr_of_mut;
+
+use alloc::{boxed::Box, string::String, vec::Vec};
+
+use crate::{
+    assert_size, 
+    common::{GfxVertexBuffer, Mat3, Mat4, Vec2, Vec3, Vec4}, 
+    light::{GfxLightDef, GfxLightDefRaw},
+    techset::{GfxDrawSurf, GfxImage, GfxImageRaw, GfxTexture, GfxTextureRaw, Material, MaterialRaw}, 
+    xmodel::{CPlane, CPlaneRaw, GfxColor, XModel, XModelDrawInfo, XModelRaw}, 
+    FatPointerCountFirstU32, FatPointerCountLastU32, FatPointerCountLastU8, FatPointer, Ptr32, Result, T5XFileDeserializer, XFileInto, XString
+};
+
+use serde::{Deserialize, Serialize};
+
 #[cfg(feature = "d3d9")]
 use windows::Win32::Graphics::Direct3D9::{IDirect3DVertexBuffer9, D3DPOOL_DEFAULT};
 
@@ -17,7 +28,7 @@ pub(crate) struct GfxWorldRaw<'a, const MAX_LOCAL_CLIENTS: usize> {
     pub surface_count: i32,
     pub stream_info: GfxWorldStreamInfoRaw<'a>,
     pub sky_start_surfs: FatPointerCountFirstU32<'a, i32>,
-    pub sky_image: Ptr32<'a, techset::GfxImageRaw<'a>>,
+    pub sky_image: Ptr32<'a, GfxImageRaw<'a>>,
     pub sky_sampler_state: u8,
     #[allow(dead_code)]
     pad: [u8; 3],
@@ -46,7 +57,7 @@ pub(crate) struct GfxWorldRaw<'a, const MAX_LOCAL_CLIENTS: usize> {
     pub material_memory: FatPointerCountFirstU32<'a, MaterialMemoryRaw<'a>>,
     pub sun: SunflareRaw<'a>,
     pub outdoor_lookup_matrix: [[f32; 4]; 4],
-    pub outdoor_image: Ptr32<'a, techset::GfxImageRaw<'a>>,
+    pub outdoor_image: Ptr32<'a, GfxImageRaw<'a>>,
     pub cell_caster_bits: Ptr32<'a, u32>,
     pub scene_dyn_model: Ptr32<'a, GfxSceneDynModel>,
     pub scene_dyn_brush: Ptr32<'a, GfxSceneDynBrush>,
@@ -62,9 +73,9 @@ pub(crate) struct GfxWorldRaw<'a, const MAX_LOCAL_CLIENTS: usize> {
     pub world_lod_surfaces: FatPointerCountFirstU32<'a, u32>,
     pub water_direction: f32,
     pub water_buffers: [GfxWaterBufferRaw<'a>; 2],
-    pub water_material: Ptr32<'a, techset::MaterialRaw<'a>>,
-    pub corona_material: Ptr32<'a, techset::MaterialRaw<'a>>,
-    pub rope_material: Ptr32<'a, techset::MaterialRaw<'a>>,
+    pub water_material: Ptr32<'a, MaterialRaw<'a>>,
+    pub corona_material: Ptr32<'a, MaterialRaw<'a>>,
+    pub rope_material: Ptr32<'a, MaterialRaw<'a>>,
     pub occluders: FatPointerCountFirstU32<'a, OccluderRaw>,
     pub outdoor_bounds: FatPointerCountFirstU32<'a, GfxOutdoorBoundsRaw>,
     pub hero_light_count: u32,
@@ -84,7 +95,7 @@ pub struct GfxWorld<const MAX_LOCAL_CLIENTS: usize> {
     pub surface_count: i32,
     pub stream_info: GfxWorldStreamInfo,
     pub sky_start_surfs: Vec<i32>,
-    pub sky_image: Option<Box<techset::GfxImage>>,
+    pub sky_image: Option<Box<GfxImage>>,
     pub sky_sampler_state: u8,
     pub sky_box_model: String,
     pub sun_parse: SunLightParseParams<MAX_LOCAL_CLIENTS>,
@@ -111,7 +122,7 @@ pub struct GfxWorld<const MAX_LOCAL_CLIENTS: usize> {
     pub material_memory: Vec<MaterialMemory>,
     pub sun: Sunflare,
     pub outdoor_lookup_matrix: Mat4,
-    pub outdoor_image: Option<Box<techset::GfxImage>>,
+    pub outdoor_image: Option<Box<GfxImage>>,
     pub cell_caster_bits: Vec<u32>,
     pub scene_dyn_model: Vec<GfxSceneDynModel>,
     pub scene_dyn_brush: Vec<GfxSceneDynBrush>,
@@ -127,9 +138,9 @@ pub struct GfxWorld<const MAX_LOCAL_CLIENTS: usize> {
     pub world_lod_surfaces: Vec<u32>,
     pub water_direction: f32,
     pub water_buffers: [GfxWaterBuffer; 2],
-    pub water_material: Option<Box<techset::Material>>,
-    pub corona_material: Option<Box<techset::Material>>,
-    pub rope_material: Option<Box<techset::Material>>,
+    pub water_material: Option<Box<Material>>,
+    pub corona_material: Option<Box<Material>>,
+    pub rope_material: Option<Box<Material>>,
     pub occluders: Vec<Occluder>,
     pub outdoor_bounds: Vec<GfxOutdoorBounds>,
     pub hero_lights: Vec<GfxHeroLight>,
@@ -379,7 +390,7 @@ impl From<GfxStreamingAabbTreeRaw> for GfxStreamingAabbTree {
 pub(crate) struct GfxName64(#[serde(with = "serde_arrays")] [u8; 64]);
 
 impl Display for GfxName64 {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         let len = self
             .0
             .into_iter()
@@ -403,7 +414,7 @@ impl Default for GfxName64 {
 pub(crate) struct GfxName16([u8; 16]);
 
 impl Display for GfxName16 {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         let len = self
             .0
             .into_iter()
@@ -533,7 +544,7 @@ pub(crate) struct GfxLightRaw<'a> {
     pad: [u8; 4],
     pub view_matrix: [[f32; 4]; 4],
     pub proj_matrix: [[f32; 4]; 4],
-    pub def: Ptr32<'a, light::GfxLightDefRaw<'a>>,
+    pub def: Ptr32<'a, GfxLightDefRaw<'a>>,
     #[allow(dead_code)]
     pad2: [u8; 12],
 }
@@ -566,7 +577,7 @@ pub struct GfxLight {
     pub cookie_control_2: Vec4,
     pub view_matrix: Mat4,
     pub proj_matrix: Mat4,
-    pub def: Option<Box<light::GfxLightDef>>,
+    pub def: Option<Box<GfxLightDef>>,
 }
 
 impl<'a> XFileInto<GfxLight, ()> for GfxLightRaw<'a> {
@@ -718,7 +729,7 @@ assert_size!(GfxSkyDynamicIntensity, 16);
 #[derive(Copy, Clone, Debug, Deserialize)]
 pub(crate) struct GfxWorldDpvsPlanesRaw<'a> {
     pub cell_count: i32,
-    pub planes: Ptr32<'a, xmodel::CPlaneRaw>,
+    pub planes: Ptr32<'a, CPlaneRaw>,
     pub nodes: Ptr32<'a, u16>,
     pub scene_ent_cell_bits: Ptr32<'a, u32>,
 }
@@ -727,7 +738,7 @@ assert_size!(GfxWorldDpvsPlanesRaw, 16);
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug)]
 pub struct GfxWorldDpvsPlanes {
-    pub planes: Vec<xmodel::CPlane>,
+    pub planes: Vec<CPlane>,
     pub nodes: Vec<u16>,
     pub scene_ent_cell_bits: Vec<u32>,
 }
@@ -951,12 +962,12 @@ impl From<DpvsPlaneRaw> for DpvsPlane {
 #[derive(Copy, Clone, Debug, Deserialize)]
 pub(crate) struct GfxWorldDrawRaw<'a> {
     pub reflection_probes: FatPointerCountFirstU32<'a, GfxReflectionProbeRaw<'a>>,
-    pub reflection_probe_textures: Ptr32<'a, techset::GfxTextureRaw<'a>>,
+    pub reflection_probe_textures: Ptr32<'a, GfxTextureRaw<'a>>,
     pub lightmaps: FatPointerCountFirstU32<'a, GfxLightmapArrayRaw<'a>>,
-    pub lightmap_primary_textures: Ptr32<'a, techset::GfxTextureRaw<'a>>,
-    pub lightmap_secondary_textures: Ptr32<'a, techset::GfxTextureRaw<'a>>,
-    pub lightmap_secondary_textures_b: Ptr32<'a, techset::GfxTextureRaw<'a>>,
-    pub terrain_scorch_images: [Ptr32<'a, techset::GfxImageRaw<'a>>; 31],
+    pub lightmap_primary_textures: Ptr32<'a, GfxTextureRaw<'a>>,
+    pub lightmap_secondary_textures: Ptr32<'a, GfxTextureRaw<'a>>,
+    pub lightmap_secondary_textures_b: Ptr32<'a, GfxTextureRaw<'a>>,
+    pub terrain_scorch_images: [Ptr32<'a, GfxImageRaw<'a>>; 31],
     pub vertex_count: u32,
     pub vd: GfxWorldVertexDataRaw<'a>,
     pub vertex_layer_data_size: u32,
@@ -970,12 +981,12 @@ assert_size!(GfxWorldDrawRaw, 192);
 #[derive(Clone, Debug)]
 pub struct GfxWorldDraw {
     pub reflection_probes: Vec<GfxReflectionProbe>,
-    pub reflection_probe_textures: Vec<techset::GfxTexture>,
+    pub reflection_probe_textures: Vec<GfxTexture>,
     pub lightmaps: Vec<GfxLightmapArray>,
-    pub lightmap_primary_textures: Vec<techset::GfxTexture>,
-    pub lightmap_secondary_textures: Vec<techset::GfxTexture>,
-    pub lightmap_secondary_textures_b: Vec<techset::GfxTexture>,
-    pub terrain_scorch_images: [techset::GfxImage; 31],
+    pub lightmap_primary_textures: Vec<GfxTexture>,
+    pub lightmap_secondary_textures: Vec<GfxTexture>,
+    pub lightmap_secondary_textures_b: Vec<GfxTexture>,
+    pub terrain_scorch_images: [GfxImage; 31],
     pub vertex_count: u32,
     pub vd: GfxWorldVertexData,
     pub vertex_layer_data_size: u32,
@@ -1040,7 +1051,7 @@ impl<'a> XFileInto<GfxWorldDraw, ()> for GfxWorldDrawRaw<'a> {
 #[derive(Copy, Clone, Debug, Deserialize)]
 pub(crate) struct GfxReflectionProbeRaw<'a> {
     pub origin: [f32; 3],
-    pub image: Ptr32<'a, techset::GfxImageRaw<'a>>,
+    pub image: Ptr32<'a, GfxImageRaw<'a>>,
     pub probe_volumes: FatPointerCountLastU32<'a, GfxReflectionProbeVolumeDataRaw>,
 }
 assert_size!(GfxReflectionProbeRaw, 24);
@@ -1049,7 +1060,7 @@ assert_size!(GfxReflectionProbeRaw, 24);
 #[derive(Clone, Debug)]
 pub struct GfxReflectionProbe {
     pub origin: Vec3,
-    pub image: Option<Box<techset::GfxImage>>,
+    pub image: Option<Box<GfxImage>>,
     pub probe_volumes: Vec<GfxReflectionProbeVolumeData>,
 }
 
@@ -1098,18 +1109,18 @@ impl From<GfxReflectionProbeVolumeDataRaw> for GfxReflectionProbeVolumeData {
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Debug, Deserialize)]
 pub(crate) struct GfxLightmapArrayRaw<'a> {
-    pub primary: Ptr32<'a, techset::GfxImageRaw<'a>>,
-    pub secondary: Ptr32<'a, techset::GfxImageRaw<'a>>,
-    pub secondary_b: Ptr32<'a, techset::GfxImageRaw<'a>>,
+    pub primary: Ptr32<'a, GfxImageRaw<'a>>,
+    pub secondary: Ptr32<'a, GfxImageRaw<'a>>,
+    pub secondary_b: Ptr32<'a, GfxImageRaw<'a>>,
 }
 assert_size!(GfxLightmapArrayRaw, 12);
 
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug)]
 pub struct GfxLightmapArray {
-    pub primary: Option<Box<techset::GfxImage>>,
-    pub secondary: Option<Box<techset::GfxImage>>,
-    pub secondary_b: Option<Box<techset::GfxImage>>,
+    pub primary: Option<Box<GfxImage>>,
+    pub secondary: Option<Box<GfxImage>>,
+    pub secondary_b: Option<Box<GfxImage>>,
 }
 
 impl<'a> XFileInto<GfxLightmapArray, ()> for GfxLightmapArrayRaw<'a> {
@@ -1202,7 +1213,7 @@ impl<'a> XFileInto<GfxWorldVertexData, u32> for GfxWorldVertexDataRaw<'a> {
 pub(crate) struct GfxWorldVertexRaw {
     pub xyz: [f32; 3],
     pub binormal_sign: f32,
-    pub color: xmodel::GfxColor,
+    pub color: GfxColor,
     pub tex_coord: [f32; 2],
     pub lmap_coord: [f32; 2],
     pub normal: [u8; 4],
@@ -1215,7 +1226,7 @@ assert_size!(GfxWorldVertexRaw, 44);
 pub struct GfxWorldVertex {
     pub xyz: Vec3,
     pub binormal_sign: f32,
-    pub color: xmodel::GfxColor,
+    pub color: GfxColor,
     pub tex_coord: Vec2,
     pub lmap_coord: Vec2,
     pub normal: [u8; 4],
@@ -1413,7 +1424,7 @@ impl From<GfxBrushModelWritableRaw> for GfxBrushModelWritable {
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Debug, Deserialize)]
 pub(crate) struct MaterialMemoryRaw<'a> {
-    pub material: Ptr32<'a, techset::MaterialRaw<'a>>,
+    pub material: Ptr32<'a, MaterialRaw<'a>>,
     pub memory: i32,
 }
 assert_size!(MaterialMemoryRaw, 8);
@@ -1421,7 +1432,7 @@ assert_size!(MaterialMemoryRaw, 8);
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug)]
 pub struct MaterialMemory {
-    pub material: Option<Box<techset::Material>>,
+    pub material: Option<Box<Material>>,
     pub memory: usize,
 }
 
@@ -1442,8 +1453,8 @@ pub(crate) struct SunflareRaw<'a> {
     pub has_valid_data: bool,
     #[allow(dead_code)]
     pad: [u8; 3],
-    pub sprite_material: Ptr32<'a, techset::MaterialRaw<'a>>,
-    pub flare_material: Ptr32<'a, techset::MaterialRaw<'a>>,
+    pub sprite_material: Ptr32<'a, MaterialRaw<'a>>,
+    pub flare_material: Ptr32<'a, MaterialRaw<'a>>,
     pub sprite_size: f32,
     pub flare_min_size: f32,
     pub flare_min_dot: f32,
@@ -1470,8 +1481,8 @@ assert_size!(SunflareRaw, 96);
 #[derive(Clone, Debug)]
 pub struct Sunflare {
     pub has_valid_data: bool,
-    pub sprite_material: Option<Box<techset::Material>>,
-    pub flare_material: Option<Box<techset::Material>>,
+    pub sprite_material: Option<Box<Material>>,
+    pub flare_material: Option<Box<Material>>,
     pub sprite_size: f32,
     pub flare_min_size: f32,
     pub flare_min_dot: f32,
@@ -1529,7 +1540,7 @@ impl<'a> XFileInto<Sunflare, ()> for SunflareRaw<'a> {
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Debug, Deserialize)]
 pub struct GfxSceneDynModel {
-    pub info: xmodel::XModelDrawInfo,
+    pub info: XModelDrawInfo,
     pub dyn_ent_id: u16,
 }
 assert_size!(GfxSceneDynModel, 6);
@@ -1687,7 +1698,7 @@ pub(crate) struct GfxWorldDpvsStaticRaw<'a> {
     pub surfaces: Ptr32<'a, GfxSurfaceRaw<'a>>,
     pub cull_groups: Ptr32<'a, GfxCullGroupRaw>,
     pub smodel_draw_insts: Ptr32<'a, GfxStaticModelDrawInstRaw<'a>>,
-    pub surface_materials: Ptr32<'a, techset::GfxDrawSurf>,
+    pub surface_materials: Ptr32<'a, GfxDrawSurf>,
     pub surface_casts_sun_shadow: Ptr32<'a, u32>,
     pub usage_count: i32,
 }
@@ -1717,7 +1728,7 @@ pub struct GfxWorldDpvsStatic {
     pub surfaces: Vec<GfxSurface>,
     pub cull_groups: Vec<GfxCullGroup>,
     pub smodel_draw_insts: Vec<GfxStaticModelDrawInst>,
-    pub surface_materials: Vec<techset::GfxDrawSurf>,
+    pub surface_materials: Vec<GfxDrawSurf>,
     pub surface_casts_sun_shadow: Vec<u32>,
     pub usage_count: usize,
 }
@@ -1828,7 +1839,7 @@ pub(crate) struct GfxStaticModelInstRaw {
     pub mins: [f32; 3],
     pub maxs: [f32; 3],
     pub lighting_origin: [f32; 3],
-    pub ground_lighting: xmodel::GfxColor,
+    pub ground_lighting: GfxColor,
 }
 assert_size!(GfxStaticModelInstRaw, 40);
 
@@ -1838,7 +1849,7 @@ pub struct GfxStaticModelInst {
     pub mins: Vec3,
     pub maxs: Vec3,
     pub lighting_origin: Vec3,
-    pub ground_lighting: xmodel::GfxColor,
+    pub ground_lighting: GfxColor,
 }
 
 impl From<GfxStaticModelInstRaw> for GfxStaticModelInst {
@@ -1856,7 +1867,7 @@ impl From<GfxStaticModelInstRaw> for GfxStaticModelInst {
 #[derive(Copy, Clone, Debug, Deserialize)]
 pub(crate) struct GfxSurfaceRaw<'a> {
     pub tris: SrfTrianglesRaw,
-    pub material: Ptr32<'a, techset::MaterialRaw<'a>>,
+    pub material: Ptr32<'a, MaterialRaw<'a>>,
     pub lightmap_index: u8,
     pub reflection_probe_index: u8,
     pub primary_light_index: u8,
@@ -1869,7 +1880,7 @@ assert_size!(GfxSurfaceRaw, 80);
 #[derive(Clone, Debug)]
 pub struct GfxSurface {
     pub tris: SrfTriangles,
-    pub material: Option<Box<techset::Material>>,
+    pub material: Option<Box<Material>>,
     pub lightmap_index: usize,
     pub reflection_probe_index: usize,
     pub primary_light_index: usize,
@@ -1975,7 +1986,7 @@ impl From<GfxCullGroupRaw> for GfxCullGroup {
 pub(crate) struct GfxStaticModelDrawInstRaw<'a> {
     pub cull_dist: f32,
     pub placement: GfxPackedPlacementRaw,
-    pub model: Ptr32<'a, xmodel::XModelRaw<'a>>,
+    pub model: Ptr32<'a, XModelRaw<'a>>,
     pub flags: i32,
     pub smodel_cache_index: [u16; 4],
     pub lighting_handle: u16,
@@ -1989,7 +2000,7 @@ assert_size!(GfxStaticModelDrawInstRaw, 76);
 pub struct GfxStaticModelDrawInst {
     pub cull_dist: f32,
     pub placement: GfxPackedPlacement,
-    pub model: Option<Box<xmodel::XModel>>,
+    pub model: Option<Box<XModel>>,
     pub flags: i32,
     pub smodel_cache_index: [u16; 4],
     pub lighting_handle: u16,

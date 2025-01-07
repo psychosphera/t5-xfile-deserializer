@@ -1,10 +1,13 @@
 use core::mem::transmute;
 
+use alloc::{boxed::Box, string::String, vec::Vec};
+
 use crate::{
-    common::{Vec2, Vec3},
-    *,
+    assert_size, common::{Vec2, Vec3}, file_line_col, Error, ErrorKind, FatPointerCountFirstU16, 
+    FatPointerCountFirstU32, Ptr32, ScriptString, T5XFileDeserializer, XFileInto, XString, Result, FatPointer
 };
 
+use serde::{Deserialize, Serialize};
 use bitflags::bitflags;
 use num_derive::FromPrimitive;
 

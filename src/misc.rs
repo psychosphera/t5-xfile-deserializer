@@ -1,7 +1,17 @@
-use common::{Mat3, Vec2, Vec3, Vec4};
-use serde::Deserialize;
 
-use crate::*;
+use alloc::{boxed::Box, ffi::CString, string::String, vec::Vec};
+
+use std::io::Read;
+
+use crate::{
+    assert_size, 
+    common::{Mat3, Vec2, Vec3, Vec4}, 
+    fx::{FxEffectDef, FxEffectDefRaw}, 
+    techset::{GfxImage, GfxImageRaw, Material, MaterialRaw}, 
+    FatPointerCountFirstU32, FatPointerCountLastU32, FatPointer, Ptr32, Result, T5XFileDeserializer, XFileInto, XString
+};
+
+use serde::{Deserialize, Serialize};
 
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Debug, Deserialize)]
@@ -420,14 +430,14 @@ pub(crate) struct GlassDefRaw<'a> {
     pub max_shard_size: f32,
     pub shard_life_probability: f32,
     pub max_shards: i32,
-    pub pristine_material: Ptr32<'a, techset::MaterialRaw<'a>>,
-    pub cracked_material: Ptr32<'a, techset::MaterialRaw<'a>>,
-    pub shard_material: Ptr32<'a, techset::MaterialRaw<'a>>,
+    pub pristine_material: Ptr32<'a, MaterialRaw<'a>>,
+    pub cracked_material: Ptr32<'a, MaterialRaw<'a>>,
+    pub shard_material: Ptr32<'a, MaterialRaw<'a>>,
     pub crack_sound: XString<'a>,
     pub shatter_sound: XString<'a>,
     pub auto_shatter_sound: XString<'a>,
-    pub crack_effect: Ptr32<'a, fx::FxEffectDefRaw<'a>>,
-    pub shatter_effect: Ptr32<'a, fx::FxEffectDefRaw<'a>>,
+    pub crack_effect: Ptr32<'a, FxEffectDefRaw<'a>>,
+    pub shatter_effect: Ptr32<'a, FxEffectDefRaw<'a>>,
 }
 assert_size!(GlassDefRaw, 60);
 
@@ -441,14 +451,14 @@ pub struct GlassDef {
     pub max_shard_size: f32,
     pub shard_life_probability: f32,
     pub max_shards: i32,
-    pub pristine_material: Option<Box<techset::Material>>,
-    pub cracked_material: Option<Box<techset::Material>>,
-    pub shard_material: Option<Box<techset::Material>>,
+    pub pristine_material: Option<Box<Material>>,
+    pub cracked_material: Option<Box<Material>>,
+    pub shard_material: Option<Box<Material>>,
     pub crack_sound: String,
     pub shatter_sound: String,
     pub auto_shatter_sound: String,
-    pub crack_effect: Option<Box<fx::FxEffectDef>>,
-    pub shatter_effect: Option<Box<fx::FxEffectDef>>,
+    pub crack_effect: Option<Box<FxEffectDef>>,
+    pub shatter_effect: Option<Box<FxEffectDef>>,
 }
 
 impl<'a> XFileInto<GlassDef, ()> for GlassDefRaw<'a> {
@@ -561,7 +571,7 @@ impl<'a> XFileInto<EmblemCategory, ()> for EmblemCategoryRaw<'a> {
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
 pub(crate) struct EmblemIconRaw<'a> {
-    pub image: Ptr32<'a, techset::GfxImageRaw<'a>>,
+    pub image: Ptr32<'a, GfxImageRaw<'a>>,
     pub description: XString<'a>,
     pub outline_size: f32,
     pub default_color: i32,
@@ -577,7 +587,7 @@ assert_size!(EmblemIconRaw, 40);
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug)]
 pub struct EmblemIcon {
-    pub image: Option<Box<techset::GfxImage>>,
+    pub image: Option<Box<GfxImage>>,
     pub description: String,
     pub outline_size: f32,
     pub default_color: i32,
@@ -612,7 +622,7 @@ impl<'a> XFileInto<EmblemIcon, ()> for EmblemIconRaw<'a> {
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
 pub(crate) struct EmblemBackgroundRaw<'a> {
-    pub material: Ptr32<'a, techset::MaterialRaw<'a>>,
+    pub material: Ptr32<'a, MaterialRaw<'a>>,
     pub description: XString<'a>,
     pub cost: i32,
     pub unlock_level: i32,
@@ -624,7 +634,7 @@ assert_size!(EmblemBackgroundRaw, 24);
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug)]
 pub struct EmblemBackground {
-    pub material: Option<Box<techset::Material>>,
+    pub material: Option<Box<Material>>,
     pub description: String,
     pub cost: i32,
     pub unlock_level: i32,

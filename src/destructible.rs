@@ -1,11 +1,19 @@
-use crate::{fx::FxEffectDefRaw, xmodel::PhysConstraintsRaw, *};
+use alloc::{boxed::Box, string::String, vec::Vec};
+
+use crate::{
+    assert_size, fx::{FxEffectDef, FxEffectDefRaw}, 
+    xmodel::{PhysConstraints, PhysConstraintsRaw, PhysPreset, PhysPresetRaw, XModel, XModelRaw}, 
+    FatPointerCountFirstU32, Ptr32, Result, ScriptString, T5XFileDeserializer, XFileInto, XString
+};
+
+use serde::{Deserialize, Serialize};
 
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Clone, Debug, Deserialize)]
 pub(crate) struct DestructibleDefRaw<'a> {
     pub name: XString<'a>,
-    pub model: Ptr32<'a, xmodel::XModelRaw<'a>>,
-    pub pristine_model: Ptr32<'a, xmodel::XModelRaw<'a>>,
+    pub model: Ptr32<'a, XModelRaw<'a>>,
+    pub pristine_model: Ptr32<'a, XModelRaw<'a>>,
     pub pieces: FatPointerCountFirstU32<'a, DestructiblePieceRaw<'a>>,
     pub client_only: i32,
 }
@@ -15,8 +23,8 @@ assert_size!(DestructibleDefRaw, 24);
 #[derive(Clone, Debug)]
 pub struct DestructibleDef {
     pub name: String,
-    pub model: Option<Box<xmodel::XModel>>,
-    pub pristine_model: Option<Box<xmodel::XModel>>,
+    pub model: Option<Box<XModel>>,
+    pub pristine_model: Option<Box<XModel>>,
     pub pieces: Vec<DestructiblePiece>,
     pub client_only: bool,
 }
@@ -69,10 +77,10 @@ pub struct DestructiblePiece {
     pub melee_damage_scale: f32,
     pub impact_damage_scael: f32,
     pub entity_damage_transfer: f32,
-    pub phys_constraints: Option<Box<xmodel::PhysConstraints>>,
+    pub phys_constraints: Option<Box<PhysConstraints>>,
     pub health: i32,
     pub damage_sound: String,
-    pub burn_effect: Option<Box<fx::FxEffectDef>>,
+    pub burn_effect: Option<Box<FxEffectDef>>,
     pub burn_sound: String,
     pub enable_label: u16,
     pub hide_bones: [i32; 5],
@@ -113,12 +121,12 @@ pub(crate) struct DestructibleStageRaw<'a> {
     pub break_health: f32,
     pub max_time: f32,
     pub flags: u32,
-    pub break_effect: Ptr32<'a, fx::FxEffectDefRaw<'a>>,
+    pub break_effect: Ptr32<'a, FxEffectDefRaw<'a>>,
     pub break_sound: XString<'a>,
     pub break_notify: XString<'a>,
     pub loop_sound: XString<'a>,
-    pub spawn_model: [Ptr32<'a, xmodel::XModelRaw<'a>>; 3],
-    pub phys_preset: Ptr32<'a, xmodel::PhysPresetRaw<'a>>,
+    pub spawn_model: [Ptr32<'a, XModelRaw<'a>>; 3],
+    pub phys_preset: Ptr32<'a, PhysPresetRaw<'a>>,
 }
 assert_size!(DestructibleStageRaw, 48);
 
@@ -129,12 +137,12 @@ pub struct DestructibleStage {
     pub break_health: f32,
     pub max_time: f32,
     pub flags: u32,
-    pub break_effect: Option<Box<fx::FxEffectDef>>,
+    pub break_effect: Option<Box<FxEffectDef>>,
     pub break_sound: String,
     pub break_notify: String,
     pub loop_sound: String,
-    pub spawn_model: [Option<Box<xmodel::XModel>>; 3],
-    pub phys_preset: Option<Box<xmodel::PhysPreset>>,
+    pub spawn_model: [Option<Box<XModel>>; 3],
+    pub phys_preset: Option<Box<PhysPreset>>,
 }
 
 impl<'a> XFileInto<DestructibleStage, ()> for DestructibleStageRaw<'a> {

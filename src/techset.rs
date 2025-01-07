@@ -1,6 +1,14 @@
 use core::mem::transmute;
 
-use crate::{common::*, *};
+use alloc::{boxed::Box, format, string::String, vec::Vec};
+
+use crate::{
+    common::{GfxCubeTexture, GfxPixelShader, GfxVertexShader, GfxVolumeTexture, Vec2, Vec4}, 
+    assert_size, file_line_col, Error, ErrorKind, FatPointer, FatPointerCountLastU32, FlexibleArray, 
+    FlexibleArrayU16, FlexibleArrayU32, Ptr32, Result, T5XFileDeserializer, XFileInto, XString
+};
+
+use serde::{Deserialize, Serialize};
 use num_derive::FromPrimitive;
 
 const MAX_TECHNIQUES: usize = 130;
@@ -41,10 +49,10 @@ pub struct MaterialTechniqueSet {
 
 impl<'a> XFileInto<MaterialTechniqueSet, ()> for MaterialTechniqueSetRaw<'a> {
     fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<MaterialTechniqueSet> {
-        dbg!(self.name);
+        //dbg!(self.name);
 
         let name = self.name.xfile_into(de, ())?;
-        dbg!(&name);
+        //dbg!(&name);
 
         let techniques = self.techniques;
         let techniques = techniques
@@ -83,7 +91,7 @@ pub struct MaterialTechnique {
 
 impl<'a> XFileInto<MaterialTechnique, ()> for MaterialTechniqueRaw<'a> {
     fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<MaterialTechnique> {
-        dbg!(self);
+        //dbg!(self);
 
         // passes must be deserialized first since its a flexible array (part of the MaterialTechnique), not a pointer.
         let passes = self
@@ -92,10 +100,10 @@ impl<'a> XFileInto<MaterialTechnique, ()> for MaterialTechniqueRaw<'a> {
             .iter()
             .map(|t| t.xfile_into(de, ()))
             .collect::<Result<Vec<_>>>()?;
-        //////dbg!(&passes);
+        //dbg!(&passes);
 
         let name = self.name.xfile_into(de, ())?;
-        dbg!(&name);
+        //dbg!(&name);
 
         Ok(MaterialTechnique {
             name,
@@ -134,18 +142,18 @@ pub struct MaterialPass {
 
 impl<'a> XFileInto<MaterialPass, ()> for MaterialPassRaw<'a> {
     fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<MaterialPass> {
-        dbg!(self);
+        //dbg!(self);
         //let pos = xfile.stream_position()?;
-        //////dbg!(pos);
+        //dbg!(pos);
 
         let vertex_decl = self.vertex_decl.xfile_get(de)?.map(Box::new);
-        //////dbg!(&vertex_decl);
+        //dbg!(&vertex_decl);
         let vertex_shader = self.vertex_shader;
         let vertex_shader = vertex_shader.xfile_into(de, ())?;
-        //////dbg!(&vertex_shader);
+        //dbg!(&vertex_shader);
         let pixel_shader = self.pixel_shader;
         let pixel_shader = pixel_shader.xfile_into(de, ())?;
-        //////dbg!(&pixel_shader);
+        //dbg!(&pixel_shader);
 
         let argc = self.per_prim_arg_count as u16
             + self.per_obj_arg_count as u16
@@ -156,16 +164,16 @@ impl<'a> XFileInto<MaterialPass, ()> for MaterialPassRaw<'a> {
         if self.args != 0 {
             for _ in 0..argc {
                 //let pos = xfile.stream_position()?;
-                //////dbg!(pos);
+                //dbg!(pos);
                 let arg_raw = de.load_from_xfile::<MaterialShaderArgumentRaw>()?;
                 //let pos = xfile.stream_position()?;
-                //////dbg!(pos);
+                //dbg!(pos);
                 let arg = arg_raw.xfile_into(de, ())?;
                 args.push(arg);
             }
         }
 
-        //////dbg!(&args);
+        //dbg!(&args);
 
         Ok(MaterialPass {
             vertex_decl,
@@ -225,12 +233,12 @@ pub struct MaterialVertexShader {
 
 impl<'a> XFileInto<MaterialVertexShader, ()> for MaterialVertexShaderRaw<'a> {
     fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<MaterialVertexShader> {
-        dbg!(self);
+        //dbg!(self);
         //let pos = xfile.stream_position()?;
-        //////dbg!(pos);
+        //dbg!(pos);
 
         let name = self.name.xfile_into(de, ())?;
-        dbg!(&name);
+        //dbg!(&name);
 
         Ok(MaterialVertexShader {
             name,
@@ -262,7 +270,7 @@ impl<'a> XFileInto<MaterialVertexShaderProgram, ()> for MaterialVertexShaderProg
         de: &mut T5XFileDeserializer,
         _data: (),
     ) -> Result<MaterialVertexShaderProgram> {
-        dbg!(self);
+        //dbg!(self);
 
         let load_def = self.load_def.xfile_into(de, ())?;
 
@@ -316,10 +324,10 @@ impl<'a> XFileInto<GfxVertexShaderLoadDef, ()> for GfxVertexShaderLoadDefRaw<'a>
         de: &mut T5XFileDeserializer,
         _data: (),
     ) -> Result<GfxVertexShaderLoadDef> {
-        //////dbg!(*self);
+        //dbg!(*self);
 
         let program = self.program.to_vec(de)?;
-        //////dbg!(&program[0]);
+        //dbg!(&program[0]);
         if program.len() > 0 && program[0] != DXBC_MAGIC {
             return Err(Error::new(file_line_col!(),de.stream_pos()? as _, ErrorKind::BrokenInvariant(format!(
                 "GfxVertexShaderLoadDef: program is not valid DXBC (program[0] = ({:#010X}), expected {DXBC_MAGIC:#010X})", 
@@ -378,7 +386,7 @@ impl<'a> XFileInto<MaterialPixelShaderProgram, ()> for MaterialPixelShaderProgra
         de: &mut T5XFileDeserializer,
         _data: (),
     ) -> Result<MaterialPixelShaderProgram> {
-        //////dbg!(*self);
+        //dbg!(*self);
 
         let load_def = self.load_def.xfile_into(de, ())?;
 
@@ -403,7 +411,7 @@ impl<'a> XFileInto<MaterialPixelShaderProgram, ()> for MaterialPixelShaderProgra
         de: &mut T5XFileDeserializer,
         _data: (),
     ) -> Result<MaterialPixelShaderProgram> {
-        //////dbg!(*self);
+        //dbg!(*self);
 
         let load_def = self.load_def.xfile_into(de, ())?;
 
@@ -426,9 +434,9 @@ pub struct GfxPixelShaderLoadDef {
 
 impl<'a> XFileInto<GfxPixelShaderLoadDef, ()> for GfxPixelShaderLoadDefRaw<'a> {
     fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<GfxPixelShaderLoadDef> {
-        //////dbg!(*self);
+        //dbg!(*self);
         //let pos = xfile.stream_position()?;
-        //////dbg!(pos);
+        //dbg!(pos);
 
         let program = self.program.to_vec(de)?;
 
@@ -489,9 +497,9 @@ impl XFileInto<MaterialShaderArgument, ()> for MaterialShaderArgumentRaw {
         _data: (),
     ) -> Result<MaterialShaderArgument> {
         //let pos = xfile.stream_position()?;
-        //////dbg!(pos);
+        //dbg!(pos);
 
-        //////dbg!(*self);
+        //dbg!(*self);
 
         if self.arg_type > 7 {
             return Err(Error::new(
@@ -637,7 +645,7 @@ impl Default for Material {
 impl<'a> XFileInto<Material, ()> for MaterialRaw<'a> {
     fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<Material> {
         //dbg!(self);
-        ////dbg!(de.stream_pos()?);
+        //dbg!(de.stream_pos()?);
 
         let info = self.info.xfile_into(de, ())?;
         let technique_set = self.technique_set.xfile_into(de, ())?;
@@ -705,10 +713,10 @@ pub struct MaterialInfo {
 impl<'a> XFileInto<MaterialInfo, ()> for MaterialInfoRaw<'a> {
     fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<MaterialInfo> {
         //dbg!(self);
-        ////dbg!(de.stream_pos()?);
+        //dbg!(de.stream_pos()?);
         let name = self.name.xfile_into(de, ())?;
         //dbg!(&name);
-        ////dbg!(de.stream_pos()?);
+        //dbg!(de.stream_pos()?);
 
         Ok(MaterialInfo {
             name,
@@ -981,11 +989,11 @@ pub struct GfxImage {
 
 impl<'a> XFileInto<GfxImage, ()> for GfxImageRaw<'a> {
     fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<GfxImage> {
-        ////dbg!(self);
+        //dbg!(self);
         //let _ = de.load_from_xfile::<[u8; 3]>();
-        ////dbg!(de.stream_pos()?);
+        //dbg!(de.stream_pos()?);
         let name = self.name.xfile_into(de, ())?;
-        ////dbg!(&name);
+        //dbg!(&name);
 
         let texture = self.texture.xfile_into(de, ())?;
 
@@ -1049,7 +1057,7 @@ assert_size!(GfxTextureRaw, 4);
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug)]
 pub enum GfxTexture {
-    Map(Option<Box<common::GfxTexture>>),
+    Map(Option<Box<crate::common::GfxTexture>>),
     Volmap(Option<Box<GfxVolumeTexture>>),
     Cubemap(Option<Box<GfxCubeTexture>>),
     LoadDef(Option<Box<GfxImageLoadDef>>),
@@ -1063,7 +1071,7 @@ impl Default for GfxTexture {
 
 impl<'a> XFileInto<GfxTexture, ()> for GfxTextureRaw<'a> {
     fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<GfxTexture> {
-        ////dbg!(de.stream_pos()?);
+        //dbg!(de.stream_pos()?);
         let load_def = self.p.cast::<GfxImageLoadDefRaw>().xfile_into(de, ())?;
 
         Ok(GfxTexture::LoadDef(load_def))
@@ -1148,8 +1156,8 @@ type D3DFORMAT = i32;
 
 impl XFileInto<GfxImageLoadDef, ()> for GfxImageLoadDefRaw {
     fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<GfxImageLoadDef> {
-        ////dbg!(self);
-        ////dbg!(de.stream_pos()?);
+        //dbg!(self);
+        //dbg!(de.stream_pos()?);
 
         Ok(GfxImageLoadDef {
             level_count: self.level_count,

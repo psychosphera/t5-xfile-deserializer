@@ -18,9 +18,7 @@ Data stored by `XFiles` includes shaders, the clipmap/PVS, scripts, animations, 
 10. Localize Entries
 11. Fonts
 12. Sounds
-13. Menu Lists
-14. Menus
-15. Weapon Variants
+13. Weapon Variants
 
 ### What can probably be deserialzed (untested, but simple in structure)
 1. XGlobals
@@ -28,7 +26,9 @@ Data stored by `XFiles` includes shaders, the clipmap/PVS, scripts, animations, 
 
 ### What will soon be able to be deserialized (implemented but bugged, currently debugging)
 1. Effects
-3. XAnims
+2. XAnims
+3. Menu Lists
+4. Menus
 
 ### What will later be able to be deserialized (implemented but bugged, not currently debugging)
 1. Destructibles
@@ -82,11 +82,10 @@ I primarily created this to integrate into OpenT5 once it's done, but I figured 
 3. Account for shared pointers. (All pointers get boxed currently, but that's definitely not correct semantically for a lot of them.)
 4. Relatedly, account for linked lists.
 5. Tidy up the deserializer's API (typestated now, but still a little janky).
-6. Better CLI for the binary.
-7. Make sure all the arrays sized by `MAX_LOCAL_CLIENTS` were caught (pretty sure a couple in `techset.rs` slipped through).
-8. Verify whether macOS `XFiles` are identical to Windows.
-9. Verify whether Wii even uses `XFiles`.
-10. Docs (lol)
+6. Make sure all the arrays sized by `MAX_LOCAL_CLIENTS` were caught (pretty sure a couple in `techset.rs` slipped through).
+7. Verify whether macOS `XFiles` are identical to Windows.
+8. Verify whether Wii even uses `XFiles`.
+9. Docs (lol)
 
 ## Future Todo
 1. Account for differences in macOS `XFiles`, if they're different from Windows.

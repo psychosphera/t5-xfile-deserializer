@@ -1,6 +1,12 @@
-use common::{Vec3, Vec4};
+use alloc::{boxed::Box, string::String, vec::Vec};
 
-use crate::*;
+use crate::{
+    assert_size, 
+    common::{Vec3, Vec4}, 
+    FatPointer, FatPointerCountFirstU32, Ptr32ArrayConst, Result, T5XFileDeserializer, XFileInto, XString
+};
+
+use serde::{Deserialize, Serialize};
 
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Clone, Default, Debug, Deserialize)]

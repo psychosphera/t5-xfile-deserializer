@@ -1,4 +1,11 @@
-use crate::*;
+use alloc::{boxed::Box, string::String, vec::Vec};
+
+use crate::{
+    assert_size, Ptr32, Result, XFileInto, XString, 
+    T5XFileDeserializer, FatPointerCountFirstU32, FatPointerCountLastU32
+};
+
+use serde::{Deserialize, Serialize};
 
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Debug, Deserialize)]

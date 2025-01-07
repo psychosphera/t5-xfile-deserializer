@@ -1,7 +1,17 @@
-use common::{Vec2, Vec3};
-use num::FromPrimitive;
+use alloc::{string::String, boxed::Box, vec::Vec};
 
-use crate::*;
+use crate::{
+    common::{Vec2, Vec3},
+    techset,
+    xmodel,
+    fx,
+    XString, Ptr32, Ptr32ArrayConst, ScriptString, Result, Error, ErrorKind, XFileInto, T5XFileDeserializer, FatPointer,
+    assert_size, file_line_col,
+};
+
+use serde::{Deserialize, Serialize};
+use num::FromPrimitive;
+use num_derive::FromPrimitive;
 
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Clone, Default, Debug, Deserialize)]

@@ -1,7 +1,16 @@
-use crate::*;
+use core::fmt::Display;
+
+use alloc::{boxed::Box, string::String, vec::Vec};
 
 use bitflags::bitflags;
 use num::FromPrimitive;
+use num_derive::FromPrimitive;
+use serde::{Deserialize, Serialize};
+
+use crate::{
+    assert_size, file_line_col, Error, ErrorKind, FatPointerCountFirstU32, FatPointerCountLastU32,
+    FatPointer, Ptr32, Result, T5XFileDeserializer, XFileInto, XString
+};
 
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Debug, Deserialize)]
@@ -30,9 +39,9 @@ pub struct SndBank {
 
 impl<'a> XFileInto<SndBank, ()> for SndBankRaw<'a> {
     fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<SndBank> {
-        dbg!(self);
+        //dbg!(self);
         let name = self.name.xfile_into(de, ())?;
-        dbg!(&name);
+        //dbg!(&name);
         let aliases = self.aliases.xfile_into(de, ())?;
         let alias_index = self
             .alias_index
@@ -180,11 +189,11 @@ pub struct SndAlias {
 impl<'a> XFileInto<SndAlias, ()> for SndAliasRaw<'a> {
     fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<SndAlias> {
         let name = self.name.xfile_into(de, ())?;
-        dbg!(&name);
+        //dbg!(&name);
         let subtitle = self.subtitle.xfile_into(de, ())?;
-        dbg!(&subtitle);
+        //dbg!(&subtitle);
         let secondaryname = self.secondaryname.xfile_into(de, ())?;
-        dbg!(&secondaryname);
+        //dbg!(&secondaryname);
         let sound_file = self.sound_file.xfile_into(de, ())?;
 
         Ok(SndAlias {
@@ -302,7 +311,7 @@ pub struct LoadedSound {
 impl<'a> XFileInto<LoadedSound, ()> for LoadedSoundRaw<'a> {
     fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<LoadedSound> {
         let name = self.name.xfile_into(de, ())?;
-        dbg!(&name);
+        //dbg!(&name);
         let sound = self.sound.xfile_into(de, ())?;
 
         Ok(LoadedSound { name, sound })
@@ -438,7 +447,7 @@ pub struct StreamedSound {
 impl<'a> XFileInto<StreamedSound, ()> for StreamedSoundRaw<'a> {
     fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<StreamedSound> {
         let filename = self.filename.xfile_into(de, ())?;
-        dbg!(&filename);
+        //dbg!(&filename);
         let prime_snd = self.prime_snd.xfile_into(de, ())?;
 
         Ok(StreamedSound {
@@ -466,7 +475,7 @@ pub struct PrimedSnd {
 impl<'a> XFileInto<PrimedSnd, ()> for PrimedSndRaw<'a> {
     fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<PrimedSnd> {
         let name = self.name.xfile_into(de, ())?;
-        dbg!(&name);
+        //dbg!(&name);
         let buffer = self.buffer.to_vec(de)?;
 
         Ok(PrimedSnd { name, buffer })
@@ -486,7 +495,7 @@ assert_size!(SndIndexEntry, 4);
 pub(crate) struct SndName([u8; 32]);
 
 impl Display for SndName {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         let len = self
             .0
             .into_iter()
@@ -547,7 +556,7 @@ pub struct SndRadverb {
 impl From<SndRadverbRaw> for SndRadverb {
     fn from(value: SndRadverbRaw) -> Self {
         let name = value.name.to_string();
-        dbg!(&name);
+        //dbg!(&name);
         Self {
             name,
             id: value.id,
@@ -606,9 +615,9 @@ pub struct SndSnapshot {
 impl From<SndSnapshotRaw> for SndSnapshot {
     fn from(value: SndSnapshotRaw) -> Self {
         let name = value.name.to_string();
-        dbg!(&name);
+        //dbg!(&name);
         let occlusion_name = value.occlusion_name.to_string();
-        dbg!(&occlusion_name);
+        //dbg!(&occlusion_name);
 
         Self {
             name,
@@ -645,7 +654,7 @@ pub struct SndPatch {
 impl<'a> XFileInto<SndPatch, ()> for SndPatchRaw<'a> {
     fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<SndPatch> {
         let name = self.name.xfile_into(de, ())?;
-        dbg!(&name);
+        //dbg!(&name);
         let elements = self.elements.to_vec(de)?;
         let files = self.files.xfile_into(de, ())?;
 
@@ -685,7 +694,7 @@ pub struct SndDriverGlobals {
 impl<'a> XFileInto<SndDriverGlobals, ()> for SndDriverGlobalsRaw<'a> {
     fn xfile_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<SndDriverGlobals> {
         let name = self.name.xfile_into(de, ())?;
-        dbg!(&name);
+        //dbg!(&name);
         let groups = self
             .groups
             .to_vec(de)?
@@ -751,9 +760,9 @@ impl TryInto<SndGroup> for SndGroupRaw {
     type Error = Error;
     fn try_into(self) -> core::result::Result<SndGroup, Self::Error> {
         let name = self.name.to_string();
-        dbg!(&name);
+        //dbg!(&name);
         let parent_name = self.parent_name.to_string();
-        dbg!(&parent_name);
+        //dbg!(&parent_name);
         let category = FromPrimitive::from_u32(self.category).ok_or(Error::new(
             file_line_col!(),
             0,
@@ -792,7 +801,7 @@ pub struct SndCurve {
 impl From<SndCurveRaw> for SndCurve {
     fn from(value: SndCurveRaw) -> Self {
         let name = value.name.to_string();
-        dbg!(&name);
+        //dbg!(&name);
 
         SndCurve {
             name,
@@ -832,7 +841,7 @@ pub struct SndPan {
 impl From<SndPanRaw> for SndPan {
     fn from(value: SndPanRaw) -> Self {
         let name = value.name.to_string();
-        dbg!(&name);
+        //dbg!(&name);
 
         Self {
             name,
@@ -863,7 +872,7 @@ pub struct SndSnapshotGroup {
 impl From<SndSnapshotGroupRaw> for SndSnapshotGroup {
     fn from(value: SndSnapshotGroupRaw) -> Self {
         let name = value.name.to_string();
-        dbg!(&name);
+        //dbg!(&name);
         Self { name }
     }
 }
@@ -965,7 +974,7 @@ pub struct SndMaster {
 impl From<SndMasterRaw> for SndMaster {
     fn from(value: SndMasterRaw) -> Self {
         let name = value.name.to_string();
-        dbg!(&name);
+        //dbg!(&name);
 
         SndMaster {
             name,

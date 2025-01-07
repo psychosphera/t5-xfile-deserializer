@@ -1,20 +1,21 @@
-use crate::*;
-
-use std::{
-    ffi::CString,
+use core::{
     fmt::{self, Debug},
-    io::{Seek, SeekFrom},
     marker::PhantomData,
 };
 
+use alloc::{ffi::CString, format, string::String, vec::Vec, boxed::Box};
+
+use std::io::{Seek, SeekFrom};
+
+use crate::{Error, ErrorKind, Result, T5XFileDeserializer, file_line_col};
+
 use serde::{
     de::{DeserializeOwned, SeqAccess, Visitor},
-    Deserialize,
+    Deserialize, Serialize,
 };
 
 /// Helper macro to ensure the structs we're deserializing are the correct
 /// size.
-#[macro_export]
 macro_rules! assert_size {
     ($t:ty, $n:literal) => {
         const _: fn() = || {
@@ -28,9 +29,11 @@ macro_rules! assert_size {
     };
 }
 
+pub(crate) use assert_size;
+
 /// C-like `sizeof`. Accepts types and values.
 #[macro_export]
-macro_rules! sizeof {
+macro_rules! size_of {
     ($t:ty) => {
         core::mem::size_of::<$t>()
     };
@@ -312,10 +315,10 @@ impl<'a, T: DeserializeOwned + Clone + Debug + XFileInto<U, V>, U, V: Copy>
             // since it treats all structs as packed. those instances need to be
             // caught and fixed, so this is how we catch them
             assert!(
-                new == old + sizeof!(T) as u64,
+                new == old + size_of!(T) as u64,
                 "new ({new}) - old ({old}) = {}, expected {}",
                 new - old,
-                sizeof!(T)
+                size_of!(T)
             );
             t
         };
@@ -347,10 +350,10 @@ impl<'a, T: DeserializeOwned + Debug> Ptr32<'a, T> {
             // since it treats all structs as packed. those instances need to be
             // caught and fixed, so this is how we catch them
             assert!(
-                new == old + sizeof!(T) as u64,
+                new == old + size_of!(T) as u64,
                 "new ({new}) - old ({old}) = {}, expected {}",
                 new - old,
-                sizeof!(T)
+                size_of!(T)
             );
             t
         };
@@ -423,7 +426,7 @@ pub(crate) trait FlexibleArray<T: DeserializeOwned> {
         // bincode will sometimes deserialize less than sizeof!(T) bytes
         // since it treats all structs as packed. those instances need to be
         // caught and fixed, so this is how we catch them
-        assert!(new == old + sizeof!(T) as u64 * self.count() as u64);
+        assert!(new == old + size_of!(T) as u64 * self.count() as u64);
 
         Ok(vt)
     }
@@ -472,9 +475,9 @@ pub(crate) trait FatPointer<'a, T: DeserializeOwned + 'a> {
             // since it treats all structs as packed. those instances need to be
             // caught and fixed, so this is how we catch them
             assert!(
-                new == old + sizeof!(T) as u64 * self.size() as u64,
+                new == old + size_of!(T) as u64 * self.size() as u64,
                 "new ({new}) != old ({old}) + {} ({})",
-                sizeof!(T) * self.size(),
+                size_of!(T) * self.size(),
                 new - old
             );
             v
