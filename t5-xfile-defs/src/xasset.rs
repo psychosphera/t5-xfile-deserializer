@@ -1,8 +1,12 @@
-use alloc::boxed::Box;
+use alloc::{boxed::Box, string::String, vec::Vec};
 use num_derive::FromPrimitive;
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    EmblemSet, EmblemSetRaw, Error, ErrorKind, FatPointerCountFirstU32, Glasses, GlassesRaw,
+    LocalizeEntry, LocalizeEntryRaw, MapEnts, MapEntsRaw, PackIndex, PackIndexRaw, Ptr32, RawFile,
+    RawFileRaw, Result, StringTable, StringTableRaw, T5XFileDeserialize, T5XFileSerialize,
+    XFileDeserializeInto, XFilePlatform, XFileSerialize, XGlobals, XGlobalsRaw, XString,
     assert_size,
     clipmap::{ClipMap, ClipMapRaw},
     com_world::{ComWorld, ComWorldRaw},
@@ -22,10 +26,6 @@ use crate::{
     weapon::{WeaponVariantDef, WeaponVariantDefRaw},
     xanim::{XAnimParts, XAnimPartsRaw},
     xmodel::{PhysConstraints, PhysConstraintsRaw, PhysPreset, PhysPresetRaw, XModel, XModelRaw},
-    EmblemSet, EmblemSetRaw, Error, ErrorKind, FatPointerCountFirstU32, Glasses, GlassesRaw,
-    LocalizeEntry, LocalizeEntryRaw, MapEnts, MapEntsRaw, PackIndex, PackIndexRaw, Ptr32, RawFile,
-    RawFileRaw, Result, StringTable, StringTableRaw, T5XFileDeserializer, T5XFileSerializer,
-    XFileDeserializeInto, XFilePlatform, XFileSerializeInto, XGlobals, XGlobalsRaw, XString,
 };
 
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
@@ -36,8 +36,8 @@ pub enum XAsset {
 }
 
 impl XAsset {
-    pub(crate) fn try_get(
-        de: &mut T5XFileDeserializer,
+    pub fn try_get(
+        de: &mut impl T5XFileDeserialize,
         xasset_raw: XAssetRaw,
         platform: XFilePlatform,
     ) -> Result<Self> {
@@ -201,32 +201,28 @@ impl<const MAX_LOCAL_CLIENTS: usize> XAssetGeneric<MAX_LOCAL_CLIENTS> {
 
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
-pub(crate) struct XAssetListRaw<'a> {
+pub struct XAssetListRaw<'a> {
     pub strings: FatPointerCountFirstU32<'a, XString<'a>>,
     pub assets: FatPointerCountFirstU32<'a, XAssetRaw<'a>>,
 }
 assert_size!(XAssetListRaw, 16);
 
 #[derive(Clone, Debug, Default)]
-pub(crate) struct XAssetList {
+pub struct XAssetList {
     pub _strings: Vec<String>,
     pub assets: Vec<XAsset>,
 }
 
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
-pub(crate) struct XAssetRaw<'a> {
+pub struct XAssetRaw<'a> {
     pub asset_type: u32,
     pub asset_data: Ptr32<'a, ()>,
 }
 assert_size!(XAssetRaw, 8);
 
-impl<'a> XFileSerializeInto<XAssetListRaw<'a>, ()> for XAssetList {
-    fn xfile_serialize_into(
-        &self,
-        _ser: &mut T5XFileSerializer,
-        _data: (),
-    ) -> Result<XAssetListRaw<'a>> {
+impl<'a> XFileSerialize<XAssetListRaw<'a>, ()> for XAssetList {
+    fn xfile_serialize(&self, _ser: &mut impl T5XFileSerialize, _data: ()) {
         todo!()
     }
 }
@@ -289,7 +285,7 @@ impl<'a, const MAX_LOCAL_CLIENTS: usize> XFileDeserializeInto<XAssetGeneric<MAX_
 {
     fn xfile_deserialize_into(
         &self,
-        de: &mut T5XFileDeserializer,
+        de: &mut impl T5XFileDeserialize,
         _data: (),
     ) -> Result<XAssetGeneric<MAX_LOCAL_CLIENTS>> {
         //dbg!(de.stream_pos()?);

@@ -2,9 +2,8 @@ use alloc::{boxed::Box, string::String};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    assert_size,
+    Ptr32, Result, T5XFileDeserialize, XFileDeserializeInto, XString, assert_size,
     techset::{GfxImage, GfxImageRaw},
-    Ptr32, Result, T5XFileDeserializer, XFileDeserializeInto, XString,
 };
 
 #[cfg_attr(feature = "serde", derive(Serialize))]
@@ -27,7 +26,7 @@ pub struct GfxLightDef {
 impl<'a> XFileDeserializeInto<GfxLightDef, ()> for GfxLightDefRaw<'a> {
     fn xfile_deserialize_into(
         &self,
-        de: &mut T5XFileDeserializer,
+        de: &mut impl T5XFileDeserialize,
         _data: (),
     ) -> Result<GfxLightDef> {
         //dbg!(self);
@@ -64,7 +63,7 @@ pub struct GfxLightImage {
 impl<'a> XFileDeserializeInto<GfxLightImage, ()> for GfxLightImageRaw<'a> {
     fn xfile_deserialize_into(
         &self,
-        de: &mut T5XFileDeserializer,
+        de: &mut impl T5XFileDeserialize,
         _data: (),
     ) -> Result<GfxLightImage> {
         //dbg!(self);

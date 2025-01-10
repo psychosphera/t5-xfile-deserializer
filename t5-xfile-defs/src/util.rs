@@ -3,15 +3,19 @@ use core::{
     marker::PhantomData,
 };
 
-use alloc::{boxed::Box, ffi::CString, format, string::String, vec::Vec};
+use alloc::{
+    boxed::Box,
+    ffi::CString,
+    format,
+    string::{String, ToString},
+    vec::Vec,
+};
 
-use std::io::{Seek, SeekFrom};
-
-use crate::{file_line_col, Error, ErrorKind, Result, T5XFileDeserializer, T5XFileSerializer};
+use crate::{Error, ErrorKind, Result, T5XFileDeserialize, T5XFileSerialize, file_line_col};
 
 use serde::{
-    de::{DeserializeOwned, SeqAccess, Visitor},
     Deserialize, Serialize,
+    de::{DeserializeOwned, SeqAccess, Visitor},
 };
 
 /// Helper macro to ensure the structs we're deserializing are the correct
@@ -82,29 +86,10 @@ impl<'de, T: Default + Copy + Deserialize<'de>, const N: usize> Visitor<'de>
 }
 // ============================================================================
 
-// ============================================================================
-/// [`Seek::stream_len`] isn't stable yet, so we implement it manually here
-pub(crate) trait StreamLen: Seek {
-    fn stream_len(&mut self) -> Result<u64> {
-        let pos = self
-            .stream_position()
-            .map_err(|e| Error::new(file_line_col!(), 0, ErrorKind::Io(e)))?;
-        let len = self
-            .seek(SeekFrom::End(0))
-            .map_err(|e| Error::new(file_line_col!(), 0, ErrorKind::Io(e)))?;
-        self.seek(SeekFrom::Start(pos))
-            .map_err(|e| Error::new(file_line_col!(), 0, ErrorKind::Io(e)))?;
-        Ok(len)
-    }
-}
-
-impl<T: Seek> StreamLen for T {}
-// ============================================================================
-
 #[repr(transparent)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
-pub(crate) struct XString<'a>(Ptr32<'a, u8>);
+pub struct XString<'a>(Ptr32<'a, u8>);
 assert_size!(XString, 4);
 
 impl<'a> XString<'a> {
@@ -119,7 +104,11 @@ impl<'a> XString<'a> {
 }
 
 impl<'a> XFileDeserializeInto<String, ()> for XString<'a> {
-    fn xfile_deserialize_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<String> {
+    fn xfile_deserialize_into(
+        &self,
+        de: &mut impl T5XFileDeserialize,
+        _data: (),
+    ) -> Result<String> {
         if self.0.is_null() {
             return Ok(String::new());
         }
@@ -138,7 +127,7 @@ impl<'a> XFileDeserializeInto<String, ()> for XString<'a> {
     }
 }
 
-pub(crate) fn xfile_read_string(de: &mut T5XFileDeserializer) -> Result<String> {
+pub(crate) fn xfile_read_string(de: &mut impl T5XFileDeserialize) -> Result<String> {
     let mut string_buf = Vec::new();
 
     loop {
@@ -178,7 +167,7 @@ pub(crate) fn xfile_read_string(de: &mut T5XFileDeserializer) -> Result<String> 
 /// that make them very unergonomic to use. Since, if we were to deserialze them without
 /// any such conversion, we'd probably end up converting them separately later
 /// anyways, it's a nice touch to have both done in one go.
-pub(crate) trait XFileDeserializeInto<T, U: Copy> {
+pub trait XFileDeserializeInto<T, U: Copy> {
     /// Deserialize [`Self`] from [`xfile`], then convert [`Self`] to [`T`].
     ///
     /// [`Self`] may have [`repr`] attributes ([`C`], [`packed`]) or members
@@ -187,7 +176,7 @@ pub(crate) trait XFileDeserializeInto<T, U: Copy> {
     /// without any such conversion, we'd probably end up converting them
     /// separately later anyways, it's a nice touch to have both done in one
     /// go.
-    fn xfile_deserialize_into(&self, de: &mut T5XFileDeserializer, data: U) -> Result<T>;
+    fn xfile_deserialize_into(&self, de: &mut impl T5XFileDeserialize, data: U) -> Result<T>;
 }
 
 impl<'a, T, U, V, const N: usize> XFileDeserializeInto<[U; N], V> for [T; N]
@@ -198,7 +187,7 @@ where
     T: DeserializeOwned + Clone + Debug + XFileDeserializeInto<U, V>,
     V: Copy,
 {
-    fn xfile_deserialize_into(&self, de: &mut T5XFileDeserializer, data: V) -> Result<[U; N]> {
+    fn xfile_deserialize_into(&self, de: &mut impl T5XFileDeserialize, data: V) -> Result<[U; N]> {
         self.iter()
             .cloned()
             .map(|t| t.xfile_deserialize_into(de, data))
@@ -209,24 +198,22 @@ where
 // ============================================================================
 
 // ============================================================================
-pub(crate) trait XFileSerializeInto<T, U: Copy> {
-    fn xfile_serialize_into(&self, ser: &mut T5XFileSerializer, data: U) -> Result<T>;
+pub trait XFileSerialize<T, U: Copy> {
+    fn xfile_serialize(&self, ser: &mut impl T5XFileSerialize, data: U);
 }
 
-impl<'a, T, U, V, const N: usize> XFileSerializeInto<[U; N], V> for [T; N]
+impl<'a, T, U, V, const N: usize> XFileSerialize<[U; N], V> for [T; N]
 where
     U: Debug + 'a,
     [U; N]: TryFrom<&'a [U]>,
     <&'a [U] as TryInto<[U; N]>>::Error: Debug,
-    T: Serialize + Clone + Debug + XFileSerializeInto<U, V>,
+    T: Serialize + Clone + Debug + XFileSerialize<U, V>,
     V: Copy,
 {
-    fn xfile_serialize_into(&self, de: &mut T5XFileSerializer, data: V) -> Result<[U; N]> {
-        self.iter()
-            .cloned()
-            .map(|t| t.xfile_serialize_into(de, data))
-            .collect::<Result<Vec<_>>>()
-            .map(|v| TryInto::<[U; N]>::try_into(v).unwrap())
+    fn xfile_serialize(&self, ser: &mut impl T5XFileSerialize, data: V) {
+        for t in self.iter() {
+            t.xfile_serialize(ser, data);
+        }
     }
 }
 // ============================================================================
@@ -250,7 +237,7 @@ where
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Debug, Deserialize)]
 #[repr(transparent)]
-pub(crate) struct Ptr32<'a, T>(u32, PhantomData<&'a mut T>);
+pub struct Ptr32<'a, T>(u32, PhantomData<&'a mut T>);
 
 impl<'a, T> Default for Ptr32<'a, T> {
     fn default() -> Self {
@@ -299,7 +286,7 @@ impl<'a, T: DeserializeOwned + Clone + Debug + XFileDeserializeInto<U, V>, U, V:
 {
     fn xfile_deserialize_into(
         &self,
-        de: &mut T5XFileDeserializer,
+        de: &mut impl T5XFileDeserialize,
         data: V,
     ) -> Result<Option<Box<U>>> {
         if self.is_null() {
@@ -318,16 +305,16 @@ impl<'a, T: DeserializeOwned + Clone + Debug + XFileDeserializeInto<U, V>, U, V:
                 ));
             }
 
-            if self.0 < de.xasset_list.assets.size * 12 {
-                return Err(Error::new(
-                    file_line_col!(),
-                    de.stream_pos()? as _,
-                    ErrorKind::InvalidSeek {
-                        off: self.0 & 0x1FFFFFFF,
-                        max: de.stream_len().unwrap() as u32,
-                    },
-                ));
-            }
+            // if self.0 < de.xasset_list.assets.size * 12 {
+            //     return Err(Error::new(
+            //         file_line_col!(),
+            //         de.stream_pos()? as _,
+            //         ErrorKind::InvalidSeek {
+            //             off: self.0 & 0x1FFFFFFF,
+            //             max: de.stream_len().unwrap() as u32,
+            //         },
+            //     ));
+            // }
             //eprintln!("ignoring offset {:#010X}", self.as_u32());
             return Ok(None);
             // TODO: SeekFrom::Start(off) once offsets are fixed
@@ -360,7 +347,7 @@ impl<'a, T: DeserializeOwned + Debug> Ptr32<'a, T> {
     /// Same principle as [`XFileInto::xfile_into`], except it doesn't do any
     /// type conversion. Useful for the rare structs that don't need any such
     /// conversion.
-    pub(crate) fn xfile_get(self, de: &mut T5XFileDeserializer) -> Result<Option<T>> {
+    pub(crate) fn xfile_get(self, de: &mut impl T5XFileDeserialize) -> Result<Option<T>> {
         if self.is_null() {
             return Ok(None);
         }
@@ -444,7 +431,7 @@ pub(crate) struct FlexibleArrayU32<T: DeserializeOwned> {
 pub(crate) trait FlexibleArray<T: DeserializeOwned> {
     fn count(&self) -> usize;
 
-    fn to_vec(&self, de: &mut T5XFileDeserializer) -> Result<Vec<T>> {
+    fn to_vec(&self, de: &mut impl T5XFileDeserialize) -> Result<Vec<T>> {
         let mut vt = Vec::new();
 
         let old = de.stream_pos()?;
@@ -475,7 +462,7 @@ macro_rules! impl_flexible_array {
 
 impl_flexible_array!(FlexibleArrayU16, FlexibleArrayU32,);
 
-pub(crate) trait FatPointer<'a, T: DeserializeOwned + 'a> {
+pub trait FatPointer<'a, T: DeserializeOwned + 'a> {
     fn size(&self) -> usize;
     fn p(&self) -> Ptr32<'a, T>;
 
@@ -483,7 +470,7 @@ pub(crate) trait FatPointer<'a, T: DeserializeOwned + 'a> {
         self.p().is_null()
     }
 
-    fn to_vec(&self, de: &mut T5XFileDeserializer) -> Result<Vec<T>> {
+    fn to_vec(&self, de: &mut impl T5XFileDeserialize) -> Result<Vec<T>> {
         if self.is_null() {
             return Ok(Vec::new());
         }
@@ -515,7 +502,7 @@ pub(crate) trait FatPointer<'a, T: DeserializeOwned + 'a> {
         Ok(v)
     }
 
-    fn to_vec_into<U: From<T>>(&self, de: &mut T5XFileDeserializer) -> Result<Vec<U>> {
+    fn to_vec_into<U: From<T>>(&self, de: &mut impl T5XFileDeserialize) -> Result<Vec<U>> {
         self.to_vec(de)
             .map(|v| v.into_iter().map(Into::<U>::into).collect())
     }
@@ -550,7 +537,7 @@ macro_rules! impl_fat_pointer {
 /// In this case, [`Self::size`] is a [`u8`], and comes before the pointer.
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Debug, Deserialize)]
-pub(crate) struct FatPointerCountFirstU8<'a, T: Debug + Clone> {
+pub struct FatPointerCountFirstU8<'a, T: Debug + Clone> {
     size: u8,
     p: Ptr32<'a, T>,
 }
@@ -566,7 +553,7 @@ pub(crate) struct FatPointerCountFirstU8<'a, T: Debug + Clone> {
 /// In this case, [`Self::size`] is a [`u16`], and comes before the pointer.
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Debug, Deserialize)]
-pub(crate) struct FatPointerCountFirstU16<'a, T: Debug + Clone> {
+pub struct FatPointerCountFirstU16<'a, T: Debug + Clone> {
     size: u16,
     p: Ptr32<'a, T>,
 }
@@ -582,7 +569,7 @@ pub(crate) struct FatPointerCountFirstU16<'a, T: Debug + Clone> {
 /// In this case, [`Self::size`] is a [`u32`], and comes before the pointer.
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Debug, Default, Deserialize)]
-pub(crate) struct FatPointerCountFirstU32<'a, T> {
+pub struct FatPointerCountFirstU32<'a, T> {
     size: u32,
     p: Ptr32<'a, T>,
 }
@@ -598,7 +585,7 @@ pub(crate) struct FatPointerCountFirstU32<'a, T> {
 /// In this case, [`Self::size`] is a [`u8`], and comes after the pointer.
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Debug, Deserialize)]
-pub(crate) struct FatPointerCountLastU8<'a, T> {
+pub struct FatPointerCountLastU8<'a, T> {
     p: Ptr32<'a, T>,
     size: u8,
 }
@@ -614,7 +601,7 @@ pub(crate) struct FatPointerCountLastU8<'a, T> {
 /// In this case, [`Self::size`] is a [`u16`], and comes after the pointer.
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Debug, Deserialize)]
-pub(crate) struct FatPointerCountLastU16<'a, T> {
+pub struct FatPointerCountLastU16<'a, T> {
     p: Ptr32<'a, T>,
     size: u16,
 }
@@ -630,14 +617,14 @@ pub(crate) struct FatPointerCountLastU16<'a, T> {
 /// In this case, [`Self::size`] is a [`u32`], and comes after the pointer.
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
-pub(crate) struct FatPointerCountLastU32<'a, T> {
+pub struct FatPointerCountLastU32<'a, T> {
     p: Ptr32<'a, T>,
     size: u32,
 }
 
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
-pub(crate) struct Ptr32Array<'a, T> {
+pub struct Ptr32Array<'a, T> {
     p: Ptr32<'a, T>,
     size: usize,
 }
@@ -654,7 +641,7 @@ impl_fat_pointer!(
 
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
-pub(crate) struct Ptr32ArrayConst<'a, T, const N: usize>(Ptr32<'a, T>);
+pub struct Ptr32ArrayConst<'a, T, const N: usize>(Ptr32<'a, T>);
 
 // Can't use the macro for this since it has the const generic parameter
 impl<'a, T: Debug + Clone + DeserializeOwned + 'a, const N: usize> FatPointer<'a, T>
@@ -681,7 +668,7 @@ macro_rules! impl_xfile_into_for_fat_pointer {
                 T: DeserializeOwned + Debug + Clone + XFileDeserializeInto<U, V>,
                 V: Copy,
             {
-                fn xfile_deserialize_into(&self, de: &mut T5XFileDeserializer, data: V) -> Result<Vec<U>> {
+                fn xfile_deserialize_into(&self, de: &mut impl T5XFileDeserialize, data: V) -> Result<Vec<U>> {
                     self.clone()
                         .to_vec(de)?
                         .into_iter()
@@ -707,7 +694,7 @@ where
     T: DeserializeOwned + Debug + Clone + XFileDeserializeInto<U, V>,
     V: Copy,
 {
-    fn xfile_deserialize_into(&self, de: &mut T5XFileDeserializer, data: V) -> Result<Vec<U>> {
+    fn xfile_deserialize_into(&self, de: &mut impl T5XFileDeserialize, data: V) -> Result<Vec<U>> {
         self.clone()
             .to_vec(de)?
             .into_iter()

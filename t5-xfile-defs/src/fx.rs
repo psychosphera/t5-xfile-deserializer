@@ -1,13 +1,12 @@
 use alloc::{boxed::Box, string::String, vec, vec::Vec};
 
 use crate::{
-    assert_size,
+    Error, ErrorKind, FatPointer, FatPointerCountFirstU32, Ptr32, Ptr32ArrayConst, Result,
+    T5XFileDeserialize, XFileDeserializeInto, XString, assert_size,
     common::{Vec2, Vec3, Vec4},
     file_line_col,
     techset::{Material, MaterialRaw},
     xmodel::{XModel, XModelRaw},
-    Error, ErrorKind, FatPointer, FatPointerCountFirstU32, Ptr32, Ptr32ArrayConst, Result,
-    T5XFileDeserializer, XFileDeserializeInto, XString,
 };
 
 use bitflags::bitflags;
@@ -61,7 +60,7 @@ pub struct FxEffectDef {
 impl<'a> XFileDeserializeInto<FxEffectDef, ()> for FxEffectDefRaw<'a> {
     fn xfile_deserialize_into(
         &self,
-        de: &mut T5XFileDeserializer,
+        de: &mut impl T5XFileDeserialize,
         _data: (),
     ) -> Result<FxEffectDef> {
         //dbg!(self);
@@ -247,7 +246,11 @@ pub struct FxElemDef {
 }
 
 impl<'a> XFileDeserializeInto<FxElemDef, ()> for FxElemDefRaw<'a> {
-    fn xfile_deserialize_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<FxElemDef> {
+    fn xfile_deserialize_into(
+        &self,
+        de: &mut impl T5XFileDeserialize,
+        _data: (),
+    ) -> Result<FxElemDef> {
         //dbg!(self);
 
         let vel_samples = if self.vel_samples.is_null() {
@@ -366,7 +369,7 @@ pub(crate) struct FxEffectDefRefRaw<'a>(Ptr32<'a, ()>);
 impl<'a> XFileDeserializeInto<FxEffectDefRef, ()> for FxEffectDefRefRaw<'a> {
     fn xfile_deserialize_into(
         &self,
-        de: &mut T5XFileDeserializer,
+        de: &mut impl T5XFileDeserialize,
         _data: (),
     ) -> Result<FxEffectDefRef> {
         //dbg!(self);
@@ -401,7 +404,7 @@ pub enum FxElemDefVisuals {
 impl<'a> XFileDeserializeInto<Option<FxElemDefVisuals>, (u8, u8)> for FxElemDefVisualsRaw<'a> {
     fn xfile_deserialize_into(
         &self,
-        de: &mut T5XFileDeserializer,
+        de: &mut impl T5XFileDeserialize,
         (elem_type, visual_count): (u8, u8),
     ) -> Result<Option<FxElemDefVisuals>> {
         //dbg!(self, elem_type, visual_count);
@@ -453,7 +456,7 @@ pub struct FxElemMarkVisuals {
 impl<'a> XFileDeserializeInto<FxElemMarkVisuals, ()> for FxElemMarkVisualsRaw<'a> {
     fn xfile_deserialize_into(
         &self,
-        de: &mut T5XFileDeserializer,
+        de: &mut impl T5XFileDeserialize,
         _data: (),
     ) -> Result<FxElemMarkVisuals> {
         //dbg!(self);
@@ -484,7 +487,7 @@ pub enum FxElemVisuals {
 impl<'a> XFileDeserializeInto<Option<FxElemVisuals>, u8> for FxElemVisualsRaw<'a> {
     fn xfile_deserialize_into(
         &self,
-        de: &mut T5XFileDeserializer,
+        de: &mut impl T5XFileDeserialize,
         elem_type: u8,
     ) -> Result<Option<FxElemVisuals>> {
         //dbg!(self, elem_type);
@@ -650,7 +653,7 @@ pub struct FxTrailDef {
 impl<'a> XFileDeserializeInto<FxTrailDef, ()> for FxTrailDefRaw<'a> {
     fn xfile_deserialize_into(
         &self,
-        de: &mut T5XFileDeserializer,
+        de: &mut impl T5XFileDeserialize,
         _data: (),
     ) -> Result<FxTrailDef> {
         //dbg!(self);
@@ -708,7 +711,7 @@ pub struct FxElemSpawnSound {
 impl<'a> XFileDeserializeInto<FxElemSpawnSound, ()> for FxElemSpawnSoundRaw<'a> {
     fn xfile_deserialize_into(
         &self,
-        de: &mut T5XFileDeserializer,
+        de: &mut impl T5XFileDeserialize,
         _data: (),
     ) -> Result<FxElemSpawnSound> {
         //dbg!(self);
@@ -737,7 +740,7 @@ pub struct FxImpactTable {
 impl<'a> XFileDeserializeInto<FxImpactTable, ()> for FxImpactTableRaw<'a> {
     fn xfile_deserialize_into(
         &self,
-        de: &mut T5XFileDeserializer,
+        de: &mut impl T5XFileDeserialize,
         _data: (),
     ) -> Result<FxImpactTable> {
         //dbg!(self);
@@ -768,7 +771,7 @@ pub struct FxImpactEntry {
 impl<'a> XFileDeserializeInto<FxImpactEntry, ()> for FxImpactEntryRaw<'a> {
     fn xfile_deserialize_into(
         &self,
-        de: &mut T5XFileDeserializer,
+        de: &mut impl T5XFileDeserialize,
         _data: (),
     ) -> Result<FxImpactEntry> {
         //dbg!(self);

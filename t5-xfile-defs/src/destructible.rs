@@ -1,11 +1,10 @@
 use alloc::{boxed::Box, string::String, vec::Vec};
 
 use crate::{
-    assert_size,
+    FatPointerCountFirstU32, Ptr32, Result, ScriptString, T5XFileDeserialize, XFileDeserializeInto,
+    XString, assert_size,
     fx::{FxEffectDef, FxEffectDefRaw},
     xmodel::{PhysConstraints, PhysConstraintsRaw, PhysPreset, PhysPresetRaw, XModel, XModelRaw},
-    FatPointerCountFirstU32, Ptr32, Result, ScriptString, T5XFileDeserializer,
-    XFileDeserializeInto, XString,
 };
 
 use serde::{Deserialize, Serialize};
@@ -34,7 +33,7 @@ pub struct DestructibleDef {
 impl<'a> XFileDeserializeInto<DestructibleDef, ()> for DestructibleDefRaw<'a> {
     fn xfile_deserialize_into(
         &self,
-        de: &mut T5XFileDeserializer,
+        de: &mut impl T5XFileDeserialize,
         _data: (),
     ) -> Result<DestructibleDef> {
         Ok(DestructibleDef {
@@ -95,7 +94,7 @@ pub struct DestructiblePiece {
 impl<'a> XFileDeserializeInto<DestructiblePiece, ()> for DestructiblePieceRaw<'a> {
     fn xfile_deserialize_into(
         &self,
-        de: &mut T5XFileDeserializer,
+        de: &mut impl T5XFileDeserialize,
         _data: (),
     ) -> Result<DestructiblePiece> {
         Ok(DestructiblePiece {
@@ -158,7 +157,7 @@ pub struct DestructibleStage {
 impl<'a> XFileDeserializeInto<DestructibleStage, ()> for DestructibleStageRaw<'a> {
     fn xfile_deserialize_into(
         &self,
-        de: &mut T5XFileDeserializer,
+        de: &mut impl T5XFileDeserialize,
         _data: (),
     ) -> Result<DestructibleStage> {
         Ok(DestructibleStage {

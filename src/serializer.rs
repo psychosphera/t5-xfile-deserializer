@@ -2,12 +2,16 @@ use core::marker::PhantomData;
 
 use serde::Serialize;
 
-use std::io::{Cursor, Seek};
+use std::{
+    collections::HashSet,
+    io::{Cursor, Seek},
+};
 
-use crate::{
-    file_line_col,
+use crate::{file_line_col, BincodeOptions, StreamLen};
+
+use t5_xfile_defs::{
     xasset::{XAsset, XAssetList},
-    BincodeOptions, Error, ErrorKind, Result, StreamLen, XFile, XFileHeader, XFilePlatform,
+    Error, ErrorKind, Result, T5XFileSerialize, XFile, XFileHeader, XFilePlatform,
 };
 
 pub struct T5XFileSerializerBuilder {
@@ -49,6 +53,7 @@ pub struct T5XFileSerializer<T: T5XFileSerializerTypestate = T5XFileSerializerSe
     _silent: bool,
     xfile: XFile,
     xasset_list: XAssetList,
+    script_strings: HashSet<String>,
     asset_bytes: Cursor<Vec<u8>>,
     serialized_assets: usize,
     opts: BincodeOptions,
@@ -62,6 +67,7 @@ impl<'a> T5XFileSerializer<T5XFileSerializerSerialize> {
             _silent: silent,
             xfile: XFile::default(),
             xasset_list: XAssetList::default(),
+            script_strings: HashSet::new(),
             asset_bytes: Cursor::new(Vec::new()),
             serialized_assets: 0,
             opts: BincodeOptions::from_platform(platform),
@@ -115,8 +121,20 @@ impl<'a> T5XFileSerializer<T5XFileSerializerSerialize> {
 
         Ok(bytes)
     }
+}
 
-    pub(crate) fn store_into_xfile<T: Serialize>(&mut self, t: T) -> Result<()> {
+impl T5XFileSerialize for T5XFileSerializer {
+    fn stream_pos(&mut self) -> Result<u64> {
+        self.asset_bytes
+            .stream_position()
+            .map_err(|e| Error::new(file_line_col!(), 0, ErrorKind::Io(e)))
+    }
+
+    fn stream_len(&mut self) -> Result<u64> {
+        StreamLen::stream_len(&mut self.asset_bytes)
+    }
+
+    fn store_into_xfile<T: Serialize>(&mut self, t: T) -> Result<()> {
         self.opts
             .serialize_into(&mut self.asset_bytes, t)
             .map_err(|e| {
@@ -128,13 +146,12 @@ impl<'a> T5XFileSerializer<T5XFileSerializerSerialize> {
             })
     }
 
-    pub(crate) fn stream_pos(&mut self) -> Result<u64> {
-        self.asset_bytes
-            .stream_position()
-            .map_err(|e| Error::new(file_line_col!(), 0, ErrorKind::Io(e)))
-    }
-
-    pub(crate) fn _stream_len(&mut self) -> Result<u64> {
-        StreamLen::stream_len(&mut self.asset_bytes)
+    fn get_or_insert_script_string(&mut self, string: String) -> Result<Option<String>> {
+        if self.script_strings.len() >= u16::MAX as usize {
+            Ok(None)
+        } else {
+            self.script_strings.insert(string.clone());
+            Ok(Some(self.script_strings.get(&string).unwrap().clone()))
+        }
     }
 }

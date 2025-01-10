@@ -1,9 +1,8 @@
 use alloc::{boxed::Box, string::String, vec::Vec};
 
 use crate::{
-    assert_size,
+    FatPointer, Ptr32, Result, T5XFileDeserialize, XFileDeserializeInto, XString, assert_size,
     techset::{Material, MaterialRaw},
-    FatPointer, Ptr32, Result, T5XFileDeserializer, XFileDeserializeInto, XString,
 };
 
 use serde::{Deserialize, Serialize};
@@ -31,7 +30,7 @@ pub struct Font {
 }
 
 impl<'a> XFileDeserializeInto<Font, ()> for FontRaw<'a> {
-    fn xfile_deserialize_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<Font> {
+    fn xfile_deserialize_into(&self, de: &mut impl T5XFileDeserialize, _data: ()) -> Result<Font> {
         Ok(Font {
             font_name: self.font_name.xfile_deserialize_into(de, ())?,
             pixel_height: self.pixel_height,

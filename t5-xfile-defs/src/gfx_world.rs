@@ -2,24 +2,27 @@ use core::fmt::Display;
 #[cfg(feature = "d3d9")]
 use core::ptr::addr_of_mut;
 
-use alloc::{boxed::Box, string::String, vec::Vec};
+use alloc::{
+    boxed::Box,
+    string::{String, ToString},
+    vec::Vec,
+};
 
 use crate::{
-    assert_size,
+    FatPointer, FatPointerCountFirstU32, FatPointerCountLastU8, FatPointerCountLastU32, Ptr32,
+    Result, T5XFileDeserialize, XFileDeserializeInto, XString, assert_size,
     common::{GfxVertexBuffer, Mat3, Mat4, Vec2, Vec3, Vec4},
     light::{GfxLightDef, GfxLightDefRaw},
     techset::{
         GfxDrawSurf, GfxImage, GfxImageRaw, GfxTexture, GfxTextureRaw, Material, MaterialRaw,
     },
     xmodel::{CPlane, CPlaneRaw, GfxColor, XModel, XModelDrawInfo, XModelRaw},
-    FatPointer, FatPointerCountFirstU32, FatPointerCountLastU32, FatPointerCountLastU8, Ptr32,
-    Result, T5XFileDeserializer, XFileDeserializeInto, XString,
 };
 
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "d3d9")]
-use windows::Win32::Graphics::Direct3D9::{IDirect3DVertexBuffer9, D3DPOOL_DEFAULT};
+use windows::Win32::Graphics::Direct3D9::{D3DPOOL_DEFAULT, IDirect3DVertexBuffer9};
 
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Debug, Deserialize)]
@@ -155,7 +158,7 @@ impl<'a, const MAX_LOCAL_CLIENTS: usize> XFileDeserializeInto<GfxWorld<MAX_LOCAL
 {
     fn xfile_deserialize_into(
         &self,
-        de: &mut T5XFileDeserializer,
+        de: &mut impl T5XFileDeserialize,
         _data: (),
     ) -> Result<GfxWorld<MAX_LOCAL_CLIENTS>> {
         let name = self.name.xfile_deserialize_into(de, ())?;
@@ -343,7 +346,7 @@ pub struct GfxWorldStreamInfo {
 impl<'a> XFileDeserializeInto<GfxWorldStreamInfo, ()> for GfxWorldStreamInfoRaw<'a> {
     fn xfile_deserialize_into(
         &self,
-        de: &mut T5XFileDeserializer,
+        de: &mut impl T5XFileDeserialize,
         _data: (),
     ) -> Result<GfxWorldStreamInfo> {
         let aabb_trees = self.aabb_trees.to_vec_into(de)?;
@@ -588,7 +591,11 @@ pub struct GfxLight {
 }
 
 impl<'a> XFileDeserializeInto<GfxLight, ()> for GfxLightRaw<'a> {
-    fn xfile_deserialize_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<GfxLight> {
+    fn xfile_deserialize_into(
+        &self,
+        de: &mut impl T5XFileDeserialize,
+        _data: (),
+    ) -> Result<GfxLight> {
         let color = self.color.into();
         let dir = self.dir.into();
         let origin = self.origin.into();
@@ -753,7 +760,7 @@ pub struct GfxWorldDpvsPlanes {
 impl<'a> XFileDeserializeInto<GfxWorldDpvsPlanes, (i32, i32)> for GfxWorldDpvsPlanesRaw<'a> {
     fn xfile_deserialize_into(
         &self,
-        de: &mut T5XFileDeserializer,
+        de: &mut impl T5XFileDeserialize,
         (plane_count, node_count): (i32, i32),
     ) -> Result<GfxWorldDpvsPlanes> {
         let planes = self.planes.to_array(plane_count as _).to_vec_into(de)?;
@@ -795,7 +802,11 @@ pub struct GfxCell {
 }
 
 impl<'a> XFileDeserializeInto<GfxCell, ()> for GfxCellRaw<'a> {
-    fn xfile_deserialize_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<GfxCell> {
+    fn xfile_deserialize_into(
+        &self,
+        de: &mut impl T5XFileDeserialize,
+        _data: (),
+    ) -> Result<GfxCell> {
         let mins = self.mins.into();
         let maxs = self.maxs.into();
         let aabb_tree = self.aabb_tree.xfile_deserialize_into(de, ())?;
@@ -843,7 +854,7 @@ pub struct GfxAabbTree {
 impl<'a> XFileDeserializeInto<GfxAabbTree, ()> for GfxAabbTreeRaw<'a> {
     fn xfile_deserialize_into(
         &self,
-        de: &mut T5XFileDeserializer,
+        de: &mut impl T5XFileDeserialize,
         _data: (),
     ) -> Result<GfxAabbTree> {
         let mins = self.mins.into();
@@ -887,7 +898,11 @@ pub struct GfxPortal {
 }
 
 impl<'a> XFileDeserializeInto<GfxPortal, ()> for GfxPortalRaw<'a> {
-    fn xfile_deserialize_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<GfxPortal> {
+    fn xfile_deserialize_into(
+        &self,
+        de: &mut impl T5XFileDeserialize,
+        _data: (),
+    ) -> Result<GfxPortal> {
         let plane = self.plane.into();
         let cell = self.cell.xfile_deserialize_into(de, ())?;
         let vertices = self.vertices.to_vec_into(de)?;
@@ -928,7 +943,7 @@ pub struct GfxPortalWritable {
 impl<'a> XFileDeserializeInto<GfxPortalWritable, ()> for GfxPortalWritableRaw<'a> {
     fn xfile_deserialize_into(
         &self,
-        de: &mut T5XFileDeserializer,
+        de: &mut impl T5XFileDeserialize,
         _data: (),
     ) -> Result<GfxPortalWritable> {
         let hull_points = self
@@ -1013,7 +1028,7 @@ pub struct GfxWorldDraw {
 impl<'a> XFileDeserializeInto<GfxWorldDraw, ()> for GfxWorldDrawRaw<'a> {
     fn xfile_deserialize_into(
         &self,
-        de: &mut T5XFileDeserializer,
+        de: &mut impl T5XFileDeserialize,
         _data: (),
     ) -> Result<GfxWorldDraw> {
         let reflection_probes = self.reflection_probes.xfile_deserialize_into(de, ())?;
@@ -1088,7 +1103,7 @@ pub struct GfxReflectionProbe {
 impl<'a> XFileDeserializeInto<GfxReflectionProbe, ()> for GfxReflectionProbeRaw<'a> {
     fn xfile_deserialize_into(
         &self,
-        de: &mut T5XFileDeserializer,
+        de: &mut impl T5XFileDeserialize,
         _data: (),
     ) -> Result<GfxReflectionProbe> {
         let origin = self.origin.into();
@@ -1151,7 +1166,7 @@ pub struct GfxLightmapArray {
 impl<'a> XFileDeserializeInto<GfxLightmapArray, ()> for GfxLightmapArrayRaw<'a> {
     fn xfile_deserialize_into(
         &self,
-        de: &mut T5XFileDeserializer,
+        de: &mut impl T5XFileDeserialize,
         _data: (),
     ) -> Result<GfxLightmapArray> {
         let primary = self.primary.xfile_deserialize_into(de, ())?;
@@ -1186,7 +1201,7 @@ impl<'a> XFileDeserializeInto<GfxWorldVertexData, u32> for GfxWorldVertexDataRaw
     #[cfg(feature = "d3d9")]
     fn xfile_into(
         &self,
-        de: &mut T5XFileDeserializer,
+        de: &mut impl T5XFileDeserialize,
         vertex_count: u32,
     ) -> Result<GfxWorldVertexData> {
         let vertices = self
@@ -1222,7 +1237,7 @@ impl<'a> XFileDeserializeInto<GfxWorldVertexData, u32> for GfxWorldVertexDataRaw
     #[cfg(not(feature = "d3d9"))]
     fn xfile_deserialize_into(
         &self,
-        de: &mut T5XFileDeserializer,
+        de: &mut impl T5XFileDeserialize,
         vertex_count: u32,
     ) -> Result<GfxWorldVertexData> {
         let vertices = self
@@ -1299,7 +1314,7 @@ pub struct GfxWorldVertexLayerData {
 impl<'a> XFileDeserializeInto<GfxWorldVertexLayerData, u32> for GfxWorldVertexLayerDataRaw<'a> {
     fn xfile_deserialize_into(
         &self,
-        de: &mut T5XFileDeserializer,
+        de: &mut impl T5XFileDeserialize,
         vertex_layer_data_size: u32,
     ) -> Result<GfxWorldVertexLayerData> {
         let data = self.data.to_array(vertex_layer_data_size as _).to_vec(de)?;
@@ -1347,7 +1362,7 @@ pub struct GfxLightGrid {
 impl<'a> XFileDeserializeInto<GfxLightGrid, ()> for GfxLightGridRaw<'a> {
     fn xfile_deserialize_into(
         &self,
-        de: &mut T5XFileDeserializer,
+        de: &mut impl T5XFileDeserialize,
         _data: (),
     ) -> Result<GfxLightGrid> {
         let row_data_start = self
@@ -1472,7 +1487,7 @@ pub struct MaterialMemory {
 impl<'a> XFileDeserializeInto<MaterialMemory, ()> for MaterialMemoryRaw<'a> {
     fn xfile_deserialize_into(
         &self,
-        de: &mut T5XFileDeserializer,
+        de: &mut impl T5XFileDeserialize,
         _data: (),
     ) -> Result<MaterialMemory> {
         let material = self.material.xfile_deserialize_into(de, ())?;
@@ -1542,7 +1557,11 @@ pub struct Sunflare {
 }
 
 impl<'a> XFileDeserializeInto<Sunflare, ()> for SunflareRaw<'a> {
-    fn xfile_deserialize_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<Sunflare> {
+    fn xfile_deserialize_into(
+        &self,
+        de: &mut impl T5XFileDeserialize,
+        _data: (),
+    ) -> Result<Sunflare> {
         let sprite_material = self.sprite_material.xfile_deserialize_into(de, ())?;
         let flare_material = self.flare_material.xfile_deserialize_into(de, ())?;
         let sun_fx_position = self.sun_fx_position.into();
@@ -1617,7 +1636,7 @@ pub struct GfxShadowGeometry {
 impl<'a> XFileDeserializeInto<GfxShadowGeometry, ()> for GfxShadowGeometryRaw<'a> {
     fn xfile_deserialize_into(
         &self,
-        de: &mut T5XFileDeserializer,
+        de: &mut impl T5XFileDeserialize,
         _data: (),
     ) -> Result<GfxShadowGeometry> {
         let sorted_surf_index = self
@@ -1652,7 +1671,7 @@ pub struct GfxLightRegion {
 impl<'a> XFileDeserializeInto<GfxLightRegion, ()> for GfxLightRegionRaw<'a> {
     fn xfile_deserialize_into(
         &self,
-        de: &mut T5XFileDeserializer,
+        de: &mut impl T5XFileDeserialize,
         _data: (),
     ) -> Result<GfxLightRegion> {
         let hulls = self.hulls.xfile_deserialize_into(de, ())?;
@@ -1681,7 +1700,7 @@ pub struct GfxLightRegionHull {
 impl<'a> XFileDeserializeInto<GfxLightRegionHull, ()> for GfxLightRegionHullRaw<'a> {
     fn xfile_deserialize_into(
         &self,
-        de: &mut T5XFileDeserializer,
+        de: &mut impl T5XFileDeserialize,
         _data: (),
     ) -> Result<GfxLightRegionHull> {
         let kdop_mid_point = self.kdop_mid_point.into();
@@ -1785,7 +1804,7 @@ pub struct GfxWorldDpvsStatic {
 impl<'a> XFileDeserializeInto<GfxWorldDpvsStatic, (i32, i32)> for GfxWorldDpvsStaticRaw<'a> {
     fn xfile_deserialize_into(
         &self,
-        de: &mut T5XFileDeserializer,
+        de: &mut impl T5XFileDeserialize,
         (surface_count, cull_groups_count): (i32, i32),
     ) -> Result<GfxWorldDpvsStatic> {
         let smodel_vis_data = [
@@ -1940,7 +1959,7 @@ pub struct GfxSurface {
 impl<'a> XFileDeserializeInto<GfxSurface, ()> for GfxSurfaceRaw<'a> {
     fn xfile_deserialize_into(
         &self,
-        de: &mut T5XFileDeserializer,
+        de: &mut impl T5XFileDeserialize,
         _data: (),
     ) -> Result<GfxSurface> {
         let tris = self.tris.into();
@@ -2064,7 +2083,7 @@ pub struct GfxStaticModelDrawInst {
 impl<'a> XFileDeserializeInto<GfxStaticModelDrawInst, ()> for GfxStaticModelDrawInstRaw<'a> {
     fn xfile_deserialize_into(
         &self,
-        de: &mut T5XFileDeserializer,
+        de: &mut impl T5XFileDeserialize,
         _data: (),
     ) -> Result<GfxStaticModelDrawInst> {
         let placement = self.placement.into();
@@ -2130,7 +2149,7 @@ pub struct GfxWorldDpvsDynamic {
 impl<'a> XFileDeserializeInto<GfxWorldDpvsDynamic, i32> for GfxWorldDpvsDynamicRaw<'a> {
     fn xfile_deserialize_into(
         &self,
-        de: &mut T5XFileDeserializer,
+        de: &mut impl T5XFileDeserialize,
         cell_count: i32,
     ) -> Result<GfxWorldDpvsDynamic> {
         let dyn_ent_cell_bits = [
@@ -2230,7 +2249,7 @@ pub struct GfxWaterBuffer {
 impl<'a> XFileDeserializeInto<GfxWaterBuffer, ()> for GfxWaterBufferRaw<'a> {
     fn xfile_deserialize_into(
         &self,
-        de: &mut T5XFileDeserializer,
+        de: &mut impl T5XFileDeserialize,
         _data: (),
     ) -> Result<GfxWaterBuffer> {
         let buffer = self.buffer.to_vec_into(de)?;

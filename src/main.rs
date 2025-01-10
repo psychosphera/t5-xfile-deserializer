@@ -1,6 +1,7 @@
 use std::path::Path;
 
-use t5_xfile_deserializer::{T5XFileDeserializerBuilder, XFilePlatform};
+use t5_xfile_defs::XFilePlatform;
+use t5_xfile_deserializer::T5XFileDeserializerBuilder;
 
 use clap::{arg, command};
 

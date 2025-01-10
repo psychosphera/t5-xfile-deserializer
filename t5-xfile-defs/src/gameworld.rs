@@ -3,10 +3,10 @@ use core::mem::transmute;
 use alloc::{boxed::Box, string::String, vec::Vec};
 
 use crate::{
-    assert_size,
+    Error, ErrorKind, FatPointer, FatPointerCountFirstU16, FatPointerCountFirstU32, Ptr32, Result,
+    ScriptString, T5XFileDeserialize, XFileDeserializeInto, XString, assert_size,
     common::{Vec2, Vec3},
-    file_line_col, Error, ErrorKind, FatPointer, FatPointerCountFirstU16, FatPointerCountFirstU32,
-    Ptr32, Result, ScriptString, T5XFileDeserializer, XFileDeserializeInto, XString,
+    file_line_col,
 };
 
 use bitflags::bitflags;
@@ -30,7 +30,7 @@ pub struct GameWorldSp {
 impl<'a> XFileDeserializeInto<GameWorldSp, ()> for GameWorldSpRaw<'a> {
     fn xfile_deserialize_into(
         &self,
-        de: &mut T5XFileDeserializer,
+        de: &mut impl T5XFileDeserialize,
         _data: (),
     ) -> Result<GameWorldSp> {
         Ok(GameWorldSp {
@@ -57,7 +57,7 @@ pub struct GameWorldMp {
 impl<'a> XFileDeserializeInto<GameWorldMp, ()> for GameWorldMpRaw<'a> {
     fn xfile_deserialize_into(
         &self,
-        de: &mut T5XFileDeserializer,
+        de: &mut impl T5XFileDeserialize,
         _data: (),
     ) -> Result<GameWorldMp> {
         Ok(GameWorldMp {
@@ -94,7 +94,11 @@ pub struct PathData {
 }
 
 impl<'a> XFileDeserializeInto<PathData, ()> for PathDataRaw<'a> {
-    fn xfile_deserialize_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<PathData> {
+    fn xfile_deserialize_into(
+        &self,
+        de: &mut impl T5XFileDeserialize,
+        _data: (),
+    ) -> Result<PathData> {
         let nodes = self
             .nodes
             .to_array(self.node_count as usize + 128)
@@ -144,7 +148,11 @@ pub struct PathNode {
 }
 
 impl<'a> XFileDeserializeInto<PathNode, ()> for PathNodeRaw<'a> {
-    fn xfile_deserialize_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<PathNode> {
+    fn xfile_deserialize_into(
+        &self,
+        de: &mut impl T5XFileDeserialize,
+        _data: (),
+    ) -> Result<PathNode> {
         Ok(PathNode {
             constant: self.constant.xfile_deserialize_into(de, ())?,
             dynamic: self.dynamic.into(),
@@ -265,7 +273,7 @@ pub struct PathNodeConstant {
 impl<'a> XFileDeserializeInto<PathNodeConstant, ()> for PathNodeConstantRaw<'a> {
     fn xfile_deserialize_into(
         &self,
-        de: &mut T5XFileDeserializer,
+        de: &mut impl T5XFileDeserialize,
         _data: (),
     ) -> Result<PathNodeConstant> {
         Ok(PathNodeConstant {
@@ -452,7 +460,7 @@ pub struct PathNodeTree {
 impl XFileDeserializeInto<PathNodeTree, ()> for PathNodeTreeRaw {
     fn xfile_deserialize_into(
         &self,
-        de: &mut T5XFileDeserializer,
+        de: &mut impl T5XFileDeserialize,
         _data: (),
     ) -> Result<PathNodeTree> {
         let u = if self.axis < 0 {
@@ -488,7 +496,7 @@ pub struct PathNodeTreeNodes {
 impl<'a> XFileDeserializeInto<PathNodeTreeNodes, ()> for PathNodeTreeNodesRaw<'a> {
     fn xfile_deserialize_into(
         &self,
-        de: &mut T5XFileDeserializer,
+        de: &mut impl T5XFileDeserialize,
         _data: (),
     ) -> Result<PathNodeTreeNodes> {
         Ok(PathNodeTreeNodes {

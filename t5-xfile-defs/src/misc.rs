@@ -1,14 +1,16 @@
-use alloc::{boxed::Box, ffi::CString, string::String, vec::Vec};
-
-use std::io::Read;
+use alloc::{
+    boxed::Box,
+    ffi::CString,
+    string::{String, ToString},
+    vec::Vec,
+};
 
 use crate::{
-    assert_size,
+    FatPointer, FatPointerCountFirstU32, FatPointerCountLastU32, Ptr32, Result, T5XFileDeserialize,
+    XFileDeserializeInto, XString, assert_size,
     common::{Mat3, Vec2, Vec3, Vec4},
     fx::{FxEffectDef, FxEffectDefRaw},
     techset::{GfxImage, GfxImageRaw, Material, MaterialRaw},
-    FatPointer, FatPointerCountFirstU32, FatPointerCountLastU32, Ptr32, Result,
-    T5XFileDeserializer, XFileDeserializeInto, XString,
 };
 
 use serde::{Deserialize, Serialize};
@@ -30,7 +32,11 @@ pub struct RawFile {
 }
 
 impl<'a> XFileDeserializeInto<RawFile, ()> for RawFileRaw<'a> {
-    fn xfile_deserialize_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<RawFile> {
+    fn xfile_deserialize_into(
+        &self,
+        de: &mut impl T5XFileDeserialize,
+        _data: (),
+    ) -> Result<RawFile> {
         //dbg!(&self);
         let name = self.name.xfile_deserialize_into(de, ())?;
         let buffer = self.buffer.to_array(self.len as usize + 1).to_vec(de)?;
@@ -62,7 +68,7 @@ pub struct StringTable {
 impl<'a> XFileDeserializeInto<StringTable, ()> for StringTableRaw<'a> {
     fn xfile_deserialize_into(
         &self,
-        de: &mut T5XFileDeserializer,
+        de: &mut impl T5XFileDeserialize,
         _data: (),
     ) -> Result<StringTable> {
         let size = self.column_count as usize * self.row_count as usize;
@@ -95,7 +101,7 @@ pub struct StringTableCell {
 impl<'a> XFileDeserializeInto<StringTableCell, ()> for StringTableCellRaw<'a> {
     fn xfile_deserialize_into(
         &self,
-        de: &mut T5XFileDeserializer,
+        de: &mut impl T5XFileDeserialize,
         _data: (),
     ) -> Result<StringTableCell> {
         Ok(StringTableCell {
@@ -123,7 +129,11 @@ pub struct PackIndex {
 }
 
 impl<'a> XFileDeserializeInto<PackIndex, ()> for PackIndexRaw<'a> {
-    fn xfile_deserialize_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<PackIndex> {
+    fn xfile_deserialize_into(
+        &self,
+        de: &mut impl T5XFileDeserialize,
+        _data: (),
+    ) -> Result<PackIndex> {
         Ok(PackIndex {
             name: self.name.xfile_deserialize_into(de, ())?,
             header: self.header.into(),
@@ -211,7 +221,11 @@ pub struct MapEnts {
 }
 
 impl<'a> XFileDeserializeInto<MapEnts, ()> for MapEntsRaw<'a> {
-    fn xfile_deserialize_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<MapEnts> {
+    fn xfile_deserialize_into(
+        &self,
+        de: &mut impl T5XFileDeserialize,
+        _data: (),
+    ) -> Result<MapEnts> {
         let name = self.name.xfile_deserialize_into(de, ())?;
 
         let mut chars = self.entity_string.to_vec(de)?;
@@ -222,7 +236,7 @@ impl<'a> XFileDeserializeInto<MapEnts, ()> for MapEntsRaw<'a> {
             });
         }
 
-        if chars.bytes().last().unwrap().unwrap() != b'\0' {
+        if *chars.last().unwrap() != b'\0' {
             chars.push(b'\0');
         }
 
@@ -256,7 +270,7 @@ pub struct LocalizeEntry {
 impl<'a> XFileDeserializeInto<LocalizeEntry, ()> for LocalizeEntryRaw<'a> {
     fn xfile_deserialize_into(
         &self,
-        de: &mut T5XFileDeserializer,
+        de: &mut impl T5XFileDeserialize,
         _data: (),
     ) -> Result<LocalizeEntry> {
         let value = self.value.xfile_deserialize_into(de, ())?;
@@ -291,7 +305,11 @@ pub struct XGlobals {
 }
 
 impl<'a> XFileDeserializeInto<XGlobals, ()> for XGlobalsRaw<'a> {
-    fn xfile_deserialize_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<XGlobals> {
+    fn xfile_deserialize_into(
+        &self,
+        de: &mut impl T5XFileDeserialize,
+        _data: (),
+    ) -> Result<XGlobals> {
         Ok(XGlobals {
             name: self.name.xfile_deserialize_into(de, ())?,
             xanim_stream_buffer_size: self.xanim_stream_buffer_size,
@@ -340,7 +358,11 @@ pub struct Glasses {
 }
 
 impl<'a> XFileDeserializeInto<Glasses, ()> for GlassesRaw<'a> {
-    fn xfile_deserialize_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<Glasses> {
+    fn xfile_deserialize_into(
+        &self,
+        de: &mut impl T5XFileDeserialize,
+        _data: (),
+    ) -> Result<Glasses> {
         let name = self.name.xfile_deserialize_into(de, ())?;
         let glasses = self.glasses.xfile_deserialize_into(de, ())?;
         let work_memory = self.work_memory.to_vec(de)?;
@@ -401,7 +423,7 @@ pub struct Glass {
 }
 
 impl<'a> XFileDeserializeInto<Glass, ()> for GlassRaw<'a> {
-    fn xfile_deserialize_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<Glass> {
+    fn xfile_deserialize_into(&self, de: &mut impl T5XFileDeserialize, _data: ()) -> Result<Glass> {
         let glass_def = self.glass_def.xfile_deserialize_into(de, ())?;
         let origin = self.origin.into();
         let angles = self.angles.into();
@@ -474,7 +496,11 @@ pub struct GlassDef {
 }
 
 impl<'a> XFileDeserializeInto<GlassDef, ()> for GlassDefRaw<'a> {
-    fn xfile_deserialize_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<GlassDef> {
+    fn xfile_deserialize_into(
+        &self,
+        de: &mut impl T5XFileDeserialize,
+        _data: (),
+    ) -> Result<GlassDef> {
         let name = self.name.xfile_deserialize_into(de, ())?;
         let pristine_material = self.pristine_material.xfile_deserialize_into(de, ())?;
         let cracked_material = self.cracked_material.xfile_deserialize_into(de, ())?;
@@ -529,7 +555,11 @@ pub struct EmblemSet {
 }
 
 impl<'a> XFileDeserializeInto<EmblemSet, ()> for EmblemSetRaw<'a> {
-    fn xfile_deserialize_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<EmblemSet> {
+    fn xfile_deserialize_into(
+        &self,
+        de: &mut impl T5XFileDeserialize,
+        _data: (),
+    ) -> Result<EmblemSet> {
         let layers = self.layers.to_vec(de)?;
         let categories = self.categories.xfile_deserialize_into(de, ())?;
         let icons = self.icons.xfile_deserialize_into(de, ())?;
@@ -574,7 +604,7 @@ pub struct EmblemCategory {
 impl<'a> XFileDeserializeInto<EmblemCategory, ()> for EmblemCategoryRaw<'a> {
     fn xfile_deserialize_into(
         &self,
-        de: &mut T5XFileDeserializer,
+        de: &mut impl T5XFileDeserialize,
         _data: (),
     ) -> Result<EmblemCategory> {
         let name = self.name.xfile_deserialize_into(de, ())?;
@@ -618,7 +648,7 @@ pub struct EmblemIcon {
 impl<'a> XFileDeserializeInto<EmblemIcon, ()> for EmblemIconRaw<'a> {
     fn xfile_deserialize_into(
         &self,
-        de: &mut T5XFileDeserializer,
+        de: &mut impl T5XFileDeserialize,
         _data: (),
     ) -> Result<EmblemIcon> {
         let image = self.image.xfile_deserialize_into(de, ())?;
@@ -665,7 +695,7 @@ pub struct EmblemBackground {
 impl<'a> XFileDeserializeInto<EmblemBackground, ()> for EmblemBackgroundRaw<'a> {
     fn xfile_deserialize_into(
         &self,
-        de: &mut T5XFileDeserializer,
+        de: &mut impl T5XFileDeserialize,
         _data: (),
     ) -> Result<EmblemBackground> {
         let material = self.material.xfile_deserialize_into(de, ())?;

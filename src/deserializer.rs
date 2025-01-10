@@ -8,11 +8,12 @@ use std::{
     path::Path,
 };
 
-use crate::{
-    file_line_col, size_of,
+use crate::{file_line_col, size_of, BincodeOptions, Error, ErrorKind, Result, StreamLen};
+
+use t5_xfile_defs::{
     xasset::{XAsset, XAssetListRaw, XAssetRaw},
-    BincodeOptions, Error, ErrorKind, FatPointer, Result, StreamLen, XFile, XFileDeserializeInto,
-    XFileHeader, XFilePlatform, XFileVersion,
+    FatPointer, ScriptString, T5XFileDeserialize, XFile, XFileDeserializeInto, XFileHeader,
+    XFilePlatform, XFileVersion,
 };
 
 pub enum InflateSuccess {
@@ -49,11 +50,11 @@ pub struct T5XFileDeserializer<'a, T: T5XFileDeserializerTypestate = T5XFileDese
 {
     silent: bool,
     xfile: XFile,
-    pub(crate) script_strings: Vec<String>,
+    script_strings: Vec<String>,
     file: Option<&'a mut std::fs::File>,
     cache_file: Option<&'a mut std::fs::File>,
     reader: Option<Cursor<Vec<u8>>>,
-    pub(crate) xasset_list: XAssetListRaw<'a>,
+    xasset_list: XAssetListRaw<'a>,
     xassets_raw: VecDeque<XAssetRaw<'a>>,
     deserialized_assets: usize,
     non_null_assets: usize,
@@ -583,18 +584,6 @@ impl<'a> T5XFileDeserializer<'a, T5XFileDeserializerDeserialize> {
         Ok(deserialized_assets)
     }
 
-    pub(crate) fn stream_pos(&mut self) -> Result<u64> {
-        self.reader
-            .as_mut()
-            .unwrap()
-            .stream_position()
-            .map_err(|e| Error::new(file_line_col!(), 0, ErrorKind::Io(e)))
-    }
-
-    pub(crate) fn stream_len(&mut self) -> Result<u64> {
-        StreamLen::stream_len(self.reader.as_mut().unwrap())
-    }
-
     // pub(crate) fn seek_and<T, F: FnOnce(&mut Self) -> T>(
     //     &mut self,
     //     from: SeekFrom,
@@ -653,19 +642,6 @@ impl<'a> T5XFileDeserializer<'a, T5XFileDeserializerDeserialize> {
     //     Ok(t)
     // }
 
-    pub(crate) fn load_from_xfile<T: DeserializeOwned>(&mut self) -> Result<T> {
-        // FIXME: unwrap
-        self.opts
-            .deserialize_from(self.reader.as_mut().unwrap())
-            .map_err(|e| {
-                Error::new(
-                    file_line_col!(),
-                    self.stream_pos().unwrap() as _,
-                    ErrorKind::Bincode(e),
-                )
-            })
-    }
-
     // pub(crate) fn convert_offset_to_ptr(&self, offset: u32) -> Result<(u8, u32)> {
     //     let block = ((offset - 1) >> 29) as u8;
     //     let off = (offset - 1) & 0x1FFFFFFF;
@@ -703,5 +679,36 @@ impl<'a> T5XFileDeserializer<'a, T5XFileDeserializerDeserialize> {
     #[allow(dead_code)]
     pub(crate) fn d3d9_state(&mut self) -> Option<&mut D3D9State<'a>> {
         self.d3d9_state.as_mut()
+    }
+}
+
+impl<'a> T5XFileDeserialize for T5XFileDeserializer<'a> {
+    fn stream_pos(&mut self) -> Result<u64> {
+        self.reader
+            .as_mut()
+            .unwrap()
+            .stream_position()
+            .map_err(|e| Error::new(file_line_col!(), 0, ErrorKind::Io(e)))
+    }
+
+    fn stream_len(&mut self) -> Result<u64> {
+        StreamLen::stream_len(self.reader.as_mut().unwrap())
+    }
+
+    fn load_from_xfile<T: DeserializeOwned>(&mut self) -> Result<T> {
+        // FIXME: unwrap
+        self.opts
+            .deserialize_from(self.reader.as_mut().unwrap())
+            .map_err(|e| {
+                Error::new(
+                    file_line_col!(),
+                    self.stream_pos().unwrap() as _,
+                    ErrorKind::Bincode(e),
+                )
+            })
+    }
+
+    fn get_script_string(&mut self, string: ScriptString) -> Result<Option<String>> {
+        Ok(self.script_strings.get(string.as_u16() as usize).cloned())
     }
 }

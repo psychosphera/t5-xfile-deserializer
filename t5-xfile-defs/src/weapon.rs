@@ -1,10 +1,10 @@
 use alloc::{boxed::Box, string::String, vec::Vec};
 
 use crate::{
-    assert_size,
+    Error, ErrorKind, FatPointer, Ptr32, Ptr32ArrayConst, Result, ScriptString, T5XFileDeserialize,
+    XFileDeserializeInto, XString, assert_size,
     common::{Vec2, Vec3},
-    file_line_col, fx, techset, xmodel, Error, ErrorKind, FatPointer, Ptr32, Ptr32ArrayConst,
-    Result, ScriptString, T5XFileDeserializer, XFileDeserializeInto, XString,
+    file_line_col, fx, techset, xmodel,
 };
 
 use num::FromPrimitive;
@@ -130,7 +130,7 @@ pub struct WeaponVariantDef {
 impl<'a> XFileDeserializeInto<WeaponVariantDef, ()> for WeaponVariantDefRaw<'a> {
     fn xfile_deserialize_into(
         &self,
-        de: &mut T5XFileDeserializer,
+        de: &mut impl T5XFileDeserialize,
         _data: (),
     ) -> Result<WeaponVariantDef> {
         let internal_name = self.internal_name.xfile_deserialize_into(de, ())?;
@@ -1500,7 +1500,11 @@ pub struct WeaponDef {
 }
 
 impl<'a> XFileDeserializeInto<WeaponDef, ()> for WeaponDefRaw<'a> {
-    fn xfile_deserialize_into(&self, de: &mut T5XFileDeserializer, _data: ()) -> Result<WeaponDef> {
+    fn xfile_deserialize_into(
+        &self,
+        de: &mut impl T5XFileDeserialize,
+        _data: (),
+    ) -> Result<WeaponDef> {
         let overlay_name = self.overlay_name.xfile_deserialize_into(de, ())?;
         let gun_xmodel = if self.gun_xmodel.is_null() {
             None
@@ -2661,7 +2665,7 @@ pub struct FlameTable {
 impl<'a> XFileDeserializeInto<FlameTable, ()> for FlameTableRaw<'a> {
     fn xfile_deserialize_into(
         &self,
-        de: &mut T5XFileDeserializer,
+        de: &mut impl T5XFileDeserialize,
         _data: (),
     ) -> Result<FlameTable> {
         let name = self.name.xfile_deserialize_into(de, ())?;
