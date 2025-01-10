@@ -5,11 +5,10 @@ use std::{
     io::{Cursor, Seek, Write},
 };
 
-use crate::{file_line_col, BincodeOptions, StreamLen};
+use crate::{file_line_col, BincodeOptions};
 
 use t5_xfile_defs::{
-    xasset::{XAsset, XAssetList},
-    Error, ErrorKind, Result, T5XFileSerialize, XFile, XFileHeader, XFilePlatform,
+    xasset::{XAsset, XAssetListRaw}, Error, ErrorKind, FatPointerCountFirstU32, Ptr32, Result, T5XFileSerialize, XFile, XFileHeader, XFilePlatform, XFileSerialize
 };
 
 pub struct T5XFileSerializerBuilder {
@@ -39,9 +38,8 @@ impl T5XFileSerializerBuilder {
 pub struct T5XFileSerializer {
     _silent: bool,
     xfile: XFile,
-    xasset_list: XAssetList,
     script_strings: HashSet<String>,
-    asset_bytes: Cursor<Vec<u8>>,
+    asset_bytes: Option<Cursor<Vec<u8>>>,
     serialized_assets: usize,
     opts: BincodeOptions,
     platform: XFilePlatform,
@@ -52,40 +50,38 @@ impl<'a> T5XFileSerializer {
         Ok(Self {
             _silent: silent,
             xfile: XFile::default(),
-            xasset_list: XAssetList::default(),
             script_strings: HashSet::new(),
-            asset_bytes: Cursor::new(Vec::new()),
+            asset_bytes: None,
             serialized_assets: 0,
             opts: BincodeOptions::from_platform(platform),
             platform,
         })
     }
 
-    pub fn serialize_asset<const MAX_LOCAL_CLIENTS: usize>(
+    pub fn serialize_assets<const MAX_LOCAL_CLIENTS: usize>(
         &mut self,
         assets: impl Iterator<Item = XAsset>,
     ) -> Result<()> {
         for asset in assets {
-            self.store_into_xfile(asset.clone())?;
-            self.xasset_list.assets.push(asset);
+            asset.xfile_serialize(self, ());
             self.serialized_assets += 1;
         }
 
         Ok(())
     }
 
-    fn serialize<T: Serialize>(&mut self, writer: impl Write, t: T) -> Result<()> {
-        self.opts.serialize_into(writer, t).map_err(|e| {
+    fn serialize<T: Serialize>(&mut self, mut writer: impl Write + Seek, t: T) -> Result<()> {
+        self.opts.serialize_into(&mut writer, t).map_err(|e| {
             Error::new(
                 file_line_col!(),
-                self.stream_pos().unwrap() as _,
+                writer.stream_position().unwrap() as _,
                 ErrorKind::Bincode(e),
             )
         })
     }
 
     pub fn deflate(mut self) -> Result<Vec<u8>> {
-        let mut bytes = Vec::new();
+        let mut bytes = Cursor::new(Vec::new());
         let header = XFileHeader::new(self.platform);
 
         self.serialize(&mut bytes, header)?;
@@ -95,9 +91,28 @@ impl<'a> T5XFileSerializer {
         self.serialize(&mut blob, self.xfile)?;
 
         // TODO: serialize XAssets
+        let xasset_list = XAssetListRaw { 
+            strings: FatPointerCountFirstU32 { size: self.script_strings.len() as _, p: Ptr32::from_u32(0xFFFFFFFF) },
+            assets: FatPointerCountFirstU32 { size: self.serialized_assets as _, p: Ptr32::from_u32(0xFFFFFFFF) },
+        };
+
+        self.serialize(&mut blob, xasset_list)?;
+
+        let mut script_string_bytes = Vec::new();
+        for string in self.script_strings.iter() {
+            for c in string.chars() {
+                script_string_bytes.push(c as u8);
+            }
+            script_string_bytes.push(b'\0');
+        }
+
+        self.serialize(&mut blob, script_string_bytes)?;
+        let asset_bytes = self.asset_bytes.take().unwrap_or_default().into_inner();
+        self.serialize(&mut blob, asset_bytes)?;
 
         let deflated_blob = deflate::deflate_bytes_zlib(&blob.into_inner());
 
+        let mut bytes = bytes.into_inner();
         bytes.extend_from_slice(&deflated_blob);
 
         Ok(bytes)
@@ -105,23 +120,13 @@ impl<'a> T5XFileSerializer {
 }
 
 impl T5XFileSerialize for T5XFileSerializer {
-    fn stream_pos(&mut self) -> Result<u64> {
-        self.asset_bytes
-            .stream_position()
-            .map_err(|e| Error::new(file_line_col!(), 0, ErrorKind::Io(e)))
-    }
-
-    fn stream_len(&mut self) -> Result<u64> {
-        StreamLen::stream_len(&mut self.asset_bytes)
-    }
-
     fn store_into_xfile<T: Serialize>(&mut self, t: T) -> Result<()> {
         self.opts
-            .serialize_into(&mut self.asset_bytes, t)
+            .serialize_into(self.asset_bytes.get_or_insert(Cursor::new(Vec::new())), t)
             .map_err(|e| {
                 Error::new(
                     file_line_col!(),
-                    self.stream_pos().unwrap() as _,
+                    self.asset_bytes.as_ref().unwrap().position() as _,
                     ErrorKind::Bincode(e),
                 )
             })

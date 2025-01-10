@@ -472,3 +472,9 @@ impl<'a, const MAX_LOCAL_CLIENTS: usize> XFileDeserializeInto<XAssetGeneric<MAX_
         })
     }
 }
+
+impl<'a> XFileSerialize<XAssetRaw<'a>, ()> for XAsset {
+    fn xfile_serialize(&self, _ser: &mut impl T5XFileSerialize, _data: ()) {
+        todo!()
+    }
+}

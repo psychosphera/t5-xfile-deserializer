@@ -538,8 +538,8 @@ macro_rules! impl_fat_pointer {
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Debug, Deserialize)]
 pub struct FatPointerCountFirstU8<'a, T: Debug + Clone> {
-    size: u8,
-    p: Ptr32<'a, T>,
+    pub size: u8,
+    pub p: Ptr32<'a, T>,
 }
 
 /// Newtype for a fat pointer to a `[T]`.
@@ -554,8 +554,8 @@ pub struct FatPointerCountFirstU8<'a, T: Debug + Clone> {
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Debug, Deserialize)]
 pub struct FatPointerCountFirstU16<'a, T: Debug + Clone> {
-    size: u16,
-    p: Ptr32<'a, T>,
+    pub size: u16,
+    pub p: Ptr32<'a, T>,
 }
 
 /// Newtype for a fat pointer to a `[T]`.
@@ -570,8 +570,8 @@ pub struct FatPointerCountFirstU16<'a, T: Debug + Clone> {
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Debug, Default, Deserialize)]
 pub struct FatPointerCountFirstU32<'a, T> {
-    size: u32,
-    p: Ptr32<'a, T>,
+    pub size: u32,
+    pub p: Ptr32<'a, T>,
 }
 
 /// Newtype for a fat pointer to a `[T]`.
@@ -586,8 +586,8 @@ pub struct FatPointerCountFirstU32<'a, T> {
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Debug, Deserialize)]
 pub struct FatPointerCountLastU8<'a, T> {
-    p: Ptr32<'a, T>,
-    size: u8,
+    pub p: Ptr32<'a, T>,
+    pub size: u8,
 }
 
 /// Newtype for a fat pointer to a `[T]`.
@@ -602,8 +602,8 @@ pub struct FatPointerCountLastU8<'a, T> {
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Debug, Deserialize)]
 pub struct FatPointerCountLastU16<'a, T> {
-    p: Ptr32<'a, T>,
-    size: u16,
+    pub p: Ptr32<'a, T>,
+    pub size: u16,
 }
 
 /// Newtype for a fat pointer to a `[T]`.
@@ -618,15 +618,15 @@ pub struct FatPointerCountLastU16<'a, T> {
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
 pub struct FatPointerCountLastU32<'a, T> {
-    p: Ptr32<'a, T>,
-    size: u32,
+    pub p: Ptr32<'a, T>,
+    pub size: u32,
 }
 
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
 pub struct Ptr32Array<'a, T> {
-    p: Ptr32<'a, T>,
-    size: usize,
+    pub p: Ptr32<'a, T>,
+    pub size: usize,
 }
 
 impl_fat_pointer!(

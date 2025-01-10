@@ -408,9 +408,6 @@ pub trait T5XFileDeserialize {
 }
 
 pub trait T5XFileSerialize {
-    fn stream_pos(&mut self) -> Result<u64>;
-    fn stream_len(&mut self) -> Result<u64>;
-
     fn store_into_xfile<T: Serialize>(&mut self, t: T) -> Result<()>;
     fn get_or_insert_script_string(&mut self, string: String) -> Result<Option<String>>;
 }
