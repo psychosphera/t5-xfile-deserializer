@@ -452,7 +452,7 @@ pub struct XAnimDeltaPartQuat {
     pub u: Option<XAnimDeltaPartQuatData>,
 }
 
-impl<'a> XFileDeserializeInto<XAnimDeltaPartQuat, u16> for XAnimDeltaPartQuatRaw {
+impl XFileDeserializeInto<XAnimDeltaPartQuat, u16> for XAnimDeltaPartQuatRaw {
     fn xfile_deserialize_into(
         &self,
         de: &mut impl T5XFileDeserialize,

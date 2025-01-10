@@ -277,12 +277,12 @@ impl<'a> XFileDeserializeInto<PathNodeConstant, ()> for PathNodeConstantRaw<'a> 
         _data: (),
     ) -> Result<PathNodeConstant> {
         Ok(PathNodeConstant {
-            type_: num::FromPrimitive::from_u16(self.type_).ok_or(Error::new(
+            type_: num::FromPrimitive::from_u16(self.type_).ok_or(Error::new_with_offset(
                 file_line_col!(),
                 de.stream_pos()? as _,
                 ErrorKind::BadFromPrimitive(self.type_ as _),
             ))?,
-            spawnflags: SpawnFlags::from_bits(self.spawnflags).ok_or(Error::new(
+            spawnflags: SpawnFlags::from_bits(self.spawnflags).ok_or(Error::new_with_offset(
                 file_line_col!(),
                 de.stream_pos()? as _,
                 ErrorKind::BadBitflags(self.spawnflags as _),

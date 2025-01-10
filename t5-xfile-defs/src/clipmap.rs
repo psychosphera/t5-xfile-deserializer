@@ -136,7 +136,7 @@ impl<'a> XFileDeserializeInto<ClipMap, ()> for ClipMapRaw<'a> {
             .to_vec(de)?;
         let tri_edge_is_walkable = self
             .tri_edge_is_walkable
-            .to_array((self.tri_count as usize * 3 + 31 >> 5) * 4)
+            .to_array((((self.tri_count as usize * 3) + 31) >> 5) * 4)
             .to_vec(de)?;
         let borders = self.borders.to_vec_into(de)?;
         let partitions = self.partitions.xfile_deserialize_into(de, ())?;
@@ -773,7 +773,7 @@ impl<'a> XFileDeserializeInto<DynEntityDef, ()> for DynEntityDefRaw<'a> {
         de: &mut impl T5XFileDeserialize,
         _data: (),
     ) -> Result<DynEntityDef> {
-        let type_ = FromPrimitive::from_i32(self.type_).ok_or(Error::new(
+        let type_ = FromPrimitive::from_i32(self.type_).ok_or(Error::new_with_offset(
             file_line_col!(),
             de.stream_pos()? as _,
             ErrorKind::BadFromPrimitive(self.type_ as _),
@@ -1087,7 +1087,7 @@ impl TryFrom<ConstraintRaw> for Constraint {
     fn try_from(value: ConstraintRaw) -> Result<Self> {
         Ok(Self {
             p: value.p.into(),
-            type_: FromPrimitive::from_i32(value.type_).ok_or(Error::new(
+            type_: FromPrimitive::from_i32(value.type_).ok_or(Error::new_with_offset(
                 file_line_col!(),
                 0,
                 ErrorKind::BadFromPrimitive(value.type_ as _),

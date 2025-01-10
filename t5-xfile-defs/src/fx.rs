@@ -77,7 +77,7 @@ impl<'a> XFileDeserializeInto<FxEffectDef, ()> for FxEffectDefRaw<'a> {
             .xfile_deserialize_into(de, ())?;
         //dbg!(&elem_defs);
 
-        let flags = FxEffectDefFlags::from_bits(self.flags).ok_or(Error::new(
+        let flags = FxEffectDefFlags::from_bits(self.flags).ok_or(Error::new_with_offset(
             file_line_col!(),
             de.stream_pos()? as _,
             ErrorKind::BadBitflags(self.flags as _),
@@ -286,17 +286,18 @@ impl<'a> XFileDeserializeInto<FxElemDef, ()> for FxElemDefRaw<'a> {
         let spawn_sound = self.spawn_sound.xfile_deserialize_into(de, ())?;
         //dbg!(&spawn_sound);
 
-        let flags = FxElemFlags::from_bits(self.flags as _).ok_or(Error::new(
+        let flags = FxElemFlags::from_bits(self.flags as _).ok_or(Error::new_with_offset(
             file_line_col!(),
             de.stream_pos()? as _,
             ErrorKind::BadBitflags(self.flags as _),
         ))?;
         //dbg!(&flags);
-        let elem_type = num::FromPrimitive::from_u8(self.elem_type).ok_or(Error::new(
-            file_line_col!(),
-            de.stream_pos()? as _,
-            ErrorKind::BadFromPrimitive(self.elem_type as _),
-        ))?;
+        let elem_type =
+            num::FromPrimitive::from_u8(self.elem_type).ok_or(Error::new_with_offset(
+                file_line_col!(),
+                de.stream_pos()? as _,
+                ErrorKind::BadFromPrimitive(self.elem_type as _),
+            ))?;
         //dbg!(&elem_type);
 
         Ok(FxElemDef {
@@ -421,9 +422,7 @@ impl<'a> XFileDeserializeInto<Option<FxElemDefVisuals>, (u8, u8)> for FxElemDefV
                 .0
                 .cast::<FxElemVisualsRaw>()
                 .xfile_deserialize_into(de, elem_type)?;
-            Ok(Some(FxElemDefVisuals::Instance(
-                instance.map(|p| *p).flatten(),
-            )))
+            Ok(Some(FxElemDefVisuals::Instance(instance.and_then(|p| *p))))
         } else if !self.0.is_null() {
             let array = self
                 .0

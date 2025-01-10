@@ -68,10 +68,7 @@ impl XAsset {
     }
 
     pub fn is_pc(&self) -> bool {
-        match self {
-            Self::PC(_) => true,
-            _ => false,
-        }
+        matches!(self, Self::PC(_))
     }
 
     pub fn is_console(&self) -> bool {
@@ -289,11 +286,12 @@ impl<'a, const MAX_LOCAL_CLIENTS: usize> XFileDeserializeInto<XAssetGeneric<MAX_
         _data: (),
     ) -> Result<XAssetGeneric<MAX_LOCAL_CLIENTS>> {
         //dbg!(de.stream_pos()?);
-        let asset_type = num::FromPrimitive::from_u32(self.asset_type).ok_or(Error::new(
-            file_line_col!(),
-            de.stream_pos()? as _,
-            ErrorKind::InvalidXAssetType(self.asset_type),
-        ))?;
+        let asset_type =
+            num::FromPrimitive::from_u32(self.asset_type).ok_or(Error::new_with_offset(
+                file_line_col!(),
+                de.stream_pos()? as _,
+                ErrorKind::InvalidXAssetType(self.asset_type),
+            ))?;
         //println!("type={:?} ({})", asset_type, self.asset_type);
         Ok(match asset_type {
             XAssetType::PHYSPRESET => XAssetGeneric::PhysPreset(
@@ -463,7 +461,7 @@ impl<'a, const MAX_LOCAL_CLIENTS: usize> XFileDeserializeInto<XAssetGeneric<MAX_
             ),
             _ => {
                 //dbg!(asset_type);
-                return Err(Error::new(
+                return Err(Error::new_with_offset(
                     file_line_col!(),
                     de.stream_pos()? as _,
                     ErrorKind::UnusedXAssetType(asset_type),

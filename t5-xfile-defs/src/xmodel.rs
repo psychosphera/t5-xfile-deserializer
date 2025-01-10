@@ -113,7 +113,7 @@ impl<'a> XFileDeserializeInto<XModel, ()> for XModelRaw<'a> {
         //dbg!(xfile.stream_position()?);
 
         if self.num_bones < self.num_root_bones {
-            return Err(Error::new(
+            return Err(Error::new_with_offset(
                 file_line_col!(),
                 de.stream_pos()? as _,
                 ErrorKind::BrokenInvariant(format!(
@@ -124,7 +124,7 @@ impl<'a> XFileDeserializeInto<XModel, ()> for XModelRaw<'a> {
         }
 
         if self.lod_ramp_type >= XModelLodRampType::COUNT as u8 {
-            return Err(Error::new(
+            return Err(Error::new_with_offset(
                 file_line_col!(),
                 de.stream_pos()? as _,
                 ErrorKind::BrokenInvariant(format!(
@@ -134,11 +134,12 @@ impl<'a> XFileDeserializeInto<XModel, ()> for XModelRaw<'a> {
             ));
         }
 
-        let lod_ramp_type = XModelLodRampType::from_u8(self.lod_ramp_type).ok_or(Error::new(
-            file_line_col!(),
-            de.stream_pos()? as _,
-            ErrorKind::BadFromPrimitive(self.lod_ramp_type as _),
-        ))?;
+        let lod_ramp_type =
+            XModelLodRampType::from_u8(self.lod_ramp_type).ok_or(Error::new_with_offset(
+                file_line_col!(),
+                de.stream_pos()? as _,
+                ErrorKind::BadFromPrimitive(self.lod_ramp_type as _),
+            ))?;
 
         let bone_names = self
             .bone_names
@@ -211,7 +212,7 @@ impl<'a> XFileDeserializeInto<XModel, ()> for XModelRaw<'a> {
         //dbg!(de.stream_pos()?);
 
         if self.num_lods > MAX_LODS as i16 {
-            return Err(Error::new(
+            return Err(Error::new_with_offset(
                 file_line_col!(),
                 de.stream_pos()? as _,
                 ErrorKind::BrokenInvariant(format!(
@@ -222,7 +223,7 @@ impl<'a> XFileDeserializeInto<XModel, ()> for XModelRaw<'a> {
         }
 
         if self.coll_lod > MAX_LODS as i16 {
-            return Err(Error::new(
+            return Err(Error::new_with_offset(
                 file_line_col!(),
                 de.stream_pos()? as _,
                 ErrorKind::BrokenInvariant(format!(
@@ -364,7 +365,7 @@ impl<'a> XFileDeserializeInto<XSurface, ()> for XSurfaceRaw<'a> {
         //let pos = de.stream_pos()?;
         //dbg!(pos);
 
-        let flags = XSurfaceFlags::from_bits(self.flags).ok_or(Error::new(
+        let flags = XSurfaceFlags::from_bits(self.flags).ok_or(Error::new_with_offset(
             file_line_col!(),
             de.stream_pos()? as _,
             ErrorKind::BadBitflags(self.flags as _),
@@ -650,7 +651,7 @@ impl TryInto<XModelLodInfo> for XModelLodInfoRaw {
     type Error = Error;
     fn try_into(self) -> Result<XModelLodInfo> {
         if self.lod > MAX_LODS as u8 {
-            return Err(Error::new(
+            return Err(Error::new_with_offset(
                 file_line_col!(),
                 0,
                 ErrorKind::BrokenInvariant(format!("XModelLodInfo: lod ({}) > MAX_LODS", self.lod)),
@@ -658,7 +659,7 @@ impl TryInto<XModelLodInfo> for XModelLodInfoRaw {
         }
 
         if self.smc_alloc_bits != 0 && (self.smc_alloc_bits < 4 || self.smc_alloc_bits > 9) {
-            return Err(Error::new(
+            return Err(Error::new_with_offset(
                 file_line_col!(),
                 0,
                 ErrorKind::BrokenInvariant(format!(
@@ -879,7 +880,7 @@ impl<'a> XFileDeserializeInto<PhysPreset, ()> for PhysPresetRaw<'a> {
     ) -> Result<PhysPreset> {
         //dbg!(self);
         if self.flags > 1 {
-            return Err(Error::new(
+            return Err(Error::new_with_offset(
                 file_line_col!(),
                 de.stream_pos()? as _,
                 ErrorKind::BrokenInvariant(format!("PhysPreset: flags ({}) > 1", self.flags)),
@@ -887,7 +888,7 @@ impl<'a> XFileDeserializeInto<PhysPreset, ()> for PhysPresetRaw<'a> {
         }
 
         if self.can_float > 1 {
-            return Err(Error::new(
+            return Err(Error::new_with_offset(
                 file_line_col!(),
                 de.stream_pos()? as _,
                 ErrorKind::BrokenInvariant(format!(
@@ -1014,7 +1015,7 @@ impl<'a> XFileDeserializeInto<PhysGeomInfo, ()> for PhysGeomInfoRaw<'a> {
     ) -> Result<PhysGeomInfo> {
         Ok(PhysGeomInfo {
             brush: self.brush.xfile_deserialize_into(de, ())?,
-            type_: num::FromPrimitive::from_i32(self.type_).ok_or(Error::new(
+            type_: num::FromPrimitive::from_i32(self.type_).ok_or(Error::new_with_offset(
                 file_line_col!(),
                 de.stream_pos()? as _,
                 ErrorKind::BadFromPrimitive(self.type_ as _),
@@ -1373,13 +1374,13 @@ impl<'a> XFileDeserializeInto<PhysConstraint, ()> for PhysConstraintRaw<'a> {
 
         Ok(PhysConstraint {
             targetname,
-            type_: num::FromPrimitive::from_i32(self.type_).ok_or(Error::new(
+            type_: num::FromPrimitive::from_i32(self.type_).ok_or(Error::new_with_offset(
                 file_line_col!(),
                 de.stream_pos()? as _,
                 ErrorKind::BadFromPrimitive(self.type_ as _),
             ))?,
             attach_point_type1: num::FromPrimitive::from_i32(self.attach_point_type1).ok_or(
-                Error::new(
+                Error::new_with_offset(
                     file_line_col!(),
                     de.stream_pos()? as _,
                     ErrorKind::BadFromPrimitive(self.attach_point_type1 as _),
@@ -1389,7 +1390,7 @@ impl<'a> XFileDeserializeInto<PhysConstraint, ()> for PhysConstraintRaw<'a> {
             target_ent1,
             target_bone1,
             attach_point_type2: num::FromPrimitive::from_i32(self.attach_point_type2).ok_or(
-                Error::new(
+                Error::new_with_offset(
                     file_line_col!(),
                     de.stream_pos()? as _,
                     ErrorKind::BadFromPrimitive(self.attach_point_type2 as _),

@@ -46,7 +46,9 @@ fn main() {
             }
         }
     } else {
-        println!("must specify the expected platform for the Fastfile (-p/--platform, see --help for a list of valid platforms)");
+        println!(
+            "must specify the expected platform for the Fastfile (-p/--platform, see --help for a list of valid platforms)"
+        );
         return;
     };
 
@@ -56,7 +58,7 @@ fn main() {
     let mut file = if cache_exists {
         std::fs::File::open(&cached_filename).unwrap()
     } else {
-        std::fs::File::open(&filename).unwrap()
+        std::fs::File::open(filename).unwrap()
     };
 
     let allow_unsupported_platforms = matches

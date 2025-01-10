@@ -83,9 +83,8 @@
 #![allow(non_camel_case_types)]
 #![allow(clippy::upper_case_acronyms)]
 #![allow(clippy::missing_transmute_annotations)]
-#![allow(clippy::wrong_self_convention)]
 #![allow(clippy::from_over_into)]
-#![allow(clippy::needless_borrows_for_generic_args)]
+#![allow(clippy::needless_lifetimes)]
 
 extern crate alloc;
 
@@ -176,7 +175,7 @@ pub struct ScriptString(u16);
 
 impl ScriptString {
     pub fn to_string(self, de: &mut impl T5XFileDeserialize) -> Result<String> {
-        de.get_script_string(self)?.ok_or(Error::new(
+        de.get_script_string(self)?.ok_or(Error::new_with_offset(
             file_line_col!(),
             de.stream_pos()? as _,
             ErrorKind::BadScriptString(self.0),
@@ -325,8 +324,10 @@ pub enum ErrorKind {
     UnsupportedPlatform(XFilePlatform),
     /// Occurs when some part of the library hasn't yet been implemented.
     Todo(String),
-    /// Occurs when a [`ScriptString`] doesn't index [`T5XFileDeserializer::script_strings`].
+    /// Occurs when a [`ScriptString`] isn't a valid index.
     BadScriptString(u16),
+    /// Occurs when more than [`u16::MAX`] [`ScriptString`]s are present.
+    ScriptStringOverflow,
     /// Occurs when an `XAsset`'s `asset_type` isn't a variant of [`XAssetType`].
     InvalidXAssetType(u32),
     /// Occurs when an `XAsset`'s `asset_type` *is* a variant of [`XAssetType`],
@@ -376,12 +377,24 @@ pub(crate) use file_line_col;
 pub struct Error {
     where_: String,
     kind: ErrorKind,
-    off: u32,
+    off: Option<u32>,
 }
 
 impl Error {
-    pub fn new(where_: String, off: u32, kind: ErrorKind) -> Self {
-        Self { where_, kind, off }
+    pub fn new(where_: String, kind: ErrorKind) -> Self {
+        Self {
+            where_,
+            kind,
+            off: None,
+        }
+    }
+
+    pub fn new_with_offset(where_: String, off: u32, kind: ErrorKind) -> Self {
+        Self {
+            where_,
+            kind,
+            off: Some(off),
+        }
     }
 
     pub fn kind(&self) -> &ErrorKind {
@@ -392,7 +405,7 @@ impl Error {
         self.where_.clone()
     }
 
-    pub fn off(&self) -> u32 {
+    pub fn off(&self) -> Option<u32> {
         self.off
     }
 }
@@ -404,10 +417,17 @@ pub trait T5XFileDeserialize {
     fn stream_len(&mut self) -> Result<u64>;
 
     fn load_from_xfile<T: DeserializeOwned>(&mut self) -> Result<T>;
+
+    /// Returns [`Ok(Some)`] if `string` is present, [`Ok(None)`]
+    /// if not, or, depending on the implementation, [`Err`].
     fn get_script_string(&mut self, string: ScriptString) -> Result<Option<String>>;
 }
 
 pub trait T5XFileSerialize {
     fn store_into_xfile<T: Serialize>(&mut self, t: T) -> Result<()>;
+
+    /// Returns [`Ok(Some)`] when `string` was already present, [`Ok(None)`]
+    /// when `string` wasn't already present, or [`Err`] when
+    /// [`Error::ScriptStringOverflow`] or some other error occurs.
     fn get_or_insert_script_string(&mut self, string: String) -> Result<Option<String>>;
 }

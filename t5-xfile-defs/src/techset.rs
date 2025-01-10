@@ -348,8 +348,8 @@ impl<'a> XFileDeserializeInto<GfxVertexShaderLoadDef, ()> for GfxVertexShaderLoa
 
         let program = self.program.to_vec(de)?;
         //dbg!(&program[0]);
-        if program.len() > 0 && program[0] != DXBC_MAGIC {
-            return Err(Error::new(
+        if !program.is_empty() && program[0] != DXBC_MAGIC {
+            return Err(Error::new_with_offset(
                 file_line_col!(),
                 de.stream_pos()? as _,
                 ErrorKind::BrokenInvariant(format!(
@@ -536,7 +536,7 @@ impl XFileDeserializeInto<MaterialShaderArgument, ()> for MaterialShaderArgument
         //dbg!(*self);
 
         if self.arg_type > 7 {
-            return Err(Error::new(
+            return Err(Error::new_with_offset(
                 file_line_col!(),
                 de.stream_pos()? as _,
                 ErrorKind::BrokenInvariant(format!(
@@ -814,7 +814,7 @@ impl<'a> XFileDeserializeInto<MaterialTextureDef, ()> for MaterialTextureDefRaw<
         de: &mut impl T5XFileDeserialize,
         _data: (),
     ) -> Result<MaterialTextureDef> {
-        let semantic = num::FromPrimitive::from_u8(self.semantic).ok_or(Error::new(
+        let semantic = num::FromPrimitive::from_u8(self.semantic).ok_or(Error::new_with_offset(
             file_line_col!(),
             de.stream_pos()? as _,
             ErrorKind::BadFromPrimitive(self.semantic as _),
@@ -831,12 +831,14 @@ impl<'a> XFileDeserializeInto<MaterialTextureDef, ()> for MaterialTextureDefRaw<
 
         Ok(MaterialTextureDef {
             name_hash: self.name_hash,
-            name_start: core::char::from_u32(self.name_start as _).ok_or(Error::new(
-                file_line_col!(),
-                de.stream_pos()? as _,
-                ErrorKind::BadChar(self.name_start as _),
-            ))?,
-            name_end: core::char::from_u32(self.name_end as _).ok_or(Error::new(
+            name_start: core::char::from_u32(self.name_start as _).ok_or(
+                Error::new_with_offset(
+                    file_line_col!(),
+                    de.stream_pos()? as _,
+                    ErrorKind::BadChar(self.name_start as _),
+                ),
+            )?,
+            name_end: core::char::from_u32(self.name_end as _).ok_or(Error::new_with_offset(
                 file_line_col!(),
                 de.stream_pos()? as _,
                 ErrorKind::BadChar(self.name_end as _),
@@ -1047,17 +1049,17 @@ impl<'a> XFileDeserializeInto<GfxImage, ()> for GfxImageRaw<'a> {
 
         let texture = self.texture.xfile_deserialize_into(de, ())?;
 
-        let map_type = num::FromPrimitive::from_u8(self.map_type).ok_or(Error::new(
+        let map_type = num::FromPrimitive::from_u8(self.map_type).ok_or(Error::new_with_offset(
             file_line_col!(),
             de.stream_pos()? as _,
             ErrorKind::BadFromPrimitive(self.map_type as _),
         ))?;
-        let semantic = num::FromPrimitive::from_u8(self.semantic).ok_or(Error::new(
+        let semantic = num::FromPrimitive::from_u8(self.semantic).ok_or(Error::new_with_offset(
             file_line_col!(),
             de.stream_pos()? as _,
             ErrorKind::BadFromPrimitive(self.semantic as _),
         ))?;
-        let category = num::FromPrimitive::from_u8(self.category).ok_or(Error::new(
+        let category = num::FromPrimitive::from_u8(self.category).ok_or(Error::new_with_offset(
             file_line_col!(),
             de.stream_pos()? as _,
             ErrorKind::BadFromPrimitive(self.category as _),

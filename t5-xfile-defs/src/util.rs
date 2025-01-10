@@ -139,7 +139,7 @@ pub(crate) fn xfile_read_string(de: &mut impl T5XFileDeserialize) -> Result<Stri
         //
         // FIXME: come up with a more elegant solution
         if !c.is_ascii() && c != 0xF1 && c != 0xDC && c != 0xAE && c != 0xA9 && c != 0x99 {
-            return Err(Error::new(
+            return Err(Error::new_with_offset(
                 file_line_col!(),
                 de.stream_pos()? as _,
                 ErrorKind::BrokenInvariant(format!("XString: c ({c:#02X}) is not valid EASCII",)),
@@ -272,6 +272,15 @@ impl<'a, T> Ptr32<'a, T> {
         self.as_u32() != 0xFFFFFFFF && self.as_u32() != 0xFFFFFFFE
     }
 
+    pub fn null() -> Self {
+        Self(0x00000000, PhantomData)
+    }
+
+    /// (The name of this function could probably be better.)
+    pub fn unreal() -> Self {
+        Self(0xFFFFFFFF, PhantomData)
+    }
+
     pub fn cast<U>(self) -> Ptr32<'a, U> {
         Ptr32::<'a, U>(self.0, PhantomData)
     }
@@ -295,7 +304,7 @@ impl<'a, T: DeserializeOwned + Clone + Debug + XFileDeserializeInto<U, V>, U, V:
 
         let t = if self.is_real() {
             if self.0 & 0x1FFFFFFF > de.stream_len().unwrap() as u32 {
-                return Err(Error::new(
+                return Err(Error::new_with_offset(
                     file_line_col!(),
                     de.stream_pos()? as _,
                     ErrorKind::InvalidSeek {

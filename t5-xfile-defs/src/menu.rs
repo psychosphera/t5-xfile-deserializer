@@ -706,7 +706,7 @@ impl XFileDeserializeInto<Operand, ()> for OperandRaw {
         de: &mut impl T5XFileDeserialize,
         _data: (),
     ) -> Result<Operand> {
-        let data_type = FromPrimitive::from_i32(self.data_type).ok_or(Error::new(
+        let data_type = FromPrimitive::from_i32(self.data_type).ok_or(Error::new_with_offset(
             file_line_col!(),
             de.stream_pos()? as _,
             ErrorKind::BadFromPrimitive(self.data_type as _),
@@ -860,10 +860,10 @@ impl<'a, const MAX_LOCAL_CLIENTS: usize> XFileDeserializeInto<ItemDef<MAX_LOCAL_
         let parent = if self.parent.is_null() || self.parent.is_real() {
             None
         } else {
-            return Err(Error::new(
+            return Err(Error::new_with_offset(
                 file_line_col!(),
                 de.stream_pos()? as _,
-                ErrorKind::Todo(format!("ItemDef: fix recursion.",)),
+                ErrorKind::Todo("ItemDef: fix recursion.".to_string()),
             ));
         };
         //dbg!(de.stream_pos().unwrap());
@@ -952,7 +952,7 @@ impl<'a, const MAX_LOCAL_CLIENTS: usize>
                     .xfile_deserialize_into(de, ())?,
             )))
         } else if type_ == 17 || type_ > 22 {
-            Err(Error::new(
+            Err(Error::new_with_offset(
                 file_line_col!(),
                 de.stream_pos()? as _,
                 ErrorKind::BrokenInvariant(format!("ItemDefData: type ({type_}) > 22",)),
@@ -1115,7 +1115,7 @@ impl<'a, const MAX_LOCAL_CLIENTS: usize>
             || type_ == 19
             || type_ > 23
         {
-            Err(Error::new(
+            Err(Error::new_with_offset(
                 file_line_col!(),
                 de.stream_pos()? as _,
                 ErrorKind::BrokenInvariant(format!("TextDefData: type ({type_}) invalid.",)),
@@ -1242,7 +1242,7 @@ impl<'a, const MAX_LOCAL_CLIENTS: usize>
                     .map(Box::new),
             )))
         } else {
-            Err(Error::new(
+            Err(Error::new_with_offset(
                 file_line_col!(),
                 de.stream_pos()? as _,
                 ErrorKind::BrokenInvariant(format!("FocusDefData: type ({type_}) invalid.",)),

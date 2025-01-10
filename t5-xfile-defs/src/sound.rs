@@ -430,17 +430,18 @@ impl<'a> XFileDeserializeInto<SndAsset, ()> for SndAssetRaw<'a> {
         de: &mut impl T5XFileDeserialize,
         _data: (),
     ) -> Result<SndAsset> {
-        let format = num::FromPrimitive::from_u32(self.format).ok_or(Error::new(
+        let format = num::FromPrimitive::from_u32(self.format).ok_or(Error::new_with_offset(
             file_line_col!(),
             de.stream_pos()? as _,
             ErrorKind::BadFromPrimitive(self.format as _),
         ))?;
-        let channel_flags = SndAssetChannel::from_bits(self.channel_flags).ok_or(Error::new(
-            file_line_col!(),
-            de.stream_pos()? as _,
-            ErrorKind::BadFromPrimitive(self.channel_flags as _),
-        ))?;
-        let flags = SndAssetFlags::from_bits(self.flags).ok_or(Error::new(
+        let channel_flags =
+            SndAssetChannel::from_bits(self.channel_flags).ok_or(Error::new_with_offset(
+                file_line_col!(),
+                de.stream_pos()? as _,
+                ErrorKind::BadFromPrimitive(self.channel_flags as _),
+            ))?;
+        let flags = SndAssetFlags::from_bits(self.flags).ok_or(Error::new_with_offset(
             file_line_col!(),
             de.stream_pos()? as _,
             ErrorKind::BadFromPrimitive(self.flags as _),
@@ -815,7 +816,7 @@ impl TryInto<SndGroup> for SndGroupRaw {
         //dbg!(&name);
         let parent_name = self.parent_name.to_string();
         //dbg!(&parent_name);
-        let category = FromPrimitive::from_u32(self.category).ok_or(Error::new(
+        let category = FromPrimitive::from_u32(self.category).ok_or(Error::new_with_offset(
             file_line_col!(),
             0,
             ErrorKind::BadFromPrimitive(self.category as _),

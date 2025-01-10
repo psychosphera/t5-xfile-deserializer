@@ -5,10 +5,12 @@ use std::{
     io::{Cursor, Seek, Write},
 };
 
-use crate::{file_line_col, BincodeOptions};
+use crate::{BincodeOptions, file_line_col};
 
 use t5_xfile_defs::{
-    xasset::{XAsset, XAssetListRaw}, Error, ErrorKind, FatPointerCountFirstU32, Ptr32, Result, T5XFileSerialize, XFile, XFileHeader, XFilePlatform, XFileSerialize
+    Error, ErrorKind, FatPointerCountFirstU32, Ptr32, Result, T5XFileSerialize, XFile, XFileHeader,
+    XFilePlatform, XFileSerialize,
+    xasset::{XAsset, XAssetListRaw},
 };
 
 pub struct T5XFileSerializerBuilder {
@@ -36,7 +38,7 @@ impl T5XFileSerializerBuilder {
 
 #[allow(private_bounds, private_interfaces)]
 pub struct T5XFileSerializer {
-    _silent: bool,
+    silent: bool,
     xfile: XFile,
     script_strings: HashSet<String>,
     asset_bytes: Option<Cursor<Vec<u8>>>,
@@ -48,7 +50,7 @@ pub struct T5XFileSerializer {
 impl<'a> T5XFileSerializer {
     pub fn new(silent: bool, platform: XFilePlatform) -> Result<Self> {
         Ok(Self {
-            _silent: silent,
+            silent,
             xfile: XFile::default(),
             script_strings: HashSet::new(),
             asset_bytes: None,
@@ -72,7 +74,7 @@ impl<'a> T5XFileSerializer {
 
     fn serialize<T: Serialize>(&mut self, mut writer: impl Write + Seek, t: T) -> Result<()> {
         self.opts.serialize_into(&mut writer, t).map_err(|e| {
-            Error::new(
+            Error::new_with_offset(
                 file_line_col!(),
                 writer.stream_position().unwrap() as _,
                 ErrorKind::Bincode(e),
@@ -81,6 +83,15 @@ impl<'a> T5XFileSerializer {
     }
 
     pub fn deflate(mut self) -> Result<Vec<u8>> {
+        let asset_bytes_len = self.asset_bytes.as_ref().unwrap().get_ref().len();
+        if asset_bytes_len == 0 {
+            assert!(self.serialized_assets != 0);
+        }
+
+        if self.serialized_assets == 0 {
+            assert!(asset_bytes_len != 0);
+        }
+
         let mut bytes = Cursor::new(Vec::new());
         let header = XFileHeader::new(self.platform);
 
@@ -90,10 +101,27 @@ impl<'a> T5XFileSerializer {
 
         self.serialize(&mut blob, self.xfile)?;
 
-        // TODO: serialize XAssets
-        let xasset_list = XAssetListRaw { 
-            strings: FatPointerCountFirstU32 { size: self.script_strings.len() as _, p: Ptr32::from_u32(0xFFFFFFFF) },
-            assets: FatPointerCountFirstU32 { size: self.serialized_assets as _, p: Ptr32::from_u32(0xFFFFFFFF) },
+        if self.serialized_assets == 0 && !self.silent {
+            println!("Warning: serializing fastfile with zero assets.");
+        }
+
+        let xasset_list = XAssetListRaw {
+            strings: FatPointerCountFirstU32 {
+                size: self.script_strings.len() as _,
+                p: if self.script_strings.len() == 0 {
+                    Ptr32::null()
+                } else {
+                    Ptr32::unreal()
+                },
+            },
+            assets: FatPointerCountFirstU32 {
+                size: self.serialized_assets as _,
+                p: if asset_bytes_len == 0 {
+                    Ptr32::null()
+                } else {
+                    Ptr32::unreal()
+                },
+            },
         };
 
         self.serialize(&mut blob, xasset_list)?;
@@ -124,7 +152,7 @@ impl T5XFileSerialize for T5XFileSerializer {
         self.opts
             .serialize_into(self.asset_bytes.get_or_insert(Cursor::new(Vec::new())), t)
             .map_err(|e| {
-                Error::new(
+                Error::new_with_offset(
                     file_line_col!(),
                     self.asset_bytes.as_ref().unwrap().position() as _,
                     ErrorKind::Bincode(e),
@@ -134,10 +162,18 @@ impl T5XFileSerialize for T5XFileSerializer {
 
     fn get_or_insert_script_string(&mut self, string: String) -> Result<Option<String>> {
         if self.script_strings.len() >= u16::MAX as usize {
-            Ok(None)
+            Err(Error::new_with_offset(
+                file_line_col!(),
+                0,
+                ErrorKind::ScriptStringOverflow,
+            ))
         } else {
-            self.script_strings.insert(string.clone());
-            Ok(Some(self.script_strings.get(&string).unwrap().clone()))
+            if let Some(s) = self.script_strings.get(&string) {
+                Ok(Some(s.clone()))
+            } else {
+                self.script_strings.insert(string.clone());
+                Ok(None)
+            }
         }
     }
 }

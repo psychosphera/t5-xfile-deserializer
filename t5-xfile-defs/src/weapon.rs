@@ -152,11 +152,12 @@ impl<'a> XFileDeserializeInto<WeaponVariantDef, ()> for WeaponVariantDefRaw<'a> 
             .overlay_material_low_res
             .xfile_deserialize_into(de, ())?;
         let dpad_icon = self.dpad_icon.xfile_deserialize_into(de, ())?;
-        let dpad_icon_ratio = FromPrimitive::from_u32(self.dpad_icon_ratio).ok_or(Error::new(
-            file_line_col!(),
-            de.stream_pos()? as _,
-            ErrorKind::BadFromPrimitive(self.dpad_icon_ratio as _),
-        ))?;
+        let dpad_icon_ratio =
+            FromPrimitive::from_u32(self.dpad_icon_ratio).ok_or(Error::new_with_offset(
+                file_line_col!(),
+                de.stream_pos()? as _,
+                ErrorKind::BadFromPrimitive(self.dpad_icon_ratio as _),
+            ))?;
         let left_hand_offset = self.left_hand_offset.into();
         let left_hand_rotation = self.left_hand_rotation.into();
         let left_hand_prone_offset = self.left_hand_prone_offset.into();
@@ -1544,53 +1545,58 @@ impl<'a> XFileDeserializeInto<WeaponDef, ()> for WeaponDefRaw<'a> {
                     .unwrap_or_default(),
             ))
         };
-        let weap_type = FromPrimitive::from_u32(self.weap_type).ok_or(Error::new(
+        let weap_type = FromPrimitive::from_u32(self.weap_type).ok_or(Error::new_with_offset(
             file_line_col!(),
             de.stream_pos()? as _,
             ErrorKind::BadFromPrimitive(self.weap_type as _),
         ))?;
-        let weap_class = FromPrimitive::from_u32(self.weap_class).ok_or(Error::new(
+        let weap_class = FromPrimitive::from_u32(self.weap_class).ok_or(Error::new_with_offset(
             file_line_col!(),
             de.stream_pos()? as _,
             ErrorKind::BadFromPrimitive(self.weap_class as _),
         ))?;
-        let penetrate_type = FromPrimitive::from_u32(self.penetrate_type).ok_or(Error::new(
-            file_line_col!(),
-            de.stream_pos()? as _,
-            ErrorKind::BadFromPrimitive(self.penetrate_type as _),
-        ))?;
-        let impact_type = FromPrimitive::from_u32(self.impact_type).ok_or(Error::new(
-            file_line_col!(),
-            de.stream_pos()? as _,
-            ErrorKind::BadFromPrimitive(self.impact_type as _),
-        ))?;
-        let inventory_type = FromPrimitive::from_u32(self.inventory_type).ok_or(Error::new(
-            file_line_col!(),
-            de.stream_pos()? as _,
-            ErrorKind::BadFromPrimitive(self.inventory_type as _),
-        ))?;
-        let fire_type = FromPrimitive::from_u32(self.fire_type).ok_or(Error::new(
+        let penetrate_type =
+            FromPrimitive::from_u32(self.penetrate_type).ok_or(Error::new_with_offset(
+                file_line_col!(),
+                de.stream_pos()? as _,
+                ErrorKind::BadFromPrimitive(self.penetrate_type as _),
+            ))?;
+        let impact_type =
+            FromPrimitive::from_u32(self.impact_type).ok_or(Error::new_with_offset(
+                file_line_col!(),
+                de.stream_pos()? as _,
+                ErrorKind::BadFromPrimitive(self.impact_type as _),
+            ))?;
+        let inventory_type =
+            FromPrimitive::from_u32(self.inventory_type).ok_or(Error::new_with_offset(
+                file_line_col!(),
+                de.stream_pos()? as _,
+                ErrorKind::BadFromPrimitive(self.inventory_type as _),
+            ))?;
+        let fire_type = FromPrimitive::from_u32(self.fire_type).ok_or(Error::new_with_offset(
             file_line_col!(),
             de.stream_pos()? as _,
             ErrorKind::BadFromPrimitive(self.fire_type as _),
         ))?;
-        let clip_type = FromPrimitive::from_u32(self.clip_type).ok_or(Error::new(
+        let clip_type = FromPrimitive::from_u32(self.clip_type).ok_or(Error::new_with_offset(
             file_line_col!(),
             de.stream_pos()? as _,
             ErrorKind::BadFromPrimitive(self.clip_type as _),
         ))?;
         let parent_weapon_name = self.parent_weapon_name.xfile_deserialize_into(de, ())?;
-        let offhand_class = FromPrimitive::from_u32(self.offhand_class).ok_or(Error::new(
-            file_line_col!(),
-            de.stream_pos()? as _,
-            ErrorKind::BadFromPrimitive(self.offhand_class as _),
-        ))?;
-        let offhand_slot = FromPrimitive::from_u32(self.offhand_slot).ok_or(Error::new(
-            file_line_col!(),
-            de.stream_pos()? as _,
-            ErrorKind::BadFromPrimitive(self.offhand_slot as _),
-        ))?;
-        let stance = FromPrimitive::from_u32(self.stance).ok_or(Error::new(
+        let offhand_class =
+            FromPrimitive::from_u32(self.offhand_class).ok_or(Error::new_with_offset(
+                file_line_col!(),
+                de.stream_pos()? as _,
+                ErrorKind::BadFromPrimitive(self.offhand_class as _),
+            ))?;
+        let offhand_slot =
+            FromPrimitive::from_u32(self.offhand_slot).ok_or(Error::new_with_offset(
+                file_line_col!(),
+                de.stream_pos()? as _,
+                ErrorKind::BadFromPrimitive(self.offhand_slot as _),
+            ))?;
+        let stance = FromPrimitive::from_u32(self.stance).ok_or(Error::new_with_offset(
             file_line_col!(),
             de.stream_pos()? as _,
             ErrorKind::BadFromPrimitive(self.stance as _),
@@ -1719,7 +1725,7 @@ impl<'a> XFileDeserializeInto<WeaponDef, ()> for WeaponDefRaw<'a> {
         let reticle_center = self.reticle_center.xfile_deserialize_into(de, ())?;
         let reticle_side = self.reticle_side.xfile_deserialize_into(de, ())?;
         let active_reticle_type =
-            FromPrimitive::from_u32(self.active_reticle_type).ok_or(Error::new(
+            FromPrimitive::from_u32(self.active_reticle_type).ok_or(Error::new_with_offset(
                 file_line_col!(),
                 de.stream_pos()? as _,
                 ErrorKind::BadFromPrimitive(self.active_reticle_type as _),
@@ -1739,27 +1745,28 @@ impl<'a> XFileDeserializeInto<WeaponDef, ()> for WeaponDefRaw<'a> {
         let mounted_model = self.mounted_model.xfile_deserialize_into(de, ())?;
         let additional_melee_model = self.additional_melee_model.xfile_deserialize_into(de, ())?;
         let hud_icon = self.hud_icon.xfile_deserialize_into(de, ())?;
-        let hud_icon_ratio = FromPrimitive::from_u32(self.hud_icon_ratio).ok_or(Error::new(
-            file_line_col!(),
-            de.stream_pos()? as _,
-            ErrorKind::BadFromPrimitive(self.hud_icon_ratio as _),
-        ))?;
+        let hud_icon_ratio =
+            FromPrimitive::from_u32(self.hud_icon_ratio).ok_or(Error::new_with_offset(
+                file_line_col!(),
+                de.stream_pos()? as _,
+                ErrorKind::BadFromPrimitive(self.hud_icon_ratio as _),
+            ))?;
         let indicator_icon = self.indicator_icon.xfile_deserialize_into(de, ())?;
         let indicator_icon_ratio =
-            FromPrimitive::from_u32(self.indicator_icon_ratio).ok_or(Error::new(
+            FromPrimitive::from_u32(self.indicator_icon_ratio).ok_or(Error::new_with_offset(
                 file_line_col!(),
                 de.stream_pos()? as _,
                 ErrorKind::BadFromPrimitive(self.indicator_icon_ratio as _),
             ))?;
         let ammo_counter_icon = self.ammo_counter_icon.xfile_deserialize_into(de, ())?;
         let ammo_counter_icon_ratio =
-            FromPrimitive::from_u32(self.ammo_counter_icon_ratio).ok_or(Error::new(
+            FromPrimitive::from_u32(self.ammo_counter_icon_ratio).ok_or(Error::new_with_offset(
                 file_line_col!(),
                 de.stream_pos()? as _,
                 ErrorKind::BadFromPrimitive(self.ammo_counter_icon_ratio as _),
             ))?;
         let ammo_counter_clip =
-            FromPrimitive::from_u32(self.ammo_counter_clip).ok_or(Error::new(
+            FromPrimitive::from_u32(self.ammo_counter_clip).ok_or(Error::new_with_offset(
                 file_line_col!(),
                 de.stream_pos()? as _,
                 ErrorKind::BadFromPrimitive(self.ammo_counter_clip as _),
@@ -1775,33 +1782,36 @@ impl<'a> XFileDeserializeInto<WeaponDef, ()> for WeaponDefRaw<'a> {
         let stop_spin_sound = self.stop_spin_sound.xfile_deserialize_into(de, ())?;
         let stop_spin_sound_player = self.stop_spin_sound_player.xfile_deserialize_into(de, ())?;
         let stack_sound = self.stack_sound.xfile_deserialize_into(de, ())?;
-        let overlay_reticle = FromPrimitive::from_u32(self.overlay_reticle).ok_or(Error::new(
-            file_line_col!(),
-            de.stream_pos()? as _,
-            ErrorKind::BadFromPrimitive(self.overlay_reticle as _),
-        ))?;
+        let overlay_reticle =
+            FromPrimitive::from_u32(self.overlay_reticle).ok_or(Error::new_with_offset(
+                file_line_col!(),
+                de.stream_pos()? as _,
+                ErrorKind::BadFromPrimitive(self.overlay_reticle as _),
+            ))?;
         let overlay_interface =
-            FromPrimitive::from_u32(self.overlay_interface).ok_or(Error::new(
+            FromPrimitive::from_u32(self.overlay_interface).ok_or(Error::new_with_offset(
                 file_line_col!(),
                 de.stream_pos()? as _,
                 ErrorKind::BadFromPrimitive(self.overlay_interface as _),
             ))?;
         let kill_icon = self.kill_icon.xfile_deserialize_into(de, ())?;
-        let kill_icon_ratio = FromPrimitive::from_u32(self.kill_icon_ratio).ok_or(Error::new(
-            file_line_col!(),
-            de.stream_pos()? as _,
-            ErrorKind::BadFromPrimitive(self.kill_icon_ratio as _),
-        ))?;
+        let kill_icon_ratio =
+            FromPrimitive::from_u32(self.kill_icon_ratio).ok_or(Error::new_with_offset(
+                file_line_col!(),
+                de.stream_pos()? as _,
+                ErrorKind::BadFromPrimitive(self.kill_icon_ratio as _),
+            ))?;
         let spawned_grenade_weapon_name = self
             .spawned_grenade_weapon_name
             .xfile_deserialize_into(de, ())?;
         let dual_wield_weapon_name = self.dual_wield_weapon_name.xfile_deserialize_into(de, ())?;
         let projectile_model = self.projectile_model.xfile_deserialize_into(de, ())?;
-        let proj_explosion = FromPrimitive::from_u32(self.proj_explosion).ok_or(Error::new(
-            file_line_col!(),
-            de.stream_pos()? as _,
-            ErrorKind::BadFromPrimitive(self.proj_explosion as _),
-        ))?;
+        let proj_explosion =
+            FromPrimitive::from_u32(self.proj_explosion).ok_or(Error::new_with_offset(
+                file_line_col!(),
+                de.stream_pos()? as _,
+                ErrorKind::BadFromPrimitive(self.proj_explosion as _),
+            ))?;
         let proj_explosion_effect = self.proj_explosion_effect.xfile_deserialize_into(de, ())?;
         let proj_explosion_effect_2 = self
             .proj_explosion_effect_2
@@ -1820,16 +1830,17 @@ impl<'a> XFileDeserializeInto<WeaponDef, ()> for WeaponDefRaw<'a> {
         let proj_dud_sound = self.proj_dud_sound.xfile_deserialize_into(de, ())?;
         let mortar_shell_sound = self.mortar_shell_sound.xfile_deserialize_into(de, ())?;
         let tank_shell_sound = self.tank_shell_sound.xfile_deserialize_into(de, ())?;
-        let stickiness = FromPrimitive::from_u32(self.stickiness).ok_or(Error::new(
+        let stickiness = FromPrimitive::from_u32(self.stickiness).ok_or(Error::new_with_offset(
             file_line_col!(),
             de.stream_pos()? as _,
             ErrorKind::BadFromPrimitive(self.stickiness as _),
         ))?;
-        let rotate_type = FromPrimitive::from_u32(self.rotate_type).ok_or(Error::new(
-            file_line_col!(),
-            de.stream_pos()? as _,
-            ErrorKind::BadFromPrimitive(self.rotate_type as _),
-        ))?;
+        let rotate_type =
+            FromPrimitive::from_u32(self.rotate_type).ok_or(Error::new_with_offset(
+                file_line_col!(),
+                de.stream_pos()? as _,
+                ErrorKind::BadFromPrimitive(self.rotate_type as _),
+            ))?;
         let parallel_bounce = if self.parallel_bounce.is_null() {
             None
         } else {
@@ -1852,7 +1863,7 @@ impl<'a> XFileDeserializeInto<WeaponDef, ()> for WeaponDefRaw<'a> {
         };
         let proj_tail_effect = self.proj_tail_effect.xfile_deserialize_into(de, ())?;
         let guided_missile_type =
-            FromPrimitive::from_u32(self.guided_missile_type).ok_or(Error::new(
+            FromPrimitive::from_u32(self.guided_missile_type).ok_or(Error::new_with_offset(
                 file_line_col!(),
                 de.stream_pos()? as _,
                 ErrorKind::BadFromPrimitive(self.guided_missile_type as _),
