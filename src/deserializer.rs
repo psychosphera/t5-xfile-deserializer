@@ -166,15 +166,15 @@ impl<'a> T5XFileDeserializer<'a, T5XFileDeserializerDeflated> {
         if platform == XFilePlatform::Xbox360 || platform == XFilePlatform::PS3 {
             if allow_unsupported_platforms && !silent {
                 println!(
-                    "Warning: {platform} Fastfiles might (and probably do) have differences\
-                     from Windows Fastfiles that aren't accounted for in this\
+                    "Warning: {platform} Fastfiles might (and probably do) have differences \
+                     from Windows Fastfiles that aren't accounted for in this \
                      library. Expect problems."
                 );
             } else {
                 if !silent {
                     println!(
-                        "Error: {platform} Fastfiles might (and probably do) have differences\
-                         from Windows Fastfiles that aren't accounted for in this\
+                        "Error: {platform} Fastfiles might (and probably do) have differences \
+                         from Windows Fastfiles that aren't accounted for in this \
                          library, and as such, they are unsupported."
                     );
                 }
@@ -189,16 +189,16 @@ impl<'a> T5XFileDeserializer<'a, T5XFileDeserializerDeflated> {
         if !silent && platform == XFilePlatform::macOS {
             if allow_unsupported_platforms {
                 println!(
-                    "Warning: macOS Fastfiles are *presumably* identical to\
-                     Windows Fastfiles (being an Aspyr port and all), but the\
-                     author of this library hasn't yet verified that to be true.\
+                    "Warning: macOS Fastfiles are *presumably* identical to \
+                     Windows Fastfiles (being an Aspyr port and all), but the \
+                     author of this library hasn't yet verified that to be true. \
                      Problems may arise."
                 );
             } else {
                 println!(
-                    "Error: macOS Fastfiles are *presumably* identical to\
-                     Windows Fastfiles (being an Aspyr port and all), but the\
-                     author of this library hasn't yet verified that to be true,\
+                    "Error: macOS Fastfiles are *presumably* identical to \
+                     Windows Fastfiles (being an Aspyr port and all), but the \
+                     author of this library hasn't yet verified that to be true, \
                      and as such, they are unsupported."
                 );
                 return Err(Error::new_with_offset(
@@ -232,10 +232,10 @@ impl<'a> T5XFileDeserializer<'a, T5XFileDeserializerDeflated> {
             ));
         }
 
-        if XFileVersion::is_other_endian(header.version, platform) {
+        if XFileVersion::is_other_endian(header.version) {
             if !silent {
                 println!(
-                    "Fastfile header is valid, but it has the wrong endianness\
+                    "Fastfile header is valid, but it has the wrong endianness \
                      for {platform} (probably for a different platform)."
                 );
             }
@@ -308,15 +308,15 @@ impl<'a> T5XFileDeserializer<'a, T5XFileDeserializerDeflated> {
         if platform == XFilePlatform::Xbox360 || platform == XFilePlatform::PS3 {
             if allow_unsupported_platforms && !silent {
                 println!(
-                    "Warning: {platform} Fastfiles might (and probably do) have differences\
-                     from Windows Fastfiles that aren't accounted for in this\
+                    "Warning: {platform} Fastfiles might (and probably do) have differences \
+                     from Windows Fastfiles that aren't accounted for in this \
                      library. Expect problems."
                 );
             } else {
                 if !silent {
                     println!(
-                        "Error: {platform} Fastfiles might (and probably do) have differences\
-                         from Windows Fastfiles that aren't accounted for in this\
+                        "Error: {platform} Fastfiles might (and probably do) have differences \
+                         from Windows Fastfiles that aren't accounted for in this \
                          library, and as such, they are unsupported."
                     );
                 }
@@ -331,16 +331,16 @@ impl<'a> T5XFileDeserializer<'a, T5XFileDeserializerDeflated> {
         if !silent && platform == XFilePlatform::macOS {
             if allow_unsupported_platforms {
                 println!(
-                    "Warning: macOS Fastfiles are *presumably* identical to\
-                     Windows Fastfiles (being an Aspyr port and all), but the\
-                     author of this library hasn't yet verified that to be true.\
+                    "Warning: macOS Fastfiles are *presumably* identical to \
+                     Windows Fastfiles (being an Aspyr port and all), but the \
+                     author of this library hasn't yet verified that to be true. \
                      Problems may arise."
                 );
             } else {
                 println!(
-                    "Error: macOS Fastfiles are *presumably* identical to\
-                     Windows Fastfiles (being an Aspyr port and all), but the\
-                     author of this library hasn't yet verified that to be true,\
+                    "Error: macOS Fastfiles are *presumably* identical to \
+                     Windows Fastfiles (being an Aspyr port and all), but the \
+                     author of this library hasn't yet verified that to be true, \
                      and as such, they are unsupported."
                 );
                 return Err(Error::new_with_offset(
@@ -385,11 +385,11 @@ impl<'a> T5XFileDeserializer<'a, T5XFileDeserializerDeflated> {
             let mut compressed_payload = Vec::new();
             f.seek(std::io::SeekFrom::Start(size_of!(XFileHeader) as _))
                 .map_err(|e| Error::new_with_offset(file_line_col!(), 0, ErrorKind::Io(e)))?;
-            dbg!(f.stream_position().map_err(|e| Error::new_with_offset(
-                file_line_col!(),
-                0,
-                ErrorKind::Io(e)
-            ))?);
+            // dbg!(f.stream_position().map_err(|e| Error::new_with_offset(
+            //     file_line_col!(),
+            //     0,
+            //     ErrorKind::Io(e)
+            // ))?);
             let bytes_read = f
                 .read_to_end(&mut compressed_payload)
                 .map_err(|e| Error::new_with_offset(file_line_col!(), 0, ErrorKind::Io(e)))?;
@@ -583,76 +583,6 @@ impl<'a> T5XFileDeserializer<'a, T5XFileDeserializerDeserialize> {
 
         Ok(deserialized_assets)
     }
-
-    // pub(crate) fn seek_and<T, F: FnOnce(&mut Self) -> T>(
-    //     &mut self,
-    //     from: SeekFrom,
-    //     predicate: F,
-    // ) -> Result<T> {
-    //     let pos = self.reader.as_mut().unwrap().stream_position()?;
-    //
-    //     if let std::io::SeekFrom::Start(p) = from {
-    //         if p != 0xFFFFFFFF && p != 0xFFFFFFFE {
-    //             let (_, off) = self.convert_offset_to_ptr(p as _)?;
-    //             let len = StreamLen::stream_len(self.reader.as_mut().unwrap())?;
-    //             if off as u64 > len {
-    //                 return Err(Error::InvalidSeek { off, max: len as _ });
-    //             }
-    //             self.reader
-    //                 .as_mut()
-    //                 .unwrap()
-    //                 .seek(std::io::SeekFrom::Start(off as _))?;
-    //         }
-    //     } else if let std::io::SeekFrom::Current(p) = from {
-    //         if p != 0 {
-    //             let len = StreamLen::stream_len(self.reader.as_mut().unwrap())?;
-    //             let off = pos as i64 + p;
-    //             if pos as i64 + p > len as i64 {
-    //                 return Err(Error::InvalidSeek {
-    //                     off: off as _,
-    //                     max: len as _,
-    //                 });
-    //             }
-    //             self.reader.as_mut().unwrap().seek(from)?;
-    //         }
-    //     } else {
-    //         unimplemented!()
-    //     }
-    //
-    //     let t = predicate(self);
-    //
-    //     if let std::io::SeekFrom::Start(p) = from {
-    //         if p != 0xFFFFFFFF && p != 0xFFFFFFFE {
-    //             self.reader
-    //                 .as_mut()
-    //                 .unwrap()
-    //                 .seek(std::io::SeekFrom::Start(pos))?;
-    //         }
-    //     } else if let std::io::SeekFrom::Current(p) = from {
-    //         if p != 0 {
-    //             self.reader
-    //                 .as_mut()
-    //                 .unwrap()
-    //                 .seek(std::io::SeekFrom::Current(-p))?;
-    //         }
-    //     } else {
-    //         unimplemented!()
-    //     }
-    //
-    //     Ok(t)
-    // }
-
-    // pub(crate) fn convert_offset_to_ptr(&self, offset: u32) -> Result<(u8, u32)> {
-    //     let block = ((offset - 1) >> 29) as u8;
-    //     let off = (offset - 1) & 0x1FFFFFFF;
-    //
-    //     let start = self.xfile.block_size[0..block as usize].iter().sum::<u32>();
-    //     let p = start + off;
-    //
-    //     //dbg!(block_sizes, block, off, start, p);
-    //
-    //     Ok((block, p))
-    // }
 
     fn get_script_strings_and_assets(&mut self) -> Result<()> {
         let xasset_list = self.xasset_list;

@@ -114,15 +114,9 @@ impl<'a> XFileDeserializeInto<String, ()> for XString<'a> {
         }
 
         if self.0.is_real() {
-            //eprintln!("ignoring offset {:#010X}", self.as_u32());
             return Ok(String::new());
-            // TODO: SeekFrom::Start(off) once offsets are fixed
-            // de.seek_and(std::io::SeekFrom::Start(self.as_u32() as _), |de| {
-            //     xfile_read_string(de)
-            // })
         }
 
-        // no need to seek for 0xFFFFFFFF / 0xFFFFFFFE
         xfile_read_string(de)
     }
 }
@@ -260,8 +254,10 @@ impl<'a, T> Ptr32<'a, T> {
 
     /// Checks whether the pointer is a "real" offset.
     ///
-    /// "Real" offsets are offsets that are valid (i.e. not beyond the bounds
-    /// of the file) and point to valid data.
+    /// "Real" offsets in T5 point into a buffer allocated by the XFile loader,
+    /// which seems to be used as a sort of ".bss" section, where data that 
+    /// should be allocated but it's left up to the engine to initialize
+    /// goes.
     ///
     /// Non-"real" offsets (`0xFFFFFFFF` or `0xFFFFFFFE`) mean that the data lies
     /// directly after the `struct` containing them, rather than somewhere
@@ -314,23 +310,9 @@ impl<'a, T: DeserializeOwned + Clone + Debug + XFileDeserializeInto<U, V>, U, V:
                 ));
             }
 
-            // if self.0 < de.xasset_list.assets.size * 12 {
-            //     return Err(Error::new(
-            //         file_line_col!(),
-            //         de.stream_pos()? as _,
-            //         ErrorKind::InvalidSeek {
-            //             off: self.0 & 0x1FFFFFFF,
-            //             max: de.stream_len().unwrap() as u32,
-            //         },
-            //     ));
-            // }
-            //eprintln!("ignoring offset {:#010X}", self.as_u32());
+
+            //println!("ignoring offset {:#010X}", self.as_u32());
             return Ok(None);
-            // TODO: SeekFrom::Start(off) once offsets are fixed
-            // de.seek_and(from, |de| de.load_from_xfile::<T>())??
-            //     .xfile_into(de, data)
-            //     .map(Box::new)
-            //     .map(Some)
         } else {
             // no need to seek for 0xFFFFFFFF / 0xFFFFFFFE
             let old = de.stream_pos()?;
@@ -364,8 +346,6 @@ impl<'a, T: DeserializeOwned + Debug> Ptr32<'a, T> {
         let t = if self.is_real() {
             //eprintln!("ignoring offset {:#010X}", self.as_u32());
             return Ok(None);
-            // TODO: SeekFrom::Start(off) once offsets are fixed
-            // de.seek_and(from, |de| de.load_from_xfile::<T>())??
         } else {
             // no need to seek for 0xFFFFFFFF / 0xFFFFFFFE
             let old = de.stream_pos()?;
@@ -487,7 +467,6 @@ pub trait FatPointer<'a, T: DeserializeOwned + 'a> {
         let v = if self.p().is_real() {
             //eprintln!("ignoring offset {:#010X}", self.p().as_u32());
             return Ok(Vec::new());
-            // TODO: SeekFrom::Start(off) once offsets are fixed
         } else {
             // no need to seek for 0xFFFFFFFF / 0xFFFFFFFE
             let old = de.stream_pos()?;

@@ -5,6 +5,8 @@ use t5_xfile_deserializer::T5XFileDeserializerBuilder;
 
 use clap::{arg, command};
 
+const CACHE_FILE_EXT: &str = "cache";
+
 fn main() {
     let matches = command!()
         .arg(arg!([FILENAME] "Filename to use (should have .ff or .cache extension)"))
@@ -14,21 +16,22 @@ fn main() {
              \twindows\n\
              \tmacos\n\
              \txbox360\n\
-             \tps3\n\
-             \twii"
+             \tps3"
         ))
         .arg(
             arg!(
                 -a --allow_unsupported_platforms
-                "Permits the deserializer to operate on platforms that may not be fully supported. \
-                 Will probably cause problems."
+                "Permits the deserializer to operate on platforms that may not be \
+                 fully supported. Will probably cause problems."
             )
             .required(false),
         )
         .get_matches();
 
     let Some(filename) = matches.get_one::<String>("FILENAME") else {
-        println!("must specify a file to operate on (should have .ff or .cache extension)");
+        println!(
+            "must specify a file to operate on (should have .ff or .{CACHE_FILE_EXT} extension)"
+        );
         return;
     };
 
@@ -39,7 +42,6 @@ fn main() {
             "macos" => XFilePlatform::macOS,
             "xbox360" => XFilePlatform::Xbox360,
             "ps3" => XFilePlatform::PS3,
-            "wii" => XFilePlatform::Wii,
             _ => {
                 println!("invalid platform (see --help for a list of valid platforms)");
                 return;
@@ -47,13 +49,14 @@ fn main() {
         }
     } else {
         println!(
-            "must specify the expected platform for the Fastfile (-p/--platform, see --help for a list of valid platforms)"
+            "must specify the expected platform for the Fastfile \
+             (-p/--platform, see --help for a list of valid platforms)"
         );
         return;
     };
 
-    let cached_filename = Path::new(&filename).with_extension("cache");
-    let cache_exists = Path::new(&filename).with_extension("cache").exists();
+    let cached_filename = Path::new(&filename).with_extension(CACHE_FILE_EXT);
+    let cache_exists = cached_filename.exists();
 
     let mut file = if cache_exists {
         std::fs::File::open(&cached_filename).unwrap()
@@ -61,9 +64,12 @@ fn main() {
         std::fs::File::open(filename).unwrap()
     };
 
-    let allow_unsupported_platforms = matches
-        .get_one::<bool>("allow_unsupported_platforms")
-        .is_some();
+    let allow_unsupported_platforms =
+        if let Some(a) = matches.get_one::<bool>("allow_unsupported_platforms") {
+            *a
+        } else {
+            false
+        };
 
     let de = if cache_exists {
         T5XFileDeserializerBuilder::from_cache_file(

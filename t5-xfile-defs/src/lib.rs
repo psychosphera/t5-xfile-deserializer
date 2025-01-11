@@ -62,11 +62,17 @@
 // The XAssetList essentially contains two fat pointers: first, to a string
 // array, then an asset array. And herein comes the first major annoyance
 // with XFiles - the assets are essentially just the structs used by the engine
-// serialzed into a file. Any pointers in said structs become offsets in the
-// file. Occasionally the offsets are NULL or a "real" value, but most of the
-// time they're 0xFFFFFFFF or 0xFFFFFFFE, which indicates that, instead of being at a
-// specific offset, they come immediately after the current struct. This means
-// basically nothing in the file is relocatable.
+// serialzed into a file. Pointers in said structs are either set to 0xFFFFFFFF,
+// which indicates that the data for said pointers comes after the current struct
+// and any previous 0xFFFFFFFF-pointers in said struct, NULL, or to a "real" value,
+// which is used by T5 as a pointer into a buffer allocated by the XFile loader.
+// This buffer seems to act as a sort of ".bss" section, for pointers that
+// should be allocated, but that it's the engine's job to initialize. One large
+// buffer is presumably used for efficiency purposes (one single allocation 
+// versus many if each object is allocated separately, no memory fragmentation, 
+// etc.) and because, assuming the data is valid and the engine is in a valid 
+// state, there's no concern about clobbering other objects in the buffer,
+// but in principle there's no reason it can't be done on a per-object basis.
 //
 // In addition, if the structures' sizes or alignments don't match exactly what
 // the serializer used, or if new structures are added, the file is basically
@@ -193,6 +199,12 @@ const XFILE_VERSION: u32 = 0x000001D9u32;
 const XFILE_VERSION_LE: u32 = XFILE_VERSION.to_le();
 const XFILE_VERSION_BE: u32 = XFILE_VERSION.to_be();
 
+#[cfg(target_endian = "little")]
+const XFILE_VERSION_OE: u32 = XFILE_VERSION_BE;
+
+#[cfg(target_endian = "big")]
+const XFILE_VERSION_OE: u32 = XFILE_VERSION_LE;
+
 #[repr(u32)]
 pub enum XFileVersion {
     LE = XFILE_VERSION_LE,
@@ -207,12 +219,8 @@ impl XFileVersion {
             == Self::from_platform(platform).as_u32()
     }
 
-    pub fn is_other_endian(version: u32, platform: XFilePlatform) -> bool {
-        if platform.is_le() {
-            version == Self::BE.as_u32()
-        } else {
-            version == Self::LE.as_u32()
-        }
+    pub fn is_other_endian(version: u32) -> bool {
+        version == XFILE_VERSION_OE
     }
 
     pub fn from_u32(value: u32) -> Option<Self> {
@@ -285,6 +293,22 @@ impl XFilePlatform {
 
     pub fn is_pc(&self) -> bool {
         !self.is_console()
+    }
+}
+
+pub struct XFileOffset(u32);
+
+impl XFileOffset {
+    pub const fn from_u32(offset: u32) -> Self {
+        Self(offset)
+    }
+
+    pub const fn block(&self) -> u8 {
+        (((self.0 - 1) >> 29) & 0x00000007) as _
+    }
+
+    pub const fn offset(&self) -> u32 {
+        (self.0 - 1) & 0x1FFFFFFF
     }
 }
 
