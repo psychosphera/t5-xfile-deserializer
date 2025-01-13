@@ -62,29 +62,29 @@
 // The XAssetList essentially contains two fat pointers: first, to a string
 // array, then an asset array. And herein comes the first major annoyance
 // with XFiles - the assets are essentially just the structs used by the engine
-// serialzed into a file. Pointers in said structs are either set to 0xFFFFFFFF 
-// or 0xFFFFFFFE (unsure of the difference between the two), which indicates 
-// that the data for said pointers comes after the current struct and any 
+// serialzed into a file. Pointers in said structs are either set to 0xFFFFFFFF
+// or 0xFFFFFFFE (unsure of the difference between the two), which indicates
+// that the data for said pointers comes after the current struct and any
 // previous 0xFFFFFFFF-pointers in said struct, NULL, or to a "real" value,
-// which is used by T5 as a pointer into a buffer allocated by the XFile 
+// which is used by T5 as a pointer into a buffer allocated by the XFile
 // loader. This buffer seems to act as a sort of ".bss" section, for pointers
 // that should be allocated, but that it's the engine's job to initialize. One
-// large buffer is presumably used for efficiency purposes (one single 
-// allocation versus many if each object is allocated separately, no memory 
+// large buffer is presumably used for efficiency purposes (one single
+// allocation versus many if each object is allocated separately, no memory
 // fragmentation, etc.) and because, assuming the data is valid and the engine
-// is in a valid state, there's no concern about clobbering other objects in 
-// the buffer, but in principle there's no reason it can't be done on a 
+// is in a valid state, there's no concern about clobbering other objects in
+// the buffer, but in principle there's no reason it can't be done on a
 // per-object basis.
 //
 // In addition, if the structures' sizes or alignments don't match exactly what
 // the serializer used, or if new structures are added, the file is basically
 // un-parseable (this is why, as mentioned above, the versions must match
-// exactly). Pulling out only assets of a specific type or by name is also 
-// impossible, because you can't know where a given asset is at in the file 
+// exactly). Pulling out only assets of a specific type or by name is also
+// impossible, because you can't know where a given asset is at in the file
 // until you pull out everything before it too. For this reason, you're more or
-// less forced into deserializng everything at once and then grabbing the 
-// assets you need afterwards. Which, in fairness, makes sense in the context 
-// of a game engine (you're never going to need to load *half*, or some other 
+// less forced into deserializng everything at once and then grabbing the
+// assets you need afterwards. Which, in fairness, makes sense in the context
+// of a game engine (you're never going to need to load *half*, or some other
 // fraction, of a level), but it *really* doesn't make writing a deserializer
 // fun. Makes the serializer pretty easy tho -_-
 
@@ -114,6 +114,7 @@ pub mod glass;
 pub mod light;
 pub mod menu;
 pub mod misc;
+mod prelude;
 pub mod sound;
 pub mod techset;
 pub mod util;
@@ -138,41 +139,6 @@ use windows::Win32::Graphics::Direct3D9::IDirect3DDevice9;
 pub use misc::*;
 pub use util::*;
 use xasset::XAssetType;
-
-// ============================================================================
-// These stdlib macros are used a lot for debugging purposes in this crate.
-// Since using them with no_std would create (obvious) problems, these stubs
-// will simply no-op them instead of breaking compilation. (Definitions are
-// copied directly from `std`, with arm bodies stripped out.)
-#[cfg(not(feature = "std"))]
-macro_rules! dbg {
-    () => {};
-    ($val:expr $(,)?) => {};
-    ($($val:expr),+ $(,)?) => {};
-}
-
-#[cfg(not(feature = "std"))]
-macro_rules! print {
-    ($($arg:tt)*) => {{}};
-}
-
-#[cfg(not(feature = "std"))]
-macro_rules! println {
-    () => {};
-    ($($arg:tt)*) => {{}};
-}
-
-#[cfg(not(feature = "std"))]
-macro_rules! eprint {
-    ($($arg:tt)*) => {{}};
-}
-
-#[cfg(not(feature = "std"))]
-macro_rules! eprintln {
-    () => {};
-    ($($arg:tt)*) => {{}};
-}
-// ============================================================================
 
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Default, Debug, Deserialize)]

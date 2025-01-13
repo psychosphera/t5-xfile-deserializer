@@ -11,6 +11,9 @@ use alloc::{
     vec::Vec,
 };
 
+#[allow(unused_imports)]
+use crate::prelude::*;
+
 use crate::{Error, ErrorKind, Result, T5XFileDeserialize, T5XFileSerialize, file_line_col};
 
 use serde::{
@@ -255,7 +258,7 @@ impl<'a, T> Ptr32<'a, T> {
     /// Checks whether the pointer is a "real" offset.
     ///
     /// "Real" offsets in T5 point into a buffer allocated by the XFile loader,
-    /// which seems to be used as a sort of ".bss" section, where data that 
+    /// which seems to be used as a sort of ".bss" section, where data that
     /// should be allocated but it's left up to the engine to initialize
     /// goes.
     ///
@@ -309,7 +312,6 @@ impl<'a, T: DeserializeOwned + Clone + Debug + XFileDeserializeInto<U, V>, U, V:
                     },
                 ));
             }
-
 
             //println!("ignoring offset {:#010X}", self.as_u32());
             return Ok(None);

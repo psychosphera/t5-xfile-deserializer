@@ -3,6 +3,9 @@ use core::mem::transmute;
 use alloc::{boxed::Box, string::String, vec::Vec};
 use serde::{Deserialize, Serialize};
 
+#[allow(unused_imports)]
+use crate::prelude::*;
+
 use crate::{
     FatPointer, Ptr32, Result, ScriptString, T5XFileDeserialize, XFileDeserializeInto, XString,
     assert_size, common::Vec3,

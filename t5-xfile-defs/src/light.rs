@@ -1,6 +1,9 @@
 use alloc::{boxed::Box, string::String};
 use serde::{Deserialize, Serialize};
 
+#[allow(unused_imports)]
+use crate::prelude::*;
+
 use crate::{
     Ptr32, Result, T5XFileDeserialize, XFileDeserializeInto, XString, assert_size,
     techset::{GfxImage, GfxImageRaw},

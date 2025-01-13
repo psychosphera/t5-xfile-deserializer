@@ -1,5 +1,8 @@
 use alloc::{boxed::Box, string::String, vec, vec::Vec};
 
+#[allow(unused_imports)]
+use crate::prelude::*;
+
 use crate::{
     Error, ErrorKind, FatPointer, FatPointerCountFirstU32, Ptr32, Ptr32ArrayConst, Result,
     T5XFileDeserialize, XFileDeserializeInto, XString, assert_size,

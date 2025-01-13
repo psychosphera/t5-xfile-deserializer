@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     Error, ErrorKind, FatPointer, FatPointerCountFirstU32, FatPointerCountLastU32, Ptr32, Result,
-    T5XFileDeserialize, XFileDeserializeInto, XString, assert_size, file_line_col,
+    T5XFileDeserialize, XFileDeserializeInto, XString, assert_size, file_line_col, prelude::*,
 };
 
 #[cfg_attr(feature = "serde", derive(Serialize))]
@@ -205,7 +205,7 @@ impl<'a> XFileDeserializeInto<SndAlias, ()> for SndAliasRaw<'a> {
         _data: (),
     ) -> Result<SndAlias> {
         let name = self.name.xfile_deserialize_into(de, ())?;
-        //dbg!(&name);
+        dbg!(&name);
         let subtitle = self.subtitle.xfile_deserialize_into(de, ())?;
         //dbg!(&subtitle);
         let secondaryname = self.secondaryname.xfile_deserialize_into(de, ())?;

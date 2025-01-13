@@ -4,6 +4,9 @@ use alloc::{
     vec::Vec,
 };
 
+#[allow(unused_imports)]
+use crate::prelude::*;
+
 use crate::{
     FatPointer, FatPointerCountLastU32, Ptr32, Result, T5XFileDeserialize, XFileDeserializeInto,
     XString, assert_size, common::Vec4,

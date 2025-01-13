@@ -2,6 +2,9 @@ use core::mem::transmute;
 
 use alloc::{boxed::Box, format, string::String, vec::Vec};
 
+#[allow(unused_imports)]
+use crate::prelude::*;
+
 use crate::{
     Error, ErrorKind, FatPointer, FatPointerCountLastU32, FlexibleArray, FlexibleArrayU16,
     FlexibleArrayU32, Ptr32, Result, T5XFileDeserialize, XFileDeserializeInto, XString,

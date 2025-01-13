@@ -6,6 +6,9 @@ use num::FromPrimitive;
 use num_derive::FromPrimitive;
 use serde::{Deserialize, Serialize};
 
+#[allow(unused_imports)]
+use crate::prelude::*;
+
 use crate::{
     Error, ErrorKind, FatPointerCountFirstU32, FatPointerCountLastU32, Ptr32, Result,
     T5XFileDeserialize, XFileDeserializeInto, XString, assert_size,

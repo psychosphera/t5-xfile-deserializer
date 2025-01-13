@@ -2,6 +2,9 @@ use alloc::{boxed::Box, string::String, vec::Vec};
 use num_derive::FromPrimitive;
 use serde::{Deserialize, Serialize};
 
+#[allow(unused_imports)]
+use crate::prelude::*;
+
 use crate::{
     Error, ErrorKind, FatPointerCountFirstU32, LocalizeEntry, LocalizeEntryRaw, MapEnts,
     MapEntsRaw, PackIndex, PackIndexRaw, Ptr32, RawFile, RawFileRaw, Result, StringTable,
