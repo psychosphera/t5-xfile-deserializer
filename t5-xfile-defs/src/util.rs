@@ -57,7 +57,7 @@ pub(crate) struct ArrayVisitor<T, const N: usize> {
 
 impl<T, const N: usize> ArrayVisitor<T, N> {
     #[allow(dead_code)]
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Self {
             element: PhantomData,
         }
@@ -96,12 +96,12 @@ pub struct XString<'a>(Ptr32<'a, u8>);
 assert_size!(XString, 4);
 
 impl<'a> XString<'a> {
-    pub fn from_u32(value: u32) -> Self {
+    pub const fn from_u32(value: u32) -> Self {
         Self(Ptr32::from_u32(value))
     }
 
     #[allow(dead_code)]
-    pub fn as_u32(self) -> u32 {
+    pub const fn as_u32(self) -> u32 {
         self.0.as_u32()
     }
 }
@@ -243,15 +243,15 @@ impl<'a, T> Default for Ptr32<'a, T> {
 }
 
 impl<'a, T> Ptr32<'a, T> {
-    pub fn from_u32(value: u32) -> Self {
+    pub const fn from_u32(value: u32) -> Self {
         Self(value, PhantomData)
     }
 
-    pub fn as_u32(&self) -> u32 {
+    pub const fn as_u32(&self) -> u32 {
         self.0
     }
 
-    pub fn is_null(&self) -> bool {
+    pub const fn is_null(&self) -> bool {
         self.as_u32() == 0x00000000
     }
 
@@ -267,24 +267,24 @@ impl<'a, T> Ptr32<'a, T> {
     /// independent.
     ///
     /// (The name of this function could probably be better.)
-    pub fn is_real(&self) -> bool {
+    pub const fn is_real(&self) -> bool {
         self.as_u32() != 0xFFFFFFFF && self.as_u32() != 0xFFFFFFFE
     }
 
-    pub fn null() -> Self {
+    pub const fn null() -> Self {
         Self(0x00000000, PhantomData)
     }
 
     /// (The name of this function could probably be better.)
-    pub fn unreal() -> Self {
+    pub const fn unreal() -> Self {
         Self(0xFFFFFFFF, PhantomData)
     }
 
-    pub fn cast<U>(self) -> Ptr32<'a, U> {
+    pub const fn cast<U>(self) -> Ptr32<'a, U> {
         Ptr32::<'a, U>(self.0, PhantomData)
     }
 
-    pub fn to_array(self, size: usize) -> Ptr32Array<'a, T> {
+    pub const fn to_array(self, size: usize) -> Ptr32Array<'a, T> {
         Ptr32Array { p: self, size }
     }
 }

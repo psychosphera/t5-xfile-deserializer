@@ -148,9 +148,19 @@ pub struct XFileHeader {
 }
 assert_size!(XFileHeader, 12);
 
+pub const XFILE_HEADER_MAGIC_U: &str = "IWffu100";
+pub const XFILE_HEADER_MAGIC_0: &str = "IWff0100";
+pub const XFILE_HEADER_MAGIC_U_RAW: [u8; 8] = *b"IWffu100";
+pub const XFILE_HEADER_MAGIC_0_RAW: [u8; 8] = *b"IWff0100";
+
 impl XFileHeader {
-    pub fn new(platform: XFilePlatform) -> Self {
-        let magic = *b"IWffu100";
+    pub const fn new(platform: XFilePlatform) -> Self {
+        let magic = if platform.is_console() {
+            XFILE_HEADER_MAGIC_0_RAW
+        } else {
+            XFILE_HEADER_MAGIC_U_RAW
+        };
+
         let version = XFileVersion::from_platform(platform).as_u32();
 
         Self { magic, version }
@@ -160,7 +170,9 @@ impl XFileHeader {
         self.magic.iter().map(|c| *c as char).collect()
     }
 
-    pub fn magic_is_valid(&self) -> bool {
+    pub const fn magic_is_valid(&self) -> bool {
+        // won't work in a const fn
+        // self.magic == XFILE_HEADER_MAGIC_U_RAW || self.magic == XFILE_HEADER_MAGIC_0_RAW
         self.magic[0] == b'I'
             && self.magic[1] == b'W'
             && self.magic[2] == b'f'
@@ -194,7 +206,7 @@ impl ScriptString {
         ))
     }
 
-    pub fn as_u16(self) -> u16 {
+    pub const fn as_u16(self) -> u16 {
         self.0
     }
 }
@@ -216,18 +228,21 @@ pub enum XFileVersion {
 }
 
 impl XFileVersion {
-    pub fn is_valid(version: u32, platform: XFilePlatform) -> bool {
-        Self::from_u32(version)
-            .map(|v| v.as_u32())
-            .unwrap_or(0xFFFFFFFF) // sentinel value to make life simple
-            == Self::from_platform(platform).as_u32()
+    pub const fn is_valid(version: u32, platform: XFilePlatform) -> bool {
+        let version = if let Some(v) = Self::from_u32(version) {
+            v.as_u32()
+        } else {
+            return false;
+        };
+
+        version == Self::from_platform(platform).as_u32()
     }
 
-    pub fn is_other_endian(version: u32) -> bool {
+    pub const fn is_other_endian(version: u32) -> bool {
         version == XFILE_VERSION_OE
     }
 
-    pub fn from_u32(value: u32) -> Option<Self> {
+    pub const fn from_u32(value: u32) -> Option<Self> {
         match value {
             XFILE_VERSION_LE => Some(Self::LE),
             XFILE_VERSION_BE => Some(Self::BE),
@@ -235,7 +250,7 @@ impl XFileVersion {
         }
     }
 
-    pub fn from_platform(platform: XFilePlatform) -> Self {
+    pub const fn from_platform(platform: XFilePlatform) -> Self {
         match platform {
             XFilePlatform::Windows | XFilePlatform::macOS => XFileVersion::LE,
             XFilePlatform::Xbox360 | XFilePlatform::PS3 => XFileVersion::BE,
@@ -244,7 +259,7 @@ impl XFileVersion {
         }
     }
 
-    pub fn as_u32(&self) -> u32 {
+    pub const fn as_u32(&self) -> u32 {
         match self {
             Self::LE => XFILE_VERSION_LE,
             Self::BE => XFILE_VERSION_BE,
@@ -275,7 +290,7 @@ impl Display for XFilePlatform {
 }
 
 impl XFilePlatform {
-    pub fn is_le(&self) -> bool {
+    pub const fn is_le(&self) -> bool {
         match self {
             Self::Windows | Self::macOS => true,
             Self::Xbox360 | Self::PS3 => false,
@@ -284,18 +299,18 @@ impl XFilePlatform {
         }
     }
 
-    pub fn is_be(&self) -> bool {
+    pub const fn is_be(&self) -> bool {
         !self.is_le()
     }
 
-    pub fn is_console(&self) -> bool {
+    pub const fn is_console(&self) -> bool {
         match self {
             Self::Xbox360 | Self::PS3 | Self::Wii => true,
             Self::Windows | Self::macOS => false,
         }
     }
 
-    pub fn is_pc(&self) -> bool {
+    pub const fn is_pc(&self) -> bool {
         !self.is_console()
     }
 }
@@ -411,7 +426,7 @@ pub struct Error {
 }
 
 impl Error {
-    pub fn new(where_: String, kind: ErrorKind) -> Self {
+    pub const fn new(where_: String, kind: ErrorKind) -> Self {
         Self {
             where_,
             kind,
@@ -419,7 +434,7 @@ impl Error {
         }
     }
 
-    pub fn new_with_offset(where_: String, off: u32, kind: ErrorKind) -> Self {
+    pub const fn new_with_offset(where_: String, off: u32, kind: ErrorKind) -> Self {
         Self {
             where_,
             kind,
@@ -427,15 +442,15 @@ impl Error {
         }
     }
 
-    pub fn kind(&self) -> &ErrorKind {
+    pub const fn kind(&self) -> &ErrorKind {
         &self.kind
     }
 
-    pub fn where_(&self) -> String {
-        self.where_.clone()
+    pub fn where_(&self) -> &str {
+        &self.where_
     }
 
-    pub fn off(&self) -> Option<u32> {
+    pub const fn off(&self) -> Option<u32> {
         self.off
     }
 }
