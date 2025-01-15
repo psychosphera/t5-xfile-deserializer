@@ -9,7 +9,7 @@ use crate::prelude::*;
 
 use crate::{
     Error, ErrorKind, FatPointer, FatPointerCountFirstU32, FatPointerCountLastU32, Ptr32, Result,
-    ScriptString, T5XFileDeserialize, XFileDeserializeInto, XString, assert_size,
+    ScriptString, T5XFileDeserialize, XFileDeserializeInto, XStringRaw, assert_size,
     common::{GfxIndexBuffer, GfxVertexBuffer, Mat3, Vec3, Vec4},
     file_line_col,
     techset::{Material, MaterialRaw},
@@ -18,7 +18,7 @@ use crate::{
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
 pub(crate) struct XModelRaw<'a> {
-    pub name: XString<'a>,
+    pub name: XStringRaw<'a>,
     pub num_bones: u8,
     pub num_root_bones: u8,
     pub numsurfs: u8,
@@ -837,14 +837,14 @@ impl From<XModelHighMipBoundsRaw> for XModelHighMipBounds {
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
 pub(crate) struct PhysPresetRaw<'a> {
-    pub name: XString<'a>,
+    pub name: XStringRaw<'a>,
     pub flags: i32,
     pub mass: f32,
     pub bounce: f32,
     pub friction: f32,
     pub bullet_force_scale: f32,
     pub explosive_force_scale: f32,
-    pub snd_alias_prefix: XString<'a>,
+    pub snd_alias_prefix: XStringRaw<'a>,
     pub pieces_spread_fraction: f32,
     pub pieces_upward_velocity: f32,
     pub can_float: i32,
@@ -1216,7 +1216,7 @@ impl From<CPlaneRaw> for CPlane {
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
 pub(crate) struct PhysConstraintsRaw<'a> {
-    pub name: XString<'a>,
+    pub name: XStringRaw<'a>,
     pub count: u32,
     pub data: [PhysConstraintRaw<'a>; 16],
 }
@@ -1264,13 +1264,13 @@ pub(crate) struct PhysConstraintRaw<'a> {
     pub target_ent1: ScriptString,
     #[allow(dead_code)]
     pad_2: [u8; 2],
-    pub target_bone1: XString<'a>,
+    pub target_bone1: XStringRaw<'a>,
     pub attach_point_type2: i32,
     pub target_index2: i32,
     pub target_ent2: ScriptString,
     #[allow(dead_code)]
     pad_3: [u8; 2],
-    pub target_bone2: XString<'a>,
+    pub target_bone2: XStringRaw<'a>,
     pub offset: [f32; 3],
     pub pos: [f32; 3],
     pub pos2: [f32; 3],
@@ -1436,7 +1436,7 @@ assert_size!(XModelDrawInfo, 4);
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
 pub(crate) struct XModelPiecesRaw<'a> {
-    pub name: XString<'a>,
+    pub name: XStringRaw<'a>,
     pub pieces: FatPointerCountFirstU32<'a, XModelPieceRaw<'a>>,
 }
 assert_size!(XModelPiecesRaw, 12);

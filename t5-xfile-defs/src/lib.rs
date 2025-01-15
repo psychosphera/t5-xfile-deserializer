@@ -475,4 +475,9 @@ pub trait T5XFileSerialize {
     /// when `string` wasn't already present, or [`Err`] when
     /// [`Error::ScriptStringOverflow`] or some other error occurs.
     fn get_or_insert_script_string(&mut self, string: String) -> Result<Option<String>>;
+
+    fn script_strings(&self) -> Vec<&str>;
+
+    fn asset_count(&self) -> usize;
+    fn asset_bytes(&self) -> Option<&[u8]>;
 }

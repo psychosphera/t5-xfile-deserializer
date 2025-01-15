@@ -8,8 +8,8 @@ use alloc::{
 use crate::prelude::*;
 
 use crate::{
-    FatPointer, FatPointerCountLastU32, Ptr32, Result, T5XFileDeserialize, XFileDeserializeInto,
-    XString, assert_size, common::Vec4,
+    FatPointer, FatPointerCountLastU32, Ptr32, Result, T5XFileDeserialize, T5XFileSerialize,
+    XFileDeserializeInto, XFileSerialize, XString, XStringRaw, assert_size, common::Vec4,
 };
 
 use serde::{Deserialize, Serialize};
@@ -17,7 +17,7 @@ use serde::{Deserialize, Serialize};
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Debug, Deserialize)]
 pub(crate) struct RawFileRaw<'a> {
-    pub name: XString<'a>,
+    pub name: XStringRaw<'a>,
     pub len: i32,
     pub buffer: Ptr32<'a, u8>,
 }
@@ -26,7 +26,7 @@ assert_size!(RawFileRaw, 12);
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug)]
 pub struct RawFile {
-    pub name: String,
+    pub name: XString,
     pub buffer: Vec<u8>,
 }
 
@@ -37,16 +37,28 @@ impl<'a> XFileDeserializeInto<RawFile, ()> for RawFileRaw<'a> {
         _data: (),
     ) -> Result<RawFile> {
         //dbg!(&self);
-        let name = self.name.xfile_deserialize_into(de, ())?;
+        let name = XString(self.name.xfile_deserialize_into(de, ())?);
         let buffer = self.buffer.to_array(self.len as usize + 1).to_vec(de)?;
         Ok(RawFile { name, buffer })
+    }
+}
+
+impl XFileSerialize<()> for RawFile {
+    fn xfile_serialize(&self, ser: &mut impl T5XFileSerialize, _data: ()) -> Result<()> {
+        let name = XStringRaw::from_u32(0xFFFFFFFF);
+        let len = self.buffer.len() as _;
+        let buffer = Ptr32::unreal();
+        let raw_file = RawFileRaw { name, len, buffer };
+
+        ser.store_into_xfile(raw_file)?;
+        self.buffer.xfile_serialize(ser, ())
     }
 }
 
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Debug, Deserialize)]
 pub(crate) struct StringTableRaw<'a> {
-    pub name: XString<'a>,
+    pub name: XStringRaw<'a>,
     pub column_count: i32,
     pub row_count: i32,
     pub values: Ptr32<'a, StringTableCellRaw<'a>>,
@@ -57,7 +69,7 @@ assert_size!(StringTableRaw, 20);
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug)]
 pub struct StringTable {
-    pub name: String,
+    pub name: XString,
     pub column_count: usize,
     pub row_count: usize,
     pub values: Vec<StringTableCell>,
@@ -73,7 +85,7 @@ impl<'a> XFileDeserializeInto<StringTable, ()> for StringTableRaw<'a> {
         let size = self.column_count as usize * self.row_count as usize;
 
         Ok(StringTable {
-            name: self.name.xfile_deserialize_into(de, ())?,
+            name: XString(self.name.xfile_deserialize_into(de, ())?),
             column_count: self.column_count as _,
             row_count: self.row_count as _,
             values: self.values.to_array(size).xfile_deserialize_into(de, ())?,
@@ -82,10 +94,33 @@ impl<'a> XFileDeserializeInto<StringTable, ()> for StringTableRaw<'a> {
     }
 }
 
+impl XFileSerialize<()> for StringTable {
+    fn xfile_serialize(&self, ser: &mut impl T5XFileSerialize, _data: ()) -> Result<()> {
+        let name = XStringRaw::from_str(self.name.get());
+        let column_count = self.column_count as _;
+        let row_count = self.row_count as _;
+        let values = Ptr32::from_slice::<StringTableCellRaw>(&self.values);
+        let cell_index = Ptr32::from_slice(&self.cell_index);
+
+        let string_table = StringTableRaw {
+            name,
+            column_count,
+            row_count,
+            values,
+            cell_index,
+        };
+
+        ser.store_into_xfile(string_table)?;
+        self.name.xfile_serialize(ser, ())?;
+        self.values.xfile_serialize(ser, ())?;
+        self.cell_index.xfile_serialize(ser, ())
+    }
+}
+
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Debug, Deserialize)]
 pub(crate) struct StringTableCellRaw<'a> {
-    pub name: XString<'a>,
+    pub name: XStringRaw<'a>,
     pub hash: i32,
 }
 assert_size!(StringTableCellRaw, 8);
@@ -93,7 +128,7 @@ assert_size!(StringTableCellRaw, 8);
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug)]
 pub struct StringTableCell {
-    pub name: String,
+    pub name: XString,
     pub hash: i32,
 }
 
@@ -104,16 +139,30 @@ impl<'a> XFileDeserializeInto<StringTableCell, ()> for StringTableCellRaw<'a> {
         _data: (),
     ) -> Result<StringTableCell> {
         Ok(StringTableCell {
-            name: self.name.xfile_deserialize_into(de, ())?,
+            name: XString(self.name.xfile_deserialize_into(de, ())?),
             hash: self.hash,
         })
+    }
+}
+
+impl XFileSerialize<()> for StringTableCell {
+    fn xfile_serialize(&self, ser: &mut impl T5XFileSerialize, _data: ()) -> Result<()> {
+        let name = XStringRaw::from_str(self.name.get());
+
+        let cell = StringTableCellRaw {
+            name,
+            hash: self.hash,
+        };
+
+        ser.store_into_xfile(cell)?;
+        self.name.xfile_serialize(ser, ())
     }
 }
 
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Debug, Deserialize)]
 pub(crate) struct PackIndexRaw<'a> {
-    pub name: XString<'a>,
+    pub name: XStringRaw<'a>,
     pub header: PackIndexHeaderRaw,
     pub entries: Ptr32<'a, PackIndexEntryRaw>,
 }
@@ -207,7 +256,7 @@ impl From<PackIndexEntryRaw> for PackIndexEntry {
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Debug, Deserialize)]
 pub(crate) struct MapEntsRaw<'a> {
-    pub name: XString<'a>,
+    pub name: XStringRaw<'a>,
     pub entity_string: FatPointerCountLastU32<'a, u8>,
 }
 assert_size!(MapEntsRaw, 12);
@@ -254,8 +303,8 @@ impl<'a> XFileDeserializeInto<MapEnts, ()> for MapEntsRaw<'a> {
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Debug, Deserialize)]
 pub(crate) struct LocalizeEntryRaw<'a> {
-    pub value: XString<'a>,
-    pub name: XString<'a>,
+    pub value: XStringRaw<'a>,
+    pub name: XStringRaw<'a>,
 }
 assert_size!(LocalizeEntryRaw, 8);
 
@@ -282,7 +331,7 @@ impl<'a> XFileDeserializeInto<LocalizeEntry, ()> for LocalizeEntryRaw<'a> {
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Debug, Deserialize)]
 pub(crate) struct XGlobalsRaw<'a> {
-    pub name: XString<'a>,
+    pub name: XStringRaw<'a>,
     pub xanim_stream_buffer_size: i32,
     pub cinematic_max_width: i32,
     pub cinematic_max_height: i32,

@@ -6,7 +6,7 @@ use alloc::{
 
 use crate::{
     Error, ErrorKind, FatPointer, FatPointerCountFirstU32, MapEnts, MapEntsRaw, Ptr32, Result,
-    ScriptString, T5XFileDeserialize, XFileDeserializeInto, XString, assert_size,
+    ScriptString, T5XFileDeserialize, XFileDeserializeInto, XStringRaw, assert_size,
     common::{Mat3, Vec3, Vec4},
     file_line_col,
     fx::{FxEffectDef, FxEffectDefRaw},
@@ -24,7 +24,7 @@ use serde::{Deserialize, Serialize};
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
 pub(crate) struct ClipMapRaw<'a> {
-    pub name: XString<'a>,
+    pub name: XStringRaw<'a>,
     pub is_in_use: i32,
     pub planes: FatPointerCountFirstU32<'a, CPlaneRaw>,
     pub static_model_list: FatPointerCountFirstU32<'a, CStaticModelRaw<'a>>,

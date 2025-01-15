@@ -13,13 +13,13 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     Error, ErrorKind, FatPointer, FatPointerCountFirstU32, FatPointerCountLastU32, Ptr32, Result,
-    T5XFileDeserialize, XFileDeserializeInto, XString, assert_size, file_line_col, prelude::*,
+    T5XFileDeserialize, XFileDeserializeInto, XStringRaw, assert_size, file_line_col, prelude::*,
 };
 
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Debug, Deserialize)]
 pub(crate) struct SndBankRaw<'a> {
-    pub name: XString<'a>,
+    pub name: XStringRaw<'a>,
     pub aliases: FatPointerCountFirstU32<'a, SndAliasListRaw<'a>>,
     pub alias_index: Ptr32<'a, SndIndexEntry>,
     pub pack_hash: u32,
@@ -73,7 +73,7 @@ impl<'a> XFileDeserializeInto<SndBank, ()> for SndBankRaw<'a> {
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Debug, Deserialize)]
 pub(crate) struct SndAliasListRaw<'a> {
-    pub name: XString<'a>,
+    pub name: XStringRaw<'a>,
     pub id: u32,
     pub aliases: FatPointerCountLastU32<'a, SndAliasRaw<'a>>,
     pub sequence: i32,
@@ -109,10 +109,10 @@ impl<'a> XFileDeserializeInto<SndAliasList, ()> for SndAliasListRaw<'a> {
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Debug, Deserialize)]
 pub(crate) struct SndAliasRaw<'a> {
-    pub name: XString<'a>,
+    pub name: XStringRaw<'a>,
     pub id: u32,
-    pub subtitle: XString<'a>,
-    pub secondaryname: XString<'a>,
+    pub subtitle: XStringRaw<'a>,
+    pub secondaryname: XStringRaw<'a>,
     pub sound_file: Ptr32<'a, SoundFileRaw<'a>>,
     pub flags: u32,
     pub duck: u32,
@@ -324,7 +324,7 @@ impl<'a> XFileDeserializeInto<SoundFileRef, u8> for SoundFileRefRaw<'a> {
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Debug, Deserialize)]
 pub(crate) struct LoadedSoundRaw<'a> {
-    pub name: XString<'a>,
+    pub name: XStringRaw<'a>,
     pub sound: SndAssetRaw<'a>,
 }
 assert_size!(LoadedSoundRaw, 60);
@@ -469,7 +469,7 @@ impl<'a> XFileDeserializeInto<SndAsset, ()> for SndAssetRaw<'a> {
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Debug, Deserialize)]
 pub(crate) struct StreamedSoundRaw<'a> {
-    pub filename: XString<'a>,
+    pub filename: XStringRaw<'a>,
     pub prime_snd: Ptr32<'a, PrimedSndRaw<'a>>,
 }
 assert_size!(StreamedSoundRaw, 8);
@@ -501,7 +501,7 @@ impl<'a> XFileDeserializeInto<StreamedSound, ()> for StreamedSoundRaw<'a> {
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Debug, Deserialize)]
 pub(crate) struct PrimedSndRaw<'a> {
-    pub name: XString<'a>,
+    pub name: XStringRaw<'a>,
     pub buffer: FatPointerCountLastU32<'a, u8>,
 }
 assert_size!(PrimedSndRaw, 12);
@@ -682,7 +682,7 @@ impl From<SndSnapshotRaw> for SndSnapshot {
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Debug, Deserialize)]
 pub(crate) struct SndPatchRaw<'a> {
-    pub name: XString<'a>,
+    pub name: XStringRaw<'a>,
     pub elements: FatPointerCountFirstU32<'a, u32>,
     pub files: FatPointerCountFirstU32<'a, SoundFileRaw<'a>>,
 }
@@ -718,7 +718,7 @@ impl<'a> XFileDeserializeInto<SndPatch, ()> for SndPatchRaw<'a> {
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
 pub(crate) struct SndDriverGlobalsRaw<'a> {
-    pub name: XString<'a>,
+    pub name: XStringRaw<'a>,
     pub groups: FatPointerCountFirstU32<'a, SndGroupRaw>,
     pub curves: FatPointerCountFirstU32<'a, SndCurveRaw>,
     pub pans: FatPointerCountFirstU32<'a, SndPanRaw>,

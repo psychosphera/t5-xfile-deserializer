@@ -1,6 +1,6 @@
 use crate::{
     FatPointer, FatPointerCountFirstU32, FatPointerCountLastU32, Ptr32, Result, T5XFileDeserialize,
-    XFileDeserializeInto, XString, assert_size,
+    XFileDeserializeInto, XStringRaw, assert_size,
     common::{Mat3, Vec2, Vec3},
     fx::{FxEffectDef, FxEffectDefRaw},
     techset::{Material, MaterialRaw},
@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
 pub(crate) struct GlassesRaw<'a> {
-    name: XString<'a>,
+    name: XStringRaw<'a>,
     glasses: FatPointerCountFirstU32<'a, GlassRaw<'a>>,
     work_memory: FatPointerCountLastU32<'a, u8>,
     small_allocator_blocks: u32,
@@ -143,7 +143,7 @@ impl<'a> XFileDeserializeInto<Glass, ()> for GlassRaw<'a> {
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
 pub(crate) struct GlassDefRaw<'a> {
-    pub name: XString<'a>,
+    pub name: XStringRaw<'a>,
     pub max_health: i32,
     pub thickness: f32,
     pub min_shard_size: f32,
@@ -153,9 +153,9 @@ pub(crate) struct GlassDefRaw<'a> {
     pub pristine_material: Ptr32<'a, MaterialRaw<'a>>,
     pub cracked_material: Ptr32<'a, MaterialRaw<'a>>,
     pub shard_material: Ptr32<'a, MaterialRaw<'a>>,
-    pub crack_sound: XString<'a>,
-    pub shatter_sound: XString<'a>,
-    pub auto_shatter_sound: XString<'a>,
+    pub crack_sound: XStringRaw<'a>,
+    pub shatter_sound: XStringRaw<'a>,
+    pub auto_shatter_sound: XStringRaw<'a>,
     pub crack_effect: Ptr32<'a, FxEffectDefRaw<'a>>,
     pub shatter_effect: Ptr32<'a, FxEffectDefRaw<'a>>,
 }

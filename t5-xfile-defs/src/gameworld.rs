@@ -4,7 +4,7 @@ use alloc::{boxed::Box, string::String, vec::Vec};
 
 use crate::{
     Error, ErrorKind, FatPointer, FatPointerCountFirstU16, FatPointerCountFirstU32, Ptr32, Result,
-    ScriptString, T5XFileDeserialize, XFileDeserializeInto, XString, assert_size,
+    ScriptString, T5XFileDeserialize, XFileDeserializeInto, XStringRaw, assert_size,
     common::{Vec2, Vec3},
     file_line_col,
 };
@@ -16,7 +16,7 @@ use serde::{Deserialize, Serialize};
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Debug, Deserialize)]
 pub(crate) struct GameWorldSpRaw<'a> {
-    pub name: XString<'a>,
+    pub name: XStringRaw<'a>,
     pub path: PathDataRaw<'a>,
 }
 
@@ -43,7 +43,7 @@ impl<'a> XFileDeserializeInto<GameWorldSp, ()> for GameWorldSpRaw<'a> {
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Debug, Deserialize)]
 pub(crate) struct GameWorldMpRaw<'a> {
-    pub name: XString<'a>,
+    pub name: XStringRaw<'a>,
     pub path: PathDataRaw<'a>,
 }
 

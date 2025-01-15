@@ -7,14 +7,14 @@ use serde::{Deserialize, Serialize};
 use crate::prelude::*;
 
 use crate::{
-    FatPointer, Ptr32, Result, ScriptString, T5XFileDeserialize, XFileDeserializeInto, XString,
+    FatPointer, Ptr32, Result, ScriptString, T5XFileDeserialize, XFileDeserializeInto, XStringRaw,
     assert_size, common::Vec3,
 };
 
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Debug, Default, Deserialize)]
 pub(crate) struct XAnimPartsRaw<'a> {
-    pub name: XString<'a>,
+    pub name: XStringRaw<'a>,
     pub data_byte_count: u16,
     pub data_short_count: u16,
     pub data_int_count: u16,

@@ -92,10 +92,10 @@ impl<'de, T: Default + Copy + Deserialize<'de>, const N: usize> Visitor<'de>
 #[repr(transparent)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
-pub struct XString<'a>(Ptr32<'a, u8>);
-assert_size!(XString, 4);
+pub struct XStringRaw<'a>(Ptr32<'a, u8>);
+assert_size!(XStringRaw, 4);
 
-impl<'a> XString<'a> {
+impl<'a> XStringRaw<'a> {
     pub const fn from_u32(value: u32) -> Self {
         Self(Ptr32::from_u32(value))
     }
@@ -104,9 +104,17 @@ impl<'a> XString<'a> {
     pub const fn as_u32(self) -> u32 {
         self.0.as_u32()
     }
+
+    pub fn from_str(s: impl AsRef<str>) -> Self {
+        if s.as_ref().is_empty() {
+            Self::from_u32(0)
+        } else {
+            Self::from_u32(0xFFFFFFFF)
+        }
+    }
 }
 
-impl<'a> XFileDeserializeInto<String, ()> for XString<'a> {
+impl<'a> XFileDeserializeInto<String, ()> for XStringRaw<'a> {
     fn xfile_deserialize_into(
         &self,
         de: &mut impl T5XFileDeserialize,
@@ -120,40 +128,58 @@ impl<'a> XFileDeserializeInto<String, ()> for XString<'a> {
             return Ok(String::new());
         }
 
-        xfile_read_string(de)
+        let mut string_buf = Vec::new();
+
+        loop {
+            let c = de.load_from_xfile::<u8>()?;
+
+            // Localized strings use CP1252 for languages that use the latin alphabet.
+            // `num::is_ascii` returns false for any values > 127, so valid CP1252 characters
+            // have to be manually permitted here.
+            //
+            // FIXME: come up with a more elegant solution
+            if !c.is_ascii() && c != 0xF1 && c != 0xDC && c != 0xAE && c != 0xA9 && c != 0x99 {
+                return Err(Error::new_with_offset(
+                    file_line_col!(),
+                    de.stream_pos()? as _,
+                    ErrorKind::BrokenInvariant(format!(
+                        "XString: c ({c:#02X}) is not valid EASCII",
+                    )),
+                ));
+            }
+
+            string_buf.push(c);
+            if c == b'\0' {
+                break;
+            }
+        }
+
+        //dbg!(xfile.stream_position()?);
+        Ok(CString::from_vec_with_nul(string_buf)
+            .unwrap()
+            .to_string_lossy()
+            .to_string())
     }
 }
 
-pub(crate) fn xfile_read_string(de: &mut impl T5XFileDeserialize) -> Result<String> {
-    let mut string_buf = Vec::new();
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Clone, Debug)]
+#[repr(transparent)]
+pub struct XString(pub String);
 
-    loop {
-        let c = de.load_from_xfile::<u8>()?;
+impl XFileSerialize<()> for XString {
+    fn xfile_serialize(&self, ser: &mut impl T5XFileSerialize, _data: ()) -> Result<()> {
+        let mut bytes = self.0.chars().map(|c| c as u8).collect::<Vec<_>>();
+        bytes.push(b'\0');
 
-        // Localized strings use CP1252 for languages that use the latin alphabet.
-        // `num::is_ascii` returns false for any values > 127, so valid CP1252 characters
-        // have to be manually permitted here.
-        //
-        // FIXME: come up with a more elegant solution
-        if !c.is_ascii() && c != 0xF1 && c != 0xDC && c != 0xAE && c != 0xA9 && c != 0x99 {
-            return Err(Error::new_with_offset(
-                file_line_col!(),
-                de.stream_pos()? as _,
-                ErrorKind::BrokenInvariant(format!("XString: c ({c:#02X}) is not valid EASCII",)),
-            ));
-        }
-
-        string_buf.push(c);
-        if c == b'\0' {
-            break;
-        }
+        ser.store_into_xfile(bytes)
     }
+}
 
-    //dbg!(xfile.stream_position()?);
-    Ok(CString::from_vec_with_nul(string_buf)
-        .unwrap()
-        .to_string_lossy()
-        .to_string())
+impl XString {
+    pub fn get(&self) -> &str {
+        &self.0
+    }
 }
 
 // ============================================================================
@@ -195,22 +221,61 @@ where
 // ============================================================================
 
 // ============================================================================
-pub trait XFileSerialize<T, U: Copy> {
-    fn xfile_serialize(&self, ser: &mut impl T5XFileSerialize, data: U);
+pub trait XFileSerialize<T: Copy> {
+    fn xfile_serialize(&self, ser: &mut impl T5XFileSerialize, data: T) -> Result<()>;
 }
 
-impl<'a, T, U, V, const N: usize> XFileSerialize<[U; N], V> for [T; N]
-where
-    U: Debug + 'a,
-    [U; N]: TryFrom<&'a [U]>,
-    <&'a [U] as TryInto<[U; N]>>::Error: Debug,
-    T: Serialize + Clone + Debug + XFileSerialize<U, V>,
-    V: Copy,
-{
-    fn xfile_serialize(&self, ser: &mut impl T5XFileSerialize, data: V) {
-        for t in self.iter() {
-            t.xfile_serialize(ser, data);
+impl<T: XFileSerialize<U>, U: Copy> XFileSerialize<U> for Option<T> {
+    fn xfile_serialize(&self, ser: &mut impl T5XFileSerialize, data: U) -> Result<()> {
+        if let Some(t) = self {
+            t.xfile_serialize(ser, data)
+        } else {
+            Ok(())
         }
+    }
+}
+
+impl<T: XFileSerialize<U>, U: Copy> XFileSerialize<U> for Box<T> {
+    fn xfile_serialize(&self, ser: &mut impl T5XFileSerialize, data: U) -> Result<()> {
+        (**self).xfile_serialize(ser, data)
+    }
+}
+
+impl<T: XFileSerialize<U>, U: Copy> XFileSerialize<U> for Vec<T> {
+    fn xfile_serialize(&self, ser: &mut impl T5XFileSerialize, data: U) -> Result<()> {
+        for t in self {
+            t.xfile_serialize(ser, data)?;
+        }
+
+        Ok(())
+    }
+}
+
+macro_rules! impl_xfile_serialize {
+    ($($t:ty,)+) => {
+        $(
+            impl XFileSerialize<()> for $t {
+                fn xfile_serialize(&self, ser: &mut impl T5XFileSerialize, _data: ()) -> Result<()> {
+                    ser.store_into_xfile(*self)
+                }
+            }
+        )+
+    }
+}
+
+impl_xfile_serialize!(bool, u8, i8, u16, i16, u32, i32, usize, isize, f32, f64,);
+
+impl<T, U, const N: usize> XFileSerialize<U> for [T; N]
+where
+    T: Serialize + Clone + Debug + XFileSerialize<U>,
+    U: Copy,
+{
+    fn xfile_serialize(&self, ser: &mut impl T5XFileSerialize, data: U) -> Result<()> {
+        for t in self.iter() {
+            t.xfile_serialize(ser, data)?;
+        }
+
+        Ok(())
     }
 }
 // ============================================================================
@@ -282,6 +347,22 @@ impl<'a, T> Ptr32<'a, T> {
 
     pub const fn cast<U>(self) -> Ptr32<'a, U> {
         Ptr32::<'a, U>(self.0, PhantomData)
+    }
+
+    pub const fn from_box<U>(b: &Option<Box<T>>) -> Ptr32<'a, U> {
+        if b.is_some() {
+            Ptr32::<'a, U>::unreal()
+        } else {
+            Ptr32::<'a, U>::null()
+        }
+    }
+
+    pub const fn from_slice<U>(s: &[T]) -> Ptr32<'a, U> {
+        if s.is_empty() {
+            Ptr32::<'a, U>::null()
+        } else {
+            Ptr32::<'a, U>::unreal()
+        }
     }
 
     pub const fn to_array(self, size: usize) -> Ptr32Array<'a, T> {

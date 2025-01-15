@@ -10,7 +10,7 @@ use alloc::{
 
 use crate::{
     FatPointer, FatPointerCountFirstU32, FatPointerCountLastU8, FatPointerCountLastU32, Ptr32,
-    Result, T5XFileDeserialize, XFileDeserializeInto, XString, assert_size,
+    Result, T5XFileDeserialize, XFileDeserializeInto, XStringRaw, assert_size,
     common::{GfxVertexBuffer, Mat3, Mat4, Vec2, Vec3, Vec4},
     light::{GfxLightDef, GfxLightDefRaw},
     techset::{
@@ -27,8 +27,8 @@ use windows::Win32::Graphics::Direct3D9::{D3DPOOL_DEFAULT, IDirect3DVertexBuffer
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Debug, Deserialize)]
 pub(crate) struct GfxWorldRaw<'a, const MAX_LOCAL_CLIENTS: usize> {
-    pub name: XString<'a>,
-    pub base_name: XString<'a>,
+    pub name: XStringRaw<'a>,
+    pub base_name: XStringRaw<'a>,
     pub plane_count: i32,
     pub node_count: i32,
     pub surface_count: i32,
@@ -38,7 +38,7 @@ pub(crate) struct GfxWorldRaw<'a, const MAX_LOCAL_CLIENTS: usize> {
     pub sky_sampler_state: u8,
     #[allow(dead_code)]
     pad: [u8; 3],
-    pub sky_box_model: XString<'a>,
+    pub sky_box_model: XStringRaw<'a>,
     pub sun_parse: SunLightParseParamsRaw<MAX_LOCAL_CLIENTS>,
     pub sun_light: Ptr32<'a, GfxLightRaw<'a>>,
     pub sun_color_from_bsp: [f32; 3],

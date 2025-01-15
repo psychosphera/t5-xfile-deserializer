@@ -11,7 +11,7 @@ use crate::prelude::*;
 
 use crate::{
     Error, ErrorKind, FatPointerCountFirstU32, FatPointerCountLastU32, Ptr32, Result,
-    T5XFileDeserialize, XFileDeserializeInto, XString, assert_size,
+    T5XFileDeserialize, XFileDeserializeInto, XStringRaw, assert_size,
     common::Vec4,
     file_line_col,
     techset::{Material, MaterialRaw},
@@ -20,7 +20,7 @@ use crate::{
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
 pub(crate) struct MenuListRaw<'a, const MAX_LOCAL_CLIENTS: usize> {
-    pub name: XString<'a>,
+    pub name: XStringRaw<'a>,
     pub menus: FatPointerCountFirstU32<'a, Ptr32<'a, MenuDefRaw<'a, MAX_LOCAL_CLIENTS>>>,
 }
 assert_size!(MenuListRaw<1>, 12);
@@ -61,7 +61,7 @@ impl<'a, const MAX_LOCAL_CLIENTS: usize> XFileDeserializeInto<MenuList<MAX_LOCAL
 #[derive(Copy, Clone, Debug, Deserialize)]
 pub(crate) struct MenuDefRaw<'a, const MAX_LOCAL_CLIENTS: usize> {
     pub window: WindowDefRaw<'a, MAX_LOCAL_CLIENTS>,
-    pub font: XString<'a>,
+    pub font: XStringRaw<'a>,
     pub full_screen: i32,
     pub ui_3d_window_id: i32,
     pub item_count: i32,
@@ -90,8 +90,8 @@ pub(crate) struct MenuDefRaw<'a, const MAX_LOCAL_CLIENTS: usize> {
     pad: [u8; 4],
     pub show_bits: u64,
     pub hide_bits: u64,
-    pub allowed_binding: XString<'a>,
-    pub sound_name: XString<'a>,
+    pub allowed_binding: XStringRaw<'a>,
+    pub sound_name: XStringRaw<'a>,
     pub image_track: i32,
     pub control: i32,
     pub focus_color: [f32; 4],
@@ -108,7 +108,7 @@ impl<'a, const MAX_LOCAL_CLIENTS: usize> Default for MenuDefRaw<'a, MAX_LOCAL_CL
     fn default() -> Self {
         Self {
             window: WindowDefRaw::default(),
-            font: XString::default(),
+            font: XStringRaw::default(),
             full_screen: i32::default(),
             ui_3d_window_id: i32::default(),
             item_count: i32::default(),
@@ -135,8 +135,8 @@ impl<'a, const MAX_LOCAL_CLIENTS: usize> Default for MenuDefRaw<'a, MAX_LOCAL_CL
             pad: [u8::default(); 4],
             show_bits: u64::default(),
             hide_bits: u64::default(),
-            allowed_binding: XString::default(),
-            sound_name: XString::default(),
+            allowed_binding: XStringRaw::default(),
+            sound_name: XStringRaw::default(),
             image_track: i32::default(),
             control: i32::default(),
             focus_color: [f32::default(); 4],
@@ -285,10 +285,10 @@ impl<'a, const MAX_LOCAL_CLIENTS: usize> XFileDeserializeInto<MenuDef<MAX_LOCAL_
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Debug, Deserialize)]
 pub(crate) struct WindowDefRaw<'a, const MAX_LOCAL_CLIENTS: usize> {
-    pub name: XString<'a>,
+    pub name: XStringRaw<'a>,
     pub rect: RectDefRaw,
     pub rect_client: RectDefRaw,
-    pub group: XString<'a>,
+    pub group: XStringRaw<'a>,
     pub style: u8,
     pub border: u8,
     pub modal: u8,
@@ -314,10 +314,10 @@ assert_size!(WindowDefRaw<1>, 164);
 impl<'a, const MAX_LOCAL_CLIENTS: usize> Default for WindowDefRaw<'a, MAX_LOCAL_CLIENTS> {
     fn default() -> Self {
         Self {
-            name: XString::default(),
+            name: XStringRaw::default(),
             rect: RectDefRaw::default(),
             rect_client: RectDefRaw::default(),
-            group: XString::default(),
+            group: XStringRaw::default(),
             style: u8::default(),
             border: u8::default(),
             modal: u8::default(),
@@ -460,7 +460,7 @@ impl Into<RectDef> for RectDefRaw {
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
 pub(crate) struct GenericEventHandlerRaw<'a> {
-    pub name: XString<'a>,
+    pub name: XStringRaw<'a>,
     pub event_script: Ptr32<'a, GenericEventScriptRaw<'a>>,
     pub next: Ptr32<'a, GenericEventHandlerRaw<'a>>,
 }
@@ -504,7 +504,7 @@ pub(crate) struct GenericEventScriptRaw<'a> {
     pub type_: i32,
     pub fire_on_true: bool,
     pad: [u8; 3],
-    pub action: XString<'a>,
+    pub action: XStringRaw<'a>,
     pub block_id: i32,
     pub construct_id: i32,
     pub next: Ptr32<'a, GenericEventScriptRaw<'a>>,
@@ -596,7 +596,7 @@ impl<'a> XFileDeserializeInto<ScriptCondition, ()> for ScriptConditionRaw<'a> {
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
 pub(crate) struct ExpressionStatementRaw<'a> {
-    pub filename: XString<'a>,
+    pub filename: XStringRaw<'a>,
     pub line: i32,
     pub rpn: FatPointerCountFirstU32<'a, ExpressionRpnRaw>,
 }
@@ -742,7 +742,7 @@ impl XFileDeserializeInto<OperandInternalDataUnion, ExpDataType> for OperandInte
             ExpDataType::INT => OperandInternalDataUnion::Int(self.0 as _),
             ExpDataType::FLOAT => OperandInternalDataUnion::Float(f32::from_bits(self.0)),
             ExpDataType::STRING => OperandInternalDataUnion::String(
-                XString::from_u32(self.0).xfile_deserialize_into(de, ())?,
+                XStringRaw::from_u32(self.0).xfile_deserialize_into(de, ())?,
             ),
         })
     }
@@ -792,9 +792,9 @@ pub(crate) struct ItemDefRaw<'a, const MAX_LOCAL_CLIENTS: usize> {
     pub type_: i32,
     pub data_type: i32,
     pub image_track: i32,
-    pub dvar: XString<'a>,
-    pub dvar_text: XString<'a>,
-    pub enable_dvar: XString<'a>,
+    pub dvar: XStringRaw<'a>,
+    pub dvar_text: XStringRaw<'a>,
+    pub enable_dvar: XStringRaw<'a>,
     pub dvar_flags: i32,
     pub type_data: ItemDefDataRaw<'a, MAX_LOCAL_CLIENTS>,
     pub parent: Ptr32<'a, MenuDefRaw<'a, MAX_LOCAL_CLIENTS>>,
@@ -983,7 +983,7 @@ pub(crate) struct TextDefRaw<'a, const MAX_LOCAL_CLIENTS: usize> {
     pub textaligny: f32,
     pub textscale: f32,
     pub text_style: i32,
-    pub text: XString<'a>,
+    pub text: XStringRaw<'a>,
     pub text_exp_data: Ptr32<'a, TextExpRaw<'a>>,
     pub text_type_data: TextDefDataRaw<'a, MAX_LOCAL_CLIENTS>,
 }
@@ -1001,7 +1001,7 @@ impl<'a, const MAX_LOCAL_CLIENTS: usize> Default for TextDefRaw<'a, MAX_LOCAL_CL
             textaligny: f32::default(),
             textscale: f32::default(),
             text_style: i32::default(),
-            text: XString::default(),
+            text: XStringRaw::default(),
             text_exp_data: Ptr32::default(),
             text_type_data: TextDefDataRaw::default(),
         }
@@ -1136,10 +1136,10 @@ impl<'a, const MAX_LOCAL_CLIENTS: usize>
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
 pub(crate) struct FocusItemDefRaw<'a, const MAX_LOCAL_CLIENTS: usize> {
-    pub mouse_enter_text: XString<'a>,
-    pub mouse_exit_text: XString<'a>,
-    pub mouse_enter: XString<'a>,
-    pub mouse_exit: XString<'a>,
+    pub mouse_enter_text: XStringRaw<'a>,
+    pub mouse_exit_text: XStringRaw<'a>,
+    pub mouse_enter: XStringRaw<'a>,
+    pub mouse_exit: XStringRaw<'a>,
     pub on_key: Ptr32<'a, ItemKeyHandlerRaw<'a>>,
     pub focus_type_data: FocusDefDataRaw<'a, MAX_LOCAL_CLIENTS>,
 }
@@ -1437,8 +1437,8 @@ impl Into<ColumnInfo> for ColumnInfoRaw {
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
 pub(crate) struct MenuRowRaw<'a> {
     pub cells: Ptr32<'a, MenuCellRaw<'a>>,
-    pub event_name: XString<'a>,
-    pub on_focus_event_name: XString<'a>,
+    pub event_name: XStringRaw<'a>,
+    pub on_focus_event_name: XStringRaw<'a>,
     pub disable_arg: bool,
     pad: [u8; 3],
     pub status: i32,
@@ -1486,7 +1486,7 @@ impl<'a> XFileDeserializeInto<MenuRow, i32> for MenuRowRaw<'a> {
 pub(crate) struct MenuCellRaw<'a> {
     pub type_: i32,
     pub max_chars: i32,
-    pub string_value: XString<'a>,
+    pub string_value: XStringRaw<'a>,
 }
 assert_size!(MenuCellRaw, 12);
 
@@ -1517,8 +1517,8 @@ impl<'a> XFileDeserializeInto<MenuCell, ()> for MenuCellRaw<'a> {
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
 pub(crate) struct MultiDefRaw<'a> {
-    pub dvar_list: [XString<'a>; 32],
-    pub dvar_str: [XString<'a>; 32],
+    pub dvar_list: [XStringRaw<'a>; 32],
+    pub dvar_str: [XStringRaw<'a>; 32],
     pub dvar_value: [f32; 32],
     pub count: i32,
     pub action_on_press_enter_only: i32,
@@ -1605,7 +1605,7 @@ impl<const MAX_LOCAL_CLIENTS: usize> Default for EditFieldDef<MAX_LOCAL_CLIENTS>
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
 pub(crate) struct EnumDvarDefRaw<'a> {
-    pub enum_dvar_name: XString<'a>,
+    pub enum_dvar_name: XStringRaw<'a>,
 }
 assert_size!(EnumDvarDefRaw, 4);
 
@@ -1777,7 +1777,7 @@ impl<'a> XFileDeserializeInto<UIAnimInfo, ()> for UIAnimInfoRaw<'a> {
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
 pub(crate) struct AnimParamsDefRaw<'a> {
-    pub name: XString<'a>,
+    pub name: XStringRaw<'a>,
     pub rect_client: RectDefRaw,
     pub border_size: f32,
     pub fore_color: [f32; 4],

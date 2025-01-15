@@ -1,6 +1,6 @@
 use crate::{
     FatPointer, FatPointerCountFirstU32, Ptr32, Result, T5XFileDeserialize, XFileDeserializeInto,
-    XString, assert_size,
+    XStringRaw, assert_size,
     techset::{GfxImage, GfxImageRaw, Material, MaterialRaw},
 };
 
@@ -64,8 +64,8 @@ assert_size!(EmblemLayer, 12);
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
 pub(crate) struct EmblemCategoryRaw<'a> {
-    pub name: XString<'a>,
-    pub description: XString<'a>,
+    pub name: XStringRaw<'a>,
+    pub description: XStringRaw<'a>,
 }
 assert_size!(EmblemCategoryRaw, 8);
 
@@ -93,7 +93,7 @@ impl<'a> XFileDeserializeInto<EmblemCategory, ()> for EmblemCategoryRaw<'a> {
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
 pub(crate) struct EmblemIconRaw<'a> {
     pub image: Ptr32<'a, GfxImageRaw<'a>>,
-    pub description: XString<'a>,
+    pub description: XStringRaw<'a>,
     pub outline_size: f32,
     pub default_color: i32,
     pub cost: i32,
@@ -148,7 +148,7 @@ impl<'a> XFileDeserializeInto<EmblemIcon, ()> for EmblemIconRaw<'a> {
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
 pub(crate) struct EmblemBackgroundRaw<'a> {
     pub material: Ptr32<'a, MaterialRaw<'a>>,
-    pub description: XString<'a>,
+    pub description: XStringRaw<'a>,
     pub cost: i32,
     pub unlock_level: i32,
     pub unlock_plevel: i32,

@@ -7,8 +7,8 @@ use crate::prelude::*;
 
 use crate::{
     Error, ErrorKind, FatPointer, FatPointerCountLastU32, FlexibleArray, FlexibleArrayU16,
-    FlexibleArrayU32, Ptr32, Result, T5XFileDeserialize, XFileDeserializeInto, XString,
-    assert_size,
+    FlexibleArrayU32, Ptr32, Result, T5XFileDeserialize, T5XFileSerialize, XFileDeserializeInto,
+    XFileSerialize, XStringRaw, assert_size,
     common::{GfxCubeTexture, GfxPixelShader, GfxVertexShader, GfxVolumeTexture, Vec2, Vec4},
     file_line_col,
 };
@@ -21,7 +21,7 @@ const MAX_TECHNIQUES: usize = 130;
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Debug, Deserialize)]
 pub(crate) struct MaterialTechniqueSetRaw<'a> {
-    pub name: XString<'a>,
+    pub name: XStringRaw<'a>,
     pub world_vert_format: u8,
     #[allow(dead_code)]
     unused: u8,
@@ -34,7 +34,7 @@ assert_size!(MaterialTechniqueSetRaw, 528);
 impl<'a> Default for MaterialTechniqueSetRaw<'a> {
     fn default() -> Self {
         MaterialTechniqueSetRaw {
-            name: XString::default(),
+            name: XStringRaw::default(),
             world_vert_format: u8::default(),
             unused: u8::default(),
             techset_flags: u16::default(),
@@ -84,7 +84,7 @@ impl<'a> XFileDeserializeInto<MaterialTechniqueSet, ()> for MaterialTechniqueSet
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
 pub(crate) struct MaterialTechniqueRaw<'a> {
-    pub name: XString<'a>,
+    pub name: XStringRaw<'a>,
     pub flags: u16,
     pub passes: FlexibleArrayU16<MaterialPassRaw<'a>>,
 }
@@ -236,7 +236,7 @@ assert_size!(MaterialStreamRouting, 2);
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
 pub(crate) struct MaterialVertexShaderRaw<'a> {
-    pub name: XString<'a>,
+    pub name: XStringRaw<'a>,
     pub prog: MaterialVertexShaderProgramRaw<'a>,
 }
 assert_size!(MaterialVertexShaderRaw, 16);
@@ -369,7 +369,7 @@ impl<'a> XFileDeserializeInto<GfxVertexShaderLoadDef, ()> for GfxVertexShaderLoa
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
 pub(crate) struct MaterialPixelShaderRaw<'a> {
-    pub name: XString<'a>,
+    pub name: XStringRaw<'a>,
     pub prog: MaterialPixelShaderProgramRaw<'a>,
 }
 assert_size!(MaterialPixelShaderRaw, 16);
@@ -717,10 +717,16 @@ impl<'a> XFileDeserializeInto<Material, ()> for MaterialRaw<'a> {
     }
 }
 
+impl XFileSerialize<()> for Material {
+    fn xfile_serialize(&self, _ser: &mut impl T5XFileSerialize, _data: ()) -> Result<()> {
+        todo!()
+    }
+}
+
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
 pub(crate) struct MaterialInfoRaw<'a> {
-    pub name: XString<'a>,
+    pub name: XStringRaw<'a>,
     pub game_flags: u32,
     #[allow(dead_code)]
     pad: u8,
@@ -1008,7 +1014,7 @@ pub(crate) struct GfxImageRaw<'a> {
     pub loaded_size: u32,
     pub skipped_mip_levels: u8,
     pad: [u8; 3],
-    pub name: XString<'a>,
+    pub name: XStringRaw<'a>,
     pub hash: u32,
 }
 assert_size!(GfxImageRaw, 52);

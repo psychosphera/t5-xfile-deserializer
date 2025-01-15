@@ -65,7 +65,7 @@ impl<'a> T5XFileSerializer {
         assets: impl Iterator<Item = XAsset>,
     ) -> Result<()> {
         for asset in assets {
-            asset.xfile_serialize(self, ());
+            asset.xfile_serialize(self, ())?;
             self.serialized_assets += 1;
         }
 
@@ -175,5 +175,17 @@ impl T5XFileSerialize for T5XFileSerializer {
                 Ok(None)
             }
         }
+    }
+
+    fn script_strings(&self) -> Vec<&str> {
+        self.script_strings.iter().map(String::as_str).collect()
+    }
+
+    fn asset_count(&self) -> usize {
+        self.serialized_assets
+    }
+
+    fn asset_bytes(&self) -> Option<&[u8]> {
+        self.asset_bytes.as_ref().map(|a| &**a.get_ref())
     }
 }

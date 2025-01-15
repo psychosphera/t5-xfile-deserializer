@@ -5,14 +5,14 @@ use serde::{Deserialize, Serialize};
 use crate::prelude::*;
 
 use crate::{
-    Ptr32, Result, T5XFileDeserialize, XFileDeserializeInto, XString, assert_size,
+    Ptr32, Result, T5XFileDeserialize, XFileDeserializeInto, XStringRaw, assert_size,
     techset::{GfxImage, GfxImageRaw},
 };
 
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Debug, Deserialize)]
 pub(crate) struct GfxLightDefRaw<'a> {
-    pub name: XString<'a>,
+    pub name: XStringRaw<'a>,
     pub attenuation: GfxLightImageRaw<'a>,
     pub lmap_lookup_start: i32,
 }

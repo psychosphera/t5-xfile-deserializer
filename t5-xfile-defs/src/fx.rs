@@ -5,7 +5,7 @@ use crate::prelude::*;
 
 use crate::{
     Error, ErrorKind, FatPointer, FatPointerCountFirstU32, Ptr32, Ptr32ArrayConst, Result,
-    T5XFileDeserialize, XFileDeserializeInto, XString, assert_size,
+    T5XFileDeserialize, XFileDeserializeInto, XStringRaw, assert_size,
     common::{Vec2, Vec3, Vec4},
     file_line_col,
     techset::{Material, MaterialRaw},
@@ -19,7 +19,7 @@ use serde::{Deserialize, Serialize};
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Debug, Deserialize)]
 pub(crate) struct FxEffectDefRaw<'a> {
-    pub name: XString<'a>,
+    pub name: XStringRaw<'a>,
     pub flags: u8,
     pub ef_priority: u8,
     #[allow(dead_code)]
@@ -378,7 +378,7 @@ impl<'a> XFileDeserializeInto<FxEffectDefRef, ()> for FxEffectDefRefRaw<'a> {
     ) -> Result<FxEffectDefRef> {
         //dbg!(self);
 
-        let name = XString::from_u32(self.0.as_u32()).xfile_deserialize_into(de, ())?;
+        let name = XStringRaw::from_u32(self.0.as_u32()).xfile_deserialize_into(de, ())?;
         //dbg!(&name);
 
         Ok(FxEffectDefRef::Name(name))
@@ -504,7 +504,7 @@ impl<'a> XFileDeserializeInto<Option<FxElemVisuals>, u8> for FxElemVisualsRaw<'a
                 .xfile_deserialize_into(de, ())?;
             Ok(effect_def.map(|e| FxElemVisuals::EffectDef(*e)))
         } else if elem_type == FxElemType::SOUND as _ {
-            let sound = XString::from_u32(self.0.as_u32()).xfile_deserialize_into(de, ())?;
+            let sound = XStringRaw::from_u32(self.0.as_u32()).xfile_deserialize_into(de, ())?;
             //dbg!(&sound);
             Ok(Some(FxElemVisuals::SoundName(sound)))
         } else if elem_type != FxElemType::OMNI_LIGHT as _
@@ -700,7 +700,7 @@ impl From<FxTrailVertexRaw> for FxTrailVertex {
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Debug, Deserialize)]
 pub(crate) struct FxElemSpawnSoundRaw<'a> {
-    pub spawn_sound: XString<'a>,
+    pub spawn_sound: XStringRaw<'a>,
 }
 assert_size!(FxElemSpawnSoundRaw, 4);
 
@@ -728,7 +728,7 @@ impl<'a> XFileDeserializeInto<FxElemSpawnSound, ()> for FxElemSpawnSoundRaw<'a> 
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Debug, Deserialize)]
 pub(crate) struct FxImpactTableRaw<'a> {
-    pub name: XString<'a>,
+    pub name: XStringRaw<'a>,
     pub table: Ptr32ArrayConst<'a, FxImpactEntryRaw<'a>, 21>,
 }
 

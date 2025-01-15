@@ -2,7 +2,7 @@ use alloc::{boxed::Box, string::String, vec::Vec};
 
 use crate::{
     FatPointerCountFirstU32, Ptr32, Result, ScriptString, T5XFileDeserialize, XFileDeserializeInto,
-    XString, assert_size,
+    XStringRaw, assert_size,
     fx::{FxEffectDef, FxEffectDefRaw},
     xmodel::{PhysConstraints, PhysConstraintsRaw, PhysPreset, PhysPresetRaw, XModel, XModelRaw},
 };
@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Clone, Debug, Deserialize)]
 pub(crate) struct DestructibleDefRaw<'a> {
-    pub name: XString<'a>,
+    pub name: XStringRaw<'a>,
     pub model: Ptr32<'a, XModelRaw<'a>>,
     pub pristine_model: Ptr32<'a, XModelRaw<'a>>,
     pub pieces: FatPointerCountFirstU32<'a, DestructiblePieceRaw<'a>>,
@@ -61,9 +61,9 @@ pub(crate) struct DestructiblePieceRaw<'a> {
     pub entity_damage_transfer: f32,
     pub phys_constraints: Ptr32<'a, PhysConstraintsRaw<'a>>,
     pub health: i32,
-    pub damage_sound: XString<'a>,
+    pub damage_sound: XStringRaw<'a>,
     pub burn_effect: Ptr32<'a, FxEffectDefRaw<'a>>,
-    pub burn_sound: XString<'a>,
+    pub burn_sound: XStringRaw<'a>,
     pub enable_label: u16,
     #[allow(dead_code)]
     unused_2: [u8; 2],
@@ -131,9 +131,9 @@ pub(crate) struct DestructibleStageRaw<'a> {
     pub max_time: f32,
     pub flags: u32,
     pub break_effect: Ptr32<'a, FxEffectDefRaw<'a>>,
-    pub break_sound: XString<'a>,
-    pub break_notify: XString<'a>,
-    pub loop_sound: XString<'a>,
+    pub break_sound: XStringRaw<'a>,
+    pub break_notify: XStringRaw<'a>,
+    pub loop_sound: XStringRaw<'a>,
     pub spawn_model: [Ptr32<'a, XModelRaw<'a>>; 3],
     pub phys_preset: Ptr32<'a, PhysPresetRaw<'a>>,
 }

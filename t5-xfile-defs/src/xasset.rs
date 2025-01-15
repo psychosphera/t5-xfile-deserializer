@@ -9,7 +9,7 @@ use crate::{
     Error, ErrorKind, FatPointerCountFirstU32, LocalizeEntry, LocalizeEntryRaw, MapEnts,
     MapEntsRaw, PackIndex, PackIndexRaw, Ptr32, RawFile, RawFileRaw, Result, StringTable,
     StringTableRaw, T5XFileDeserialize, T5XFileSerialize, XFileDeserializeInto, XFilePlatform,
-    XFileSerialize, XGlobals, XGlobalsRaw, XString, assert_size,
+    XFileSerialize, XGlobals, XGlobalsRaw, XStringRaw, assert_size,
     clipmap::{ClipMap, ClipMapRaw},
     com_world::{ComWorld, ComWorldRaw},
     ddl::{DdlRoot, DdlRootRaw},
@@ -37,6 +37,15 @@ use crate::{
 pub enum XAsset {
     PC(XAssetGeneric<1>),
     Console(XAssetGeneric<4>),
+}
+
+impl XFileSerialize<()> for XAsset {
+    fn xfile_serialize(&self, ser: &mut impl T5XFileSerialize, _data: ()) -> Result<()> {
+        match self {
+            Self::PC(a) => a.xfile_serialize(ser, ()),
+            Self::Console(a) => a.xfile_serialize(ser, ()),
+        }
+    }
 }
 
 impl XAsset {
@@ -77,6 +86,13 @@ impl XAsset {
 
     pub fn is_console(&self) -> bool {
         !self.is_pc()
+    }
+
+    pub fn asset_type(&self) -> XAssetType {
+        match self {
+            Self::PC(a) => a.asset_type(),
+            Self::Console(a) => a.asset_type(),
+        }
     }
 }
 
@@ -181,7 +197,7 @@ impl<const MAX_LOCAL_CLIENTS: usize> XAssetGeneric<MAX_LOCAL_CLIENTS> {
             Self::MapEnts(p) => p.as_ref().map(|p| p.name.as_str()),
             Self::GfxWorld(p) => p.as_ref().map(|p| p.name.as_str()),
             Self::LightDef(p) => p.as_ref().map(|p| p.name.as_str()),
-            Self::Font(p) => p.as_ref().map(|p| p.font_name.as_str()),
+            Self::Font(p) => p.as_ref().map(|p| p.font_name.get()),
             Self::MenuList(p) => p.as_ref().map(|p| p.name.as_str()),
             Self::Menu(p) => p.as_ref().map(|p| p.window.name.as_str()),
             Self::LocalizeEntry(p) => p.as_ref().map(|p| p.name.as_str()),
@@ -189,8 +205,8 @@ impl<const MAX_LOCAL_CLIENTS: usize> XAssetGeneric<MAX_LOCAL_CLIENTS> {
             Self::SndDriverGlobals(p) => p.as_ref().map(|p| p.name.as_str()),
             Self::Fx(p) => p.as_ref().map(|p| p.name.as_str()),
             Self::ImpactFx(p) => p.as_ref().map(|p| p.name.as_str()),
-            Self::RawFile(p) => p.as_ref().map(|p| p.name.as_str()),
-            Self::StringTable(p) => p.as_ref().map(|p| p.name.as_str()),
+            Self::RawFile(p) => p.as_ref().map(|p| p.name.get()),
+            Self::StringTable(p) => p.as_ref().map(|p| p.name.get()),
             Self::PackIndex(p) => p.as_ref().map(|p| p.name.as_str()),
             Self::XGlobals(p) => p.as_ref().map(|p| p.name.as_str()),
             Self::Ddl(p) => p.as_ref().map(|p| p.name.as_str()),
@@ -198,12 +214,50 @@ impl<const MAX_LOCAL_CLIENTS: usize> XAssetGeneric<MAX_LOCAL_CLIENTS> {
             Self::EmblemSet(_) => Some("emblemset"),
         }
     }
+
+    pub fn asset_type(&self) -> XAssetType {
+        match *self {
+            Self::PhysPreset(_) => XAssetType::PHYSPRESET,
+            Self::PhysConstraints(_) => XAssetType::PHYSCONSTRAINTS,
+            Self::DestructibleDef(_) => XAssetType::DESTRUCTIBLEDEF,
+            Self::XAnimParts(_) => XAssetType::XANIMPARTS,
+            Self::XModel(_) => XAssetType::XMODEL,
+            Self::Material(_) => XAssetType::MATERIAL,
+            Self::TechniqueSet(_) => XAssetType::TECHNIQUE_SET,
+            Self::Image(_) => XAssetType::IMAGE,
+            Self::Sound(_) => XAssetType::SOUND,
+            Self::SoundPatch(_) => XAssetType::SOUND,
+            Self::ClipMap(_) => XAssetType::CLIPMAP,
+            Self::ClipMapPVS(_) => XAssetType::CLIPMAP_PVS,
+            Self::ComWorld(_) => XAssetType::COMWORLD,
+            Self::GameWorldSp(_) => XAssetType::GAMEWORLD_SP,
+            Self::GameWorldMp(_) => XAssetType::GAMEWORLD_MP,
+            Self::MapEnts(_) => XAssetType::MAP_ENTS,
+            Self::GfxWorld(_) => XAssetType::GFXWORLD,
+            Self::LightDef(_) => XAssetType::LIGHT_DEF,
+            Self::Font(_) => XAssetType::FONT,
+            Self::MenuList(_) => XAssetType::MENULIST,
+            Self::Menu(_) => XAssetType::MENU,
+            Self::LocalizeEntry(_) => XAssetType::LOCALIZE_ENTRY,
+            Self::Weapon(_) => XAssetType::WEAPON,
+            Self::SndDriverGlobals(_) => XAssetType::SNDDRIVER_GLOBALS,
+            Self::Fx(_) => XAssetType::FX,
+            Self::ImpactFx(_) => XAssetType::IMPACT_FX,
+            Self::RawFile(_) => XAssetType::RAWFILE,
+            Self::StringTable(_) => XAssetType::STRINGTABLE,
+            Self::PackIndex(_) => XAssetType::PACKINDEX,
+            Self::XGlobals(_) => XAssetType::XGLOBALS,
+            Self::Ddl(_) => XAssetType::DDL,
+            Self::Glasses(_) => XAssetType::GLASSES,
+            Self::EmblemSet(_) => XAssetType::EMBLEMSET,
+        }
+    }
 }
 
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
 pub struct XAssetListRaw<'a> {
-    pub strings: FatPointerCountFirstU32<'a, XString<'a>>,
+    pub strings: FatPointerCountFirstU32<'a, XStringRaw<'a>>,
     pub assets: FatPointerCountFirstU32<'a, XAssetRaw<'a>>,
 }
 assert_size!(XAssetListRaw, 16);
@@ -222,9 +276,34 @@ pub struct XAssetRaw<'a> {
 }
 assert_size!(XAssetRaw, 8);
 
-impl<'a> XFileSerialize<XAssetListRaw<'a>, ()> for XAssetList {
-    fn xfile_serialize(&self, _ser: &mut impl T5XFileSerialize, _data: ()) {
-        todo!()
+impl<'a> XFileSerialize<()> for XAssetList {
+    fn xfile_serialize(&self, ser: &mut impl T5XFileSerialize, _data: ()) -> Result<()> {
+        let script_strings = ser.script_strings();
+
+        let asset_list = XAssetListRaw {
+            strings: FatPointerCountFirstU32 {
+                size: script_strings.len() as _,
+                p: Ptr32::unreal(),
+            },
+            assets: FatPointerCountFirstU32 {
+                size: ser.asset_count() as _,
+                p: Ptr32::unreal(),
+            },
+        };
+
+        let mut script_string_bytes = Vec::new();
+        for string in script_strings.iter() {
+            for c in string.chars() {
+                script_string_bytes.push(c as u8);
+            }
+            script_string_bytes.push(b'\0');
+        }
+
+        let asset_bytes = ser.asset_bytes().map(|a| a.to_vec()).unwrap_or_default();
+
+        ser.store_into_xfile(asset_list)?;
+        ser.store_into_xfile(script_string_bytes)?;
+        ser.store_into_xfile(asset_bytes)
     }
 }
 
@@ -475,8 +554,70 @@ impl<'a, const MAX_LOCAL_CLIENTS: usize> XFileDeserializeInto<XAssetGeneric<MAX_
     }
 }
 
-impl<'a> XFileSerialize<XAssetRaw<'a>, ()> for XAsset {
-    fn xfile_serialize(&self, _ser: &mut impl T5XFileSerialize, _data: ()) {
-        todo!()
+impl<'a, const MAX_LOCAL_CLIENTS: usize> XFileSerialize<()> for XAssetGeneric<MAX_LOCAL_CLIENTS> {
+    fn xfile_serialize(&self, ser: &mut impl T5XFileSerialize, _data: ()) -> Result<()> {
+        let asset_type = self.asset_type() as _;
+        let asset_data = Ptr32::unreal();
+
+        let asset = XAssetRaw {
+            asset_type,
+            asset_data,
+        };
+
+        ser.store_into_xfile(asset)?;
+        match self {
+            // Self::PhysPreset(p) => if let Some(p) = p { p.xfile_serialize(ser, ()) } else { Ok(()) },
+            // Self::PhysConstraints(p) => if let Some(p) = p { p.xfile_serialize(ser, ()) } else { Ok(()) },
+            // Self::DestructibleDef(p) => if let Some(p) = p { p.xfile_serialize(ser, ()) } else { Ok(()) },
+            // Self::XAnimParts(p) => if let Some(p) = p { p.xfile_serialize(ser, ()) } else { Ok(()) },
+            // Self::XModel(p) => if let Some(p) = p { p.xfile_serialize(ser, ()) } else { Ok(()) },
+            // Self::Material(p) => if let Some(p) = p { p.xfile_serialize(ser, ()) } else { Ok(()) },
+            // Self::TechniqueSet(p) => if let Some(p) = p { p.xfile_serialize(ser, ()) } else { Ok(()) },
+            // Self::Image(p) => if let Some(p) = p { p.xfile_serialize(ser, ()) } else { Ok(()) },
+            // Self::Sound(p) => if let Some(p) = p { p.xfile_serialize(ser, ()) } else { Ok(()) },
+            // Self::SoundPatch(p) => if let Some(p) = p { p.xfile_serialize(ser, ()) } else { Ok(()) },
+            // Self::ClipMap(p) => if let Some(p) = p { p.xfile_serialize(ser, ()) } else { Ok(()) },
+            // Self::ClipMapPVS(p) => if let Some(p) = p { p.xfile_serialize(ser, ()) } else { Ok(()) },
+            // Self::ComWorld(p) => if let Some(p) = p { p.xfile_serialize(ser, ()) } else { Ok(()) },
+            // Self::GameWorldSp(p) => if let Some(p) = p { p.xfile_serialize(ser, ()) } else { Ok(()) },
+            // Self::GameWorldMp(p) => if let Some(p) = p { p.xfile_serialize(ser, ()) } else { Ok(()) },
+            // Self::MapEnts(p) => if let Some(p) = p { p.xfile_serialize(ser, ()) } else { Ok(()) },
+            // Self::GfxWorld(p) => if let Some(p) = p { p.xfile_serialize(ser, ()) } else { Ok(()) },
+            // Self::LightDef(p) => if let Some(p) = p { p.xfile_serialize(ser, ()) } else { Ok(()) },
+            Self::Font(p) => {
+                if let Some(p) = p {
+                    p.xfile_serialize(ser, ())
+                } else {
+                    Ok(())
+                }
+            }
+            // Self::MenuList(p) => if let Some(p) = p { p.xfile_serialize(ser, ()) } else { Ok(()) },
+            // Self::Menu(p) => if let Some(p) = p { p.xfile_serialize(ser, ()) } else { Ok(()) },
+            // Self::LocalizeEntry(p) => if let Some(p) = p { p.xfile_serialize(ser, ()) } else { Ok(()) },
+            // Self::Weapon(p) => if let Some(p) = p { p.xfile_serialize(ser, ()) } else { Ok(()) },
+            // Self::SndDriverGlobals(p) => if let Some(p) = p { p.xfile_serialize(ser, ()) } else { Ok(()) },
+            // Self::Fx(p) => if let Some(p) = p { p.xfile_serialize(ser, ()) } else { Ok(()) },
+            // Self::ImpactFx(p) => if let Some(p) = p { p.xfile_serialize(ser, ()) } else { Ok(()) },
+            Self::RawFile(p) => {
+                if let Some(p) = p {
+                    p.xfile_serialize(ser, ())
+                } else {
+                    Ok(())
+                }
+            }
+            Self::StringTable(p) => {
+                if let Some(p) = p {
+                    p.xfile_serialize(ser, ())
+                } else {
+                    Ok(())
+                }
+            }
+            // Self::PackIndex(p) => if let Some(p) = p { p.xfile_serialize(ser, ()) } else { Ok(()) },
+            // Self::XGlobals(p) => if let Some(p) = p { p.xfile_serialize(ser, ()) } else { Ok(()) },
+            // Self::Ddl(p) => if let Some(p) = p { p.xfile_serialize(ser, ()) } else { Ok(()) },
+            // Self::Glasses(p) => if let Some(p) = p { p.xfile_serialize(ser, ()) } else { Ok(()) },
+            // Self::EmblemSet(p) => if let Some(p) = p { p.xfile_serialize(ser, ()) } else { Ok(()) },
+            _ => todo!(),
+        }
     }
 }
