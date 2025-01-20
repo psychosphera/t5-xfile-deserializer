@@ -1,14 +1,14 @@
 use core::mem::transmute;
 
-use alloc::{boxed::Box, string::String, vec::Vec};
+use alloc::{boxed::Box, vec::Vec};
 use serde::{Deserialize, Serialize};
 
 #[allow(unused_imports)]
 use crate::prelude::*;
 
 use crate::{
-    FatPointer, Ptr32, Result, ScriptString, T5XFileDeserialize, XFileDeserializeInto, XStringRaw,
-    assert_size, common::Vec3,
+    FatPointer, Ptr32, Result, ScriptString, T5XFileDeserialize, XFileDeserializeInto, XString,
+    XStringRaw, assert_size, common::Vec3,
 };
 
 #[cfg_attr(feature = "serde", derive(Serialize))]
@@ -55,7 +55,7 @@ pub const PART_TYPE_ALL: usize = 9;
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug)]
 pub struct XAnimParts {
-    pub name: String,
+    pub name: XString,
     pub numframes: u16,
     pub loop_: bool,
     pub delta: bool,
@@ -215,7 +215,7 @@ assert_size!(XAnimNotifyInfoRaw, 8);
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug)]
 pub struct XAnimNotifyInfo {
-    pub name: String,
+    pub name: XString,
     pub time: f32,
 }
 
@@ -226,7 +226,7 @@ impl XFileDeserializeInto<XAnimNotifyInfo, ()> for XAnimNotifyInfoRaw {
         _data: (),
     ) -> Result<XAnimNotifyInfo> {
         Ok(XAnimNotifyInfo {
-            name: self.name.to_string(de).unwrap_or_default(),
+            name: XString(self.name.to_string(de).unwrap_or_default()),
             time: self.time,
         })
     }

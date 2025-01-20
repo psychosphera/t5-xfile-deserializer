@@ -1,8 +1,8 @@
-use alloc::{boxed::Box, string::String, vec::Vec};
+use alloc::{boxed::Box, vec::Vec};
 
 use crate::{
     FatPointerCountFirstU32, FatPointerCountLastU32, Ptr32, Result, T5XFileDeserialize,
-    XFileDeserializeInto, XStringRaw, assert_size,
+    XFileDeserializeInto, XString, XStringRaw, assert_size,
 };
 
 use serde::{Deserialize, Serialize};
@@ -18,7 +18,7 @@ assert_size!(DdlRootRaw, 8);
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug)]
 pub struct DdlRoot {
-    pub name: String,
+    pub name: XString,
     pub ddl_defs: Vec<Box<DdlDef>>,
 }
 
@@ -97,7 +97,7 @@ assert_size!(DdlStructDefRaw, 16);
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug)]
 pub struct DdlStructDef {
-    pub name: String,
+    pub name: XString,
     pub size: i32,
     pub members: Vec<DdlMemberDef>,
 }
@@ -140,7 +140,7 @@ assert_size!(DdlMemberDefRaw, 48);
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug)]
 pub struct DdlMemberDef {
-    pub name: String,
+    pub name: XString,
     pub size: i32,
     pub offset: i32,
     pub type_: i32,
@@ -190,8 +190,8 @@ assert_size!(DdlEnumDefRaw, 12);
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug)]
 pub struct DdlEnumDef {
-    pub name: String,
-    pub members: Vec<String>,
+    pub name: XString,
+    pub members: Vec<XString>,
 }
 
 impl<'a> XFileDeserializeInto<DdlEnumDef, ()> for DdlEnumDefRaw<'a> {

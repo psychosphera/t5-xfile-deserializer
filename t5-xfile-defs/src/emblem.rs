@@ -1,6 +1,6 @@
 use crate::{
-    FatPointer, FatPointerCountFirstU32, Ptr32, Result, T5XFileDeserialize, XFileDeserializeInto,
-    XStringRaw, assert_size,
+    FatPointer, FatPointerCountFirstU32, Ptr32, Result, T5XFileDeserialize, T5XFileSerialize,
+    XFileDeserializeInto, XFileSerialize, XString, XStringRaw, assert_size,
     techset::{GfxImage, GfxImageRaw, Material, MaterialRaw},
 };
 
@@ -52,6 +52,33 @@ impl<'a> XFileDeserializeInto<EmblemSet, ()> for EmblemSetRaw<'a> {
     }
 }
 
+impl XFileSerialize<()> for EmblemSet {
+    fn xfile_serialize(&self, ser: &mut impl T5XFileSerialize, _data: ()) -> Result<()> {
+        let color_count = self.color_count;
+        let layers = FatPointerCountFirstU32::from_slice(&self.layers);
+        let categories = FatPointerCountFirstU32::from_slice(&self.categories);
+        let icons = FatPointerCountFirstU32::from_slice(&self.icons);
+        let backgrounds = FatPointerCountFirstU32::from_slice(&self.backgrounds);
+        let background_lookup = FatPointerCountFirstU32::from_slice(&self.background_lookup);
+
+        let emblem_set = EmblemSetRaw {
+            color_count,
+            layers,
+            categories,
+            icons,
+            backgrounds,
+            background_lookup,
+        };
+
+        ser.store_into_xfile(emblem_set)?;
+        self.layers.xfile_serialize(ser, ())?;
+        self.categories.xfile_serialize(ser, ())?;
+        self.icons.xfile_serialize(ser, ())?;
+        self.backgrounds.xfile_serialize(ser, ())?;
+        self.background_lookup.xfile_serialize(ser, ())
+    }
+}
+
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
 pub struct EmblemLayer {
@@ -60,6 +87,12 @@ pub struct EmblemLayer {
     pub unlock_plevel: i32,
 }
 assert_size!(EmblemLayer, 12);
+
+impl XFileSerialize<()> for EmblemLayer {
+    fn xfile_serialize(&self, ser: &mut impl T5XFileSerialize, _data: ()) -> Result<()> {
+        ser.store_into_xfile(*self)
+    }
+}
 
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
@@ -72,8 +105,8 @@ assert_size!(EmblemCategoryRaw, 8);
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug)]
 pub struct EmblemCategory {
-    pub name: String,
-    pub description: String,
+    pub name: XString,
+    pub description: XString,
 }
 
 impl<'a> XFileDeserializeInto<EmblemCategory, ()> for EmblemCategoryRaw<'a> {
@@ -86,6 +119,19 @@ impl<'a> XFileDeserializeInto<EmblemCategory, ()> for EmblemCategoryRaw<'a> {
         let description = self.description.xfile_deserialize_into(de, ())?;
 
         Ok(EmblemCategory { name, description })
+    }
+}
+
+impl XFileSerialize<()> for EmblemCategory {
+    fn xfile_serialize(&self, ser: &mut impl T5XFileSerialize, _data: ()) -> Result<()> {
+        let name = XStringRaw::from_str(self.name.get());
+        let description = XStringRaw::from_str(self.name.get());
+
+        let emblem_category = EmblemCategoryRaw { name, description };
+
+        ser.store_into_xfile(emblem_category)?;
+        self.name.xfile_serialize(ser, ())?;
+        self.description.xfile_serialize(ser, ())
     }
 }
 
@@ -109,7 +155,7 @@ assert_size!(EmblemIconRaw, 40);
 #[derive(Clone, Debug)]
 pub struct EmblemIcon {
     pub image: Option<Box<GfxImage>>,
-    pub description: String,
+    pub description: XString,
     pub outline_size: f32,
     pub default_color: i32,
     pub cost: i32,
@@ -144,6 +190,30 @@ impl<'a> XFileDeserializeInto<EmblemIcon, ()> for EmblemIconRaw<'a> {
     }
 }
 
+impl XFileSerialize<()> for EmblemIcon {
+    fn xfile_serialize(&self, ser: &mut impl T5XFileSerialize, _data: ()) -> Result<()> {
+        let image = Ptr32::from_box(&self.image);
+        let description = XStringRaw::from_str(self.description.get());
+
+        let emblem_icon = EmblemIconRaw {
+            image,
+            description,
+            outline_size: self.outline_size,
+            default_color: self.default_color,
+            cost: self.cost,
+            unlock_level: self.unlock_level,
+            unlock_plevel: self.unlock_plevel,
+            unclassify_at: self.unclassify_at,
+            sort_key: self.sort_key,
+            category: self.category,
+        };
+
+        ser.store_into_xfile(emblem_icon)?;
+        self.image.xfile_serialize(ser, ())?;
+        self.description.xfile_serialize(ser, ())
+    }
+}
+
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
 pub(crate) struct EmblemBackgroundRaw<'a> {
@@ -160,7 +230,7 @@ assert_size!(EmblemBackgroundRaw, 24);
 #[derive(Clone, Debug)]
 pub struct EmblemBackground {
     pub material: Option<Box<Material>>,
-    pub description: String,
+    pub description: XString,
     pub cost: i32,
     pub unlock_level: i32,
     pub unlock_plevel: i32,
@@ -184,5 +254,25 @@ impl<'a> XFileDeserializeInto<EmblemBackground, ()> for EmblemBackgroundRaw<'a> 
             unlock_plevel: self.unlock_plevel,
             unclassify_at: self.unclassify_at,
         })
+    }
+}
+
+impl XFileSerialize<()> for EmblemBackground {
+    fn xfile_serialize(&self, ser: &mut impl T5XFileSerialize, _data: ()) -> Result<()> {
+        let material = Ptr32::from_box(&self.material);
+        let description = XStringRaw::from_str(self.description.get());
+
+        let emblem_background = EmblemBackgroundRaw {
+            material,
+            description,
+            cost: self.cost,
+            unlock_level: self.unlock_level,
+            unlock_plevel: self.unlock_plevel,
+            unclassify_at: self.unclassify_at,
+        };
+
+        ser.store_into_xfile(emblem_background)?;
+        self.material.xfile_serialize(ser, ())?;
+        self.description.xfile_serialize(ser, ())
     }
 }

@@ -591,7 +591,7 @@ impl<'a> T5XFileDeserializer<'a, T5XFileDeserializerDeserialize> {
             .strings
             .to_vec(self)?
             .into_iter()
-            .map(|s| s.xfile_deserialize_into(self, ()))
+            .map(|s| s.xfile_deserialize_into(self, ()).map(|s| s.0))
             .collect::<Result<Vec<_>>>()?;
         //dbg!(&strings);
 

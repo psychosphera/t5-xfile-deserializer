@@ -13,7 +13,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     Error, ErrorKind, FatPointer, FatPointerCountFirstU32, FatPointerCountLastU32, Ptr32, Result,
-    T5XFileDeserialize, XFileDeserializeInto, XStringRaw, assert_size, file_line_col, prelude::*,
+    T5XFileDeserialize, XFileDeserializeInto, XString, XStringRaw, assert_size, file_line_col,
+    prelude::*,
 };
 
 #[cfg_attr(feature = "serde", derive(Serialize))]
@@ -32,7 +33,7 @@ assert_size!(SndBankRaw, 40);
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug)]
 pub struct SndBank {
-    pub name: String,
+    pub name: XString,
     pub aliases: Vec<SndAliasList>,
     pub alias_index: Vec<SndIndexEntry>,
     pub pack_hash: u32,
@@ -82,7 +83,7 @@ pub(crate) struct SndAliasListRaw<'a> {
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug)]
 pub struct SndAliasList {
-    pub name: String,
+    pub name: XString,
     pub id: u32,
     pub aliases: Vec<SndAlias>,
     pub sequence: i32,
@@ -156,10 +157,10 @@ assert_size!(SndAliasRaw, 84);
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug)]
 pub struct SndAlias {
-    pub name: String,
+    pub name: XString,
     pub id: u32,
-    pub subtitle: String,
-    pub secondaryname: String,
+    pub subtitle: XString,
+    pub secondaryname: XString,
     pub sound_file: Option<Box<SoundFile>>,
     pub flags: u32,
     pub duck: u32,
@@ -332,7 +333,7 @@ assert_size!(LoadedSoundRaw, 60);
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug)]
 pub struct LoadedSound {
-    pub name: String,
+    pub name: XString,
     pub sound: SndAsset,
 }
 
@@ -477,7 +478,7 @@ assert_size!(StreamedSoundRaw, 8);
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug)]
 pub struct StreamedSound {
-    pub filename: String,
+    pub filename: XString,
     pub prime_snd: Option<Box<PrimedSnd>>,
 }
 
@@ -509,7 +510,7 @@ assert_size!(PrimedSndRaw, 12);
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug)]
 pub struct PrimedSnd {
-    pub name: String,
+    pub name: XString,
     pub buffer: Vec<u8>,
 }
 
@@ -579,7 +580,7 @@ assert_size!(SndRadverbRaw, 96);
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug)]
 pub struct SndRadverb {
-    pub name: String,
+    pub name: XString,
     pub id: u32,
     pub smoothing: f32,
     pub early_time: f32,
@@ -600,7 +601,7 @@ pub struct SndRadverb {
 
 impl From<SndRadverbRaw> for SndRadverb {
     fn from(value: SndRadverbRaw) -> Self {
-        let name = value.name.to_string();
+        let name = XString(value.name.to_string());
         //dbg!(&name);
         Self {
             name,
@@ -644,9 +645,9 @@ assert_size!(SndSnapshotRaw, 348);
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug)]
 pub struct SndSnapshot {
-    pub name: String,
+    pub name: XString,
     pub id: u32,
-    pub occlusion_name: String,
+    pub occlusion_name: XString,
     pub occlusion_id: u32,
     pub fade_in: f32,
     pub fade_out: f32,
@@ -659,9 +660,9 @@ pub struct SndSnapshot {
 
 impl From<SndSnapshotRaw> for SndSnapshot {
     fn from(value: SndSnapshotRaw) -> Self {
-        let name = value.name.to_string();
+        let name = XString(value.name.to_string());
         //dbg!(&name);
-        let occlusion_name = value.occlusion_name.to_string();
+        let occlusion_name = XString(value.occlusion_name.to_string());
         //dbg!(&occlusion_name);
 
         Self {
@@ -691,7 +692,7 @@ assert_size!(SndPatchRaw, 20);
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug)]
 pub struct SndPatch {
-    pub name: String,
+    pub name: XString,
     pub elements: Vec<u32>,
     pub files: Vec<SoundFile>,
 }
@@ -731,7 +732,7 @@ assert_size!(SndDriverGlobalsRaw, 52);
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug)]
 pub struct SndDriverGlobals {
-    pub name: String,
+    pub name: XString,
     pub groups: Vec<SndGroup>,
     pub curves: Vec<SndCurve>,
     pub pans: Vec<SndPan>,
@@ -800,8 +801,8 @@ pub enum SndCategory {
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug)]
 pub struct SndGroup {
-    pub name: String,
-    pub parent_name: String,
+    pub name: XString,
+    pub parent_name: XString,
     pub id: u32,
     pub parent_index: i32,
     pub category: SndCategory,
@@ -812,9 +813,9 @@ pub struct SndGroup {
 impl TryInto<SndGroup> for SndGroupRaw {
     type Error = Error;
     fn try_into(self) -> core::result::Result<SndGroup, Self::Error> {
-        let name = self.name.to_string();
+        let name = XString(self.name.to_string());
         //dbg!(&name);
-        let parent_name = self.parent_name.to_string();
+        let parent_name = XString(self.parent_name.to_string());
         //dbg!(&parent_name);
         let category = FromPrimitive::from_u32(self.category).ok_or(Error::new_with_offset(
             file_line_col!(),
@@ -846,14 +847,14 @@ assert_size!(SndCurveRaw, 100);
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug)]
 pub struct SndCurve {
-    pub name: String,
+    pub name: XString,
     pub id: u32,
     pub points: [[f32; 2]; 8],
 }
 
 impl From<SndCurveRaw> for SndCurve {
     fn from(value: SndCurveRaw) -> Self {
-        let name = value.name.to_string();
+        let name = XString(value.name.to_string());
         //dbg!(&name);
 
         SndCurve {
@@ -881,7 +882,7 @@ assert_size!(SndPanRaw, 60);
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug)]
 pub struct SndPan {
-    pub name: String,
+    pub name: XString,
     pub id: u32,
     pub front: f32,
     pub back: f32,
@@ -893,7 +894,7 @@ pub struct SndPan {
 
 impl From<SndPanRaw> for SndPan {
     fn from(value: SndPanRaw) -> Self {
-        let name = value.name.to_string();
+        let name = XString(value.name.to_string());
         //dbg!(&name);
 
         Self {
@@ -919,12 +920,12 @@ assert_size!(SndSnapshotGroupRaw, 32);
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug)]
 pub struct SndSnapshotGroup {
-    pub name: String,
+    pub name: XString,
 }
 
 impl From<SndSnapshotGroupRaw> for SndSnapshotGroup {
     fn from(value: SndSnapshotGroupRaw) -> Self {
-        let name = value.name.to_string();
+        let name = XString(value.name.to_string());
         //dbg!(&name);
         Self { name }
     }
@@ -985,7 +986,7 @@ assert_size!(SndMasterRaw, 176);
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug)]
 pub struct SndMaster {
-    pub name: String,
+    pub name: XString,
     pub id: u32,
     pub notch_e: f32,
     pub notch_g: f32,
@@ -1026,7 +1027,7 @@ pub struct SndMaster {
 
 impl From<SndMasterRaw> for SndMaster {
     fn from(value: SndMasterRaw) -> Self {
-        let name = value.name.to_string();
+        let name = XString(value.name.to_string());
         //dbg!(&name);
 
         SndMaster {

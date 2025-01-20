@@ -10,7 +10,7 @@ use alloc::{
 
 use crate::{
     FatPointer, FatPointerCountFirstU32, FatPointerCountLastU8, FatPointerCountLastU32, Ptr32,
-    Result, T5XFileDeserialize, XFileDeserializeInto, XStringRaw, assert_size,
+    Result, T5XFileDeserialize, XFileDeserializeInto, XString, XStringRaw, assert_size,
     common::{GfxVertexBuffer, Mat3, Mat4, Vec2, Vec3, Vec4},
     light::{GfxLightDef, GfxLightDefRaw},
     techset::{
@@ -94,8 +94,8 @@ assert_size!(GfxWorldRaw<1>, 1084);
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug)]
 pub struct GfxWorld<const MAX_LOCAL_CLIENTS: usize> {
-    pub name: String,
-    pub base_name: String,
+    pub name: XString,
+    pub base_name: XString,
     pub plane_count: i32,
     pub node_count: i32,
     pub surface_count: i32,
@@ -103,7 +103,7 @@ pub struct GfxWorld<const MAX_LOCAL_CLIENTS: usize> {
     pub sky_start_surfs: Vec<i32>,
     pub sky_image: Option<Box<GfxImage>>,
     pub sky_sampler_state: u8,
-    pub sky_box_model: String,
+    pub sky_box_model: XString,
     pub sun_parse: SunLightParseParams<MAX_LOCAL_CLIENTS>,
     pub sun_light: Option<Box<GfxLight>>,
     pub sun_color_from_bsp: Vec3,
@@ -451,7 +451,7 @@ assert_size!(SunLightParseParamsRaw<1>, 180);
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug)]
 pub struct SunLightParseParams<const MAX_LOCAL_CLIENTS: usize> {
-    pub name: String,
+    pub name: XString,
     pub tree_scatter_intensity: f32,
     pub tree_scatter_amount: f32,
     #[cfg_attr(feature = "serde", serde(with = "serde_arrays"))]
@@ -463,7 +463,7 @@ impl<const MAX_LOCAL_CLIENTS: usize> From<SunLightParseParamsRaw<MAX_LOCAL_CLIEN
 {
     fn from(value: SunLightParseParamsRaw<MAX_LOCAL_CLIENTS>) -> Self {
         Self {
-            name: value.name.to_string(),
+            name: XString(value.name.to_string()),
             tree_scatter_intensity: value.tree_scatter_intensity,
             tree_scatter_amount: value.tree_scatter_amount,
             sun_settings: value
@@ -2270,7 +2270,7 @@ assert_size!(OccluderRaw, 68);
 #[derive(Clone, Debug)]
 pub struct Occluder {
     pub flags: u32,
-    pub name: String,
+    pub name: XString,
     pub points: [Vec3; 4],
 }
 
@@ -2278,7 +2278,7 @@ impl From<OccluderRaw> for Occluder {
     fn from(value: OccluderRaw) -> Self {
         Self {
             flags: value.flags,
-            name: value.name.to_string(),
+            name: XString(value.name.to_string()),
             points: [
                 value.points[0].into(),
                 value.points[1].into(),

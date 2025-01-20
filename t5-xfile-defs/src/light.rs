@@ -1,11 +1,11 @@
-use alloc::{boxed::Box, string::String};
+use alloc::boxed::Box;
 use serde::{Deserialize, Serialize};
 
 #[allow(unused_imports)]
 use crate::prelude::*;
 
 use crate::{
-    Ptr32, Result, T5XFileDeserialize, XFileDeserializeInto, XStringRaw, assert_size,
+    Ptr32, Result, T5XFileDeserialize, XFileDeserializeInto, XString, XStringRaw, assert_size,
     techset::{GfxImage, GfxImageRaw},
 };
 
@@ -21,7 +21,7 @@ assert_size!(GfxLightDefRaw, 16);
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug)]
 pub struct GfxLightDef {
-    pub name: String,
+    pub name: XString,
     pub attenuation: GfxLightImage,
     pub lmap_lookup_start: i32,
 }

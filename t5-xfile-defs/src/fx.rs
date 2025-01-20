@@ -1,11 +1,11 @@
-use alloc::{boxed::Box, string::String, vec, vec::Vec};
+use alloc::{boxed::Box, vec, vec::Vec};
 
 #[allow(unused_imports)]
 use crate::prelude::*;
 
 use crate::{
     Error, ErrorKind, FatPointer, FatPointerCountFirstU32, Ptr32, Ptr32ArrayConst, Result,
-    T5XFileDeserialize, XFileDeserializeInto, XStringRaw, assert_size,
+    T5XFileDeserialize, XFileDeserializeInto, XString, XStringRaw, assert_size,
     common::{Vec2, Vec3, Vec4},
     file_line_col,
     techset::{Material, MaterialRaw},
@@ -47,7 +47,7 @@ bitflags! {
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug)]
 pub struct FxEffectDef {
-    pub name: String,
+    pub name: XString,
     pub flags: FxEffectDefFlags,
     pub ef_priority: u8,
     pub total_size: usize,
@@ -388,7 +388,7 @@ impl<'a> XFileDeserializeInto<FxEffectDefRef, ()> for FxEffectDefRefRaw<'a> {
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug)]
 pub enum FxEffectDefRef {
-    Name(String),
+    Name(XString),
     Handle(Option<Box<FxEffectDef>>),
 }
 
@@ -483,7 +483,7 @@ pub enum FxElemVisuals {
     Material(Option<Box<Material>>),
     Model(Option<Box<XModel>>),
     EffectDef(FxEffectDefRef),
-    SoundName(String),
+    SoundName(XString),
 }
 
 impl<'a> XFileDeserializeInto<Option<FxElemVisuals>, u8> for FxElemVisualsRaw<'a> {
@@ -707,7 +707,7 @@ assert_size!(FxElemSpawnSoundRaw, 4);
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug)]
 pub struct FxElemSpawnSound {
-    pub spawn_sound: String,
+    pub spawn_sound: XString,
 }
 
 impl<'a> XFileDeserializeInto<FxElemSpawnSound, ()> for FxElemSpawnSoundRaw<'a> {
@@ -735,7 +735,7 @@ pub(crate) struct FxImpactTableRaw<'a> {
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug)]
 pub struct FxImpactTable {
-    pub name: String,
+    pub name: XString,
     pub table: Vec<FxImpactEntry>,
 }
 

@@ -1,6 +1,6 @@
 use crate::{
     FatPointer, FatPointerCountFirstU32, FatPointerCountLastU32, Ptr32, Result, T5XFileDeserialize,
-    XFileDeserializeInto, XStringRaw, assert_size,
+    XFileDeserializeInto, XString, XStringRaw, assert_size,
     common::{Mat3, Vec2, Vec3},
     fx::{FxEffectDef, FxEffectDefRaw},
     techset::{Material, MaterialRaw},
@@ -29,7 +29,7 @@ assert_size!(GlassesRaw, 56);
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug)]
 pub struct Glasses {
-    pub name: String,
+    pub name: XString,
     pub glasses: Vec<Glass>,
     pub work_memory: Vec<u8>,
     pub small_allocator_blocks: u32,
@@ -164,7 +164,7 @@ assert_size!(GlassDefRaw, 60);
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug)]
 pub struct GlassDef {
-    pub name: String,
+    pub name: XString,
     pub max_health: i32,
     pub thickness: f32,
     pub min_shard_size: f32,
@@ -174,9 +174,9 @@ pub struct GlassDef {
     pub pristine_material: Option<Box<Material>>,
     pub cracked_material: Option<Box<Material>>,
     pub shard_material: Option<Box<Material>>,
-    pub crack_sound: String,
-    pub shatter_sound: String,
-    pub auto_shatter_sound: String,
+    pub crack_sound: XString,
+    pub shatter_sound: XString,
+    pub auto_shatter_sound: XString,
     pub crack_effect: Option<Box<FxEffectDef>>,
     pub shatter_effect: Option<Box<FxEffectDef>>,
 }

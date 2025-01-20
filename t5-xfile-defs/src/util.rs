@@ -114,18 +114,18 @@ impl<'a> XStringRaw<'a> {
     }
 }
 
-impl<'a> XFileDeserializeInto<String, ()> for XStringRaw<'a> {
+impl<'a> XFileDeserializeInto<XString, ()> for XStringRaw<'a> {
     fn xfile_deserialize_into(
         &self,
         de: &mut impl T5XFileDeserialize,
         _data: (),
-    ) -> Result<String> {
+    ) -> Result<XString> {
         if self.0.is_null() {
-            return Ok(String::new());
+            return Ok(XString::new());
         }
 
         if self.0.is_real() {
-            return Ok(String::new());
+            return Ok(XString::new());
         }
 
         let mut string_buf = Vec::new();
@@ -155,15 +155,17 @@ impl<'a> XFileDeserializeInto<String, ()> for XStringRaw<'a> {
         }
 
         //dbg!(xfile.stream_position()?);
-        Ok(CString::from_vec_with_nul(string_buf)
-            .unwrap()
-            .to_string_lossy()
-            .to_string())
+        Ok(XString(
+            CString::from_vec_with_nul(string_buf)
+                .unwrap()
+                .to_string_lossy()
+                .to_string(),
+        ))
     }
 }
 
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 #[repr(transparent)]
 pub struct XString(pub String);
 
@@ -179,6 +181,10 @@ impl XFileSerialize<()> for XString {
 impl XString {
     pub fn get(&self) -> &str {
         &self.0
+    }
+
+    pub const fn new() -> Self {
+        Self(String::new())
     }
 }
 
@@ -534,9 +540,11 @@ macro_rules! impl_flexible_array {
 
 impl_flexible_array!(FlexibleArrayU16, FlexibleArrayU32,);
 
-pub trait FatPointer<'a, T: DeserializeOwned + 'a> {
+pub trait FatPointer<'a, T: DeserializeOwned + 'a>: Sized {
     fn size(&self) -> usize;
     fn p(&self) -> Ptr32<'a, T>;
+
+    fn new(p: Ptr32<'a, T>, size: usize) -> Self;
 
     fn is_null(&self) -> bool {
         self.p().is_null()
@@ -577,6 +585,14 @@ pub trait FatPointer<'a, T: DeserializeOwned + 'a> {
         self.to_vec(de)
             .map(|v| v.into_iter().map(Into::<U>::into).collect())
     }
+
+    fn from_slice<U>(s: &[U]) -> Self {
+        if s.is_empty() {
+            Self::new(Ptr32::null(), 0)
+        } else {
+            Self::new(Ptr32::unreal(), s.len())
+        }
+    }
 }
 
 macro_rules! impl_fat_pointer {
@@ -585,6 +601,13 @@ macro_rules! impl_fat_pointer {
             impl<'a, T: Debug + Clone + DeserializeOwned + 'a> FatPointer<'a, T>
                 for $s<'a, T>
             {
+                fn new(p: Ptr32<'a, T>, size: usize) -> Self {
+                    Self {
+                        p,
+                        size: size as _,
+                    }
+                }
+
                 fn size(&self) -> usize {
                     self.size as _
                 }
@@ -724,6 +747,11 @@ impl<'a, T: Debug + Clone + DeserializeOwned + 'a, const N: usize> FatPointer<'a
 
     fn p(&self) -> Ptr32<'a, T> {
         self.0.clone()
+    }
+
+    fn new(p: Ptr32<'a, T>, size: usize) -> Self {
+        assert!(size == N);
+        Self(p)
     }
 }
 

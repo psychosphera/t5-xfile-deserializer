@@ -1,10 +1,10 @@
 use core::mem::transmute;
 
-use alloc::{boxed::Box, string::String, vec::Vec};
+use alloc::{boxed::Box, vec::Vec};
 
 use crate::{
     Error, ErrorKind, FatPointer, FatPointerCountFirstU16, FatPointerCountFirstU32, Ptr32, Result,
-    ScriptString, T5XFileDeserialize, XFileDeserializeInto, XStringRaw, assert_size,
+    ScriptString, T5XFileDeserialize, XFileDeserializeInto, XString, XStringRaw, assert_size,
     common::{Vec2, Vec3},
     file_line_col,
 };
@@ -23,7 +23,7 @@ pub(crate) struct GameWorldSpRaw<'a> {
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug)]
 pub struct GameWorldSp {
-    pub name: String,
+    pub name: XString,
     pub path: PathData,
 }
 
@@ -50,7 +50,7 @@ pub(crate) struct GameWorldMpRaw<'a> {
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug)]
 pub struct GameWorldMp {
-    pub name: String,
+    pub name: XString,
     pub path: PathData,
 }
 
@@ -252,11 +252,11 @@ assert_size!(PathLink, 12);
 pub struct PathNodeConstant {
     pub type_: NodeType,
     pub spawnflags: SpawnFlags,
-    pub targetname: String,
-    pub script_linkname: String,
-    pub script_noteworthy: String,
-    pub target: String,
-    pub animscript: String,
+    pub targetname: XString,
+    pub script_linkname: XString,
+    pub script_noteworthy: XString,
+    pub target: XString,
+    pub animscript: XString,
     pub animscriptfunc: i32,
     pub origin: Vec3,
     pub angle: f32,
@@ -287,11 +287,11 @@ impl<'a> XFileDeserializeInto<PathNodeConstant, ()> for PathNodeConstantRaw<'a> 
                 de.stream_pos()? as _,
                 ErrorKind::BadBitflags(self.spawnflags as _),
             ))?,
-            targetname: self.targetname.to_string(de).unwrap_or_default(),
-            script_linkname: self.script_linkname.to_string(de).unwrap_or_default(),
-            script_noteworthy: self.script_noteworthy.to_string(de).unwrap_or_default(),
-            target: self.target.to_string(de).unwrap_or_default(),
-            animscript: self.animscript.to_string(de).unwrap_or_default(),
+            targetname: XString(self.targetname.to_string(de).unwrap_or_default()),
+            script_linkname: XString(self.script_linkname.to_string(de).unwrap_or_default()),
+            script_noteworthy: XString(self.script_noteworthy.to_string(de).unwrap_or_default()),
+            target: XString(self.target.to_string(de).unwrap_or_default()),
+            animscript: XString(self.animscript.to_string(de).unwrap_or_default()),
             animscriptfunc: self.animscriptfunc,
             origin: self.origin.into(),
             angle: self.angle,

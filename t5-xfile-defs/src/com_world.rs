@@ -1,8 +1,8 @@
-use alloc::{boxed::Box, string::String, vec::Vec};
+use alloc::{boxed::Box, vec::Vec};
 
 use crate::{
     FatPointer, FatPointerCountFirstU32, Ptr32ArrayConst, Result, T5XFileDeserialize,
-    XFileDeserializeInto, XStringRaw, assert_size,
+    XFileDeserializeInto, XString, XStringRaw, assert_size,
     common::{Vec3, Vec4},
 };
 
@@ -23,7 +23,7 @@ pub(crate) struct ComWorldRaw<'a> {
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Default, Debug)]
 pub struct ComWorld {
-    pub name: String,
+    pub name: XString,
     pub is_in_use: bool,
     pub primary_lights: Vec<ComPrimaryLight>,
     pub water_header: ComWaterHeader,
@@ -115,7 +115,7 @@ pub struct ComPrimaryLight {
     pub cookie_control_0: Vec4,
     pub cookie_control_1: Vec4,
     pub cookie_control_2: Vec4,
-    pub def_name: String,
+    pub def_name: XString,
 }
 
 impl<'a> XFileDeserializeInto<ComPrimaryLight, ()> for ComPrimaryLightRaw<'a> {

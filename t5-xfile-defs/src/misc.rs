@@ -1,8 +1,4 @@
-use alloc::{
-    ffi::CString,
-    string::{String, ToString},
-    vec::Vec,
-};
+use alloc::{ffi::CString, string::ToString, vec::Vec};
 
 #[allow(unused_imports)]
 use crate::prelude::*;
@@ -37,7 +33,7 @@ impl<'a> XFileDeserializeInto<RawFile, ()> for RawFileRaw<'a> {
         _data: (),
     ) -> Result<RawFile> {
         //dbg!(&self);
-        let name = XString(self.name.xfile_deserialize_into(de, ())?);
+        let name = self.name.xfile_deserialize_into(de, ())?;
         let buffer = self.buffer.to_array(self.len as usize + 1).to_vec(de)?;
         Ok(RawFile { name, buffer })
     }
@@ -85,7 +81,7 @@ impl<'a> XFileDeserializeInto<StringTable, ()> for StringTableRaw<'a> {
         let size = self.column_count as usize * self.row_count as usize;
 
         Ok(StringTable {
-            name: XString(self.name.xfile_deserialize_into(de, ())?),
+            name: self.name.xfile_deserialize_into(de, ())?,
             column_count: self.column_count as _,
             row_count: self.row_count as _,
             values: self.values.to_array(size).xfile_deserialize_into(de, ())?,
@@ -139,7 +135,7 @@ impl<'a> XFileDeserializeInto<StringTableCell, ()> for StringTableCellRaw<'a> {
         _data: (),
     ) -> Result<StringTableCell> {
         Ok(StringTableCell {
-            name: XString(self.name.xfile_deserialize_into(de, ())?),
+            name: self.name.xfile_deserialize_into(de, ())?,
             hash: self.hash,
         })
     }
@@ -171,7 +167,7 @@ assert_size!(PackIndexRaw, 28);
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug)]
 pub struct PackIndex {
-    pub name: String,
+    pub name: XString,
     pub header: PackIndexHeader,
     pub entries: Vec<PackIndexEntry>,
 }
@@ -193,6 +189,25 @@ impl<'a> XFileDeserializeInto<PackIndex, ()> for PackIndexRaw<'a> {
     }
 }
 
+impl XFileSerialize<()> for PackIndex {
+    fn xfile_serialize(&self, ser: &mut impl T5XFileSerialize, _data: ()) -> Result<()> {
+        let name = XStringRaw::from_str(self.name.get());
+        let header = self.header.into();
+        let entries = Ptr32::from_slice(&self.entries);
+
+        let pack_index = PackIndexRaw {
+            name,
+            header,
+            entries,
+        };
+
+        ser.store_into_xfile(pack_index)?;
+        self.name.xfile_serialize(ser, ())?;
+        self.header.xfile_serialize(ser, ())?;
+        self.entries.xfile_serialize(ser, ())
+    }
+}
+
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Debug, Deserialize)]
 pub(crate) struct PackIndexHeaderRaw {
@@ -205,7 +220,7 @@ pub(crate) struct PackIndexHeaderRaw {
 assert_size!(PackIndexHeaderRaw, 20);
 
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[derive(Clone, Debug)]
+#[derive(Copy, Clone, Debug)]
 pub struct PackIndexHeader {
     pub magic: u32,
     pub timestamp: u32,
@@ -214,15 +229,41 @@ pub struct PackIndexHeader {
     pub data_start: usize,
 }
 
-impl Into<PackIndexHeader> for PackIndexHeaderRaw {
-    fn into(self) -> PackIndexHeader {
-        PackIndexHeader {
+impl From<PackIndexHeaderRaw> for PackIndexHeader {
+    fn from(value: PackIndexHeaderRaw) -> Self {
+        Self {
+            magic: value.magic,
+            timestamp: value.timestamp,
+            count: value.count as _,
+            alignment: value.alignment as _,
+            data_start: value.data_start as _,
+        }
+    }
+}
+
+impl From<PackIndexHeader> for PackIndexHeaderRaw {
+    fn from(value: PackIndexHeader) -> Self {
+        Self {
+            magic: value.magic,
+            timestamp: value.timestamp,
+            count: value.count as _,
+            alignment: value.alignment as _,
+            data_start: value.data_start as _,
+        }
+    }
+}
+
+impl XFileSerialize<()> for PackIndexHeader {
+    fn xfile_serialize(&self, ser: &mut impl T5XFileSerialize, _data: ()) -> Result<()> {
+        let pack_index_header = PackIndexHeaderRaw {
             magic: self.magic,
             timestamp: self.timestamp,
             count: self.count as _,
             alignment: self.alignment as _,
             data_start: self.data_start as _,
-        }
+        };
+
+        ser.store_into_xfile(pack_index_header)
     }
 }
 
@@ -253,6 +294,18 @@ impl From<PackIndexEntryRaw> for PackIndexEntry {
     }
 }
 
+impl XFileSerialize<()> for PackIndexEntry {
+    fn xfile_serialize(&self, ser: &mut impl T5XFileSerialize, _data: ()) -> Result<()> {
+        let pack_index_entry = PackIndexEntry {
+            hash: self.hash,
+            offset: self.offset as _,
+            size: self.size as _,
+        };
+
+        ser.store_into_xfile(pack_index_entry)
+    }
+}
+
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Debug, Deserialize)]
 pub(crate) struct MapEntsRaw<'a> {
@@ -264,8 +317,8 @@ assert_size!(MapEntsRaw, 12);
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug)]
 pub struct MapEnts {
-    pub name: String,
-    pub entity_string: String,
+    pub name: XString,
+    pub entity_string: XString,
 }
 
 impl<'a> XFileDeserializeInto<MapEnts, ()> for MapEntsRaw<'a> {
@@ -280,7 +333,7 @@ impl<'a> XFileDeserializeInto<MapEnts, ()> for MapEntsRaw<'a> {
         if chars.is_empty() {
             return Ok(MapEnts {
                 name,
-                entity_string: String::new(),
+                entity_string: XString::new(),
             });
         }
 
@@ -288,15 +341,39 @@ impl<'a> XFileDeserializeInto<MapEnts, ()> for MapEntsRaw<'a> {
             chars.push(b'\0');
         }
 
-        let entity_string = CString::from_vec_with_nul(chars)
-            .unwrap()
-            .to_string_lossy()
-            .to_string();
+        let entity_string = XString(
+            CString::from_vec_with_nul(chars)
+                .unwrap()
+                .to_string_lossy()
+                .to_string(),
+        );
 
         Ok(MapEnts {
             name,
             entity_string,
         })
+    }
+}
+
+impl XFileSerialize<()> for MapEnts {
+    fn xfile_serialize(&self, ser: &mut impl T5XFileSerialize, _data: ()) -> Result<()> {
+        let name = XStringRaw::from_str(self.name.get());
+        let bytes = self
+            .entity_string
+            .get()
+            .chars()
+            .map(|c| c as u8)
+            .collect::<Vec<_>>();
+        let entity_string = FatPointerCountLastU32::from_slice(&bytes);
+
+        let map_ents = MapEntsRaw {
+            name,
+            entity_string,
+        };
+
+        ser.store_into_xfile(map_ents)?;
+        self.name.xfile_serialize(ser, ())?;
+        self.entity_string.xfile_serialize(ser, ())
     }
 }
 
@@ -311,8 +388,8 @@ assert_size!(LocalizeEntryRaw, 8);
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug)]
 pub struct LocalizeEntry {
-    pub value: String,
-    pub name: String,
+    pub value: XString,
+    pub name: XString,
 }
 
 impl<'a> XFileDeserializeInto<LocalizeEntry, ()> for LocalizeEntryRaw<'a> {
@@ -325,6 +402,19 @@ impl<'a> XFileDeserializeInto<LocalizeEntry, ()> for LocalizeEntryRaw<'a> {
         let name = self.name.xfile_deserialize_into(de, ())?;
         //dbg!(&value, &name);
         Ok(LocalizeEntry { value, name })
+    }
+}
+
+impl XFileSerialize<()> for LocalizeEntry {
+    fn xfile_serialize(&self, ser: &mut impl T5XFileSerialize, _data: ()) -> Result<()> {
+        let value = XStringRaw::from_str(self.value.get());
+        let name = XStringRaw::from_str(self.name.get());
+
+        let localize_entry = LocalizeEntryRaw { value, name };
+
+        ser.store_into_xfile(localize_entry)?;
+        self.value.xfile_serialize(ser, ())?;
+        self.name.xfile_serialize(ser, ())
     }
 }
 
@@ -343,7 +433,7 @@ pub(crate) struct XGlobalsRaw<'a> {
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug)]
 pub struct XGlobals {
-    pub name: String,
+    pub name: XString,
     pub xanim_stream_buffer_size: i32,
     pub cinematic_max_width: i32,
     pub cinematic_max_height: i32,
@@ -367,5 +457,24 @@ impl<'a> XFileDeserializeInto<XGlobals, ()> for XGlobalsRaw<'a> {
             gump_reserve: self.gump_reserve,
             screen_clear_color: self.screen_clear_color.into(),
         })
+    }
+}
+
+impl XFileSerialize<()> for XGlobals {
+    fn xfile_serialize(&self, ser: &mut impl T5XFileSerialize, _data: ()) -> Result<()> {
+        let name = XStringRaw::from_str(self.name.get());
+
+        let xglobals = XGlobalsRaw {
+            name,
+            xanim_stream_buffer_size: self.xanim_stream_buffer_size,
+            cinematic_max_height: self.cinematic_max_height,
+            cinematic_max_width: self.cinematic_max_width,
+            extracam_resolution: self.extracam_resolution,
+            gump_reserve: self.gump_reserve,
+            screen_clear_color: self.screen_clear_color.get(),
+        };
+
+        ser.store_into_xfile(xglobals)?;
+        self.name.xfile_serialize(ser, ())
     }
 }

@@ -9,7 +9,7 @@ use crate::prelude::*;
 
 use crate::{
     Error, ErrorKind, FatPointer, FatPointerCountFirstU32, FatPointerCountLastU32, Ptr32, Result,
-    ScriptString, T5XFileDeserialize, XFileDeserializeInto, XStringRaw, assert_size,
+    ScriptString, T5XFileDeserialize, XFileDeserializeInto, XString, XStringRaw, assert_size,
     common::{GfxIndexBuffer, GfxVertexBuffer, Mat3, Vec3, Vec4},
     file_line_col,
     techset::{Material, MaterialRaw},
@@ -70,7 +70,7 @@ pub const MAX_LODS: usize = 4;
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Default, Debug)]
 pub struct XModel {
-    pub name: String,
+    pub name: XString,
     pub num_bones: usize,
     pub num_root_bones: usize,
     pub numsurfs: usize,
@@ -858,14 +858,14 @@ assert_size!(PhysPresetRaw, 84);
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Default, Debug)]
 pub struct PhysPreset {
-    pub name: String,
+    pub name: XString,
     pub flags: i32,
     pub mass: f32,
     pub bounce: f32,
     pub friction: f32,
     pub bullet_force_scale: f32,
     pub explosive_force_scale: f32,
-    pub snd_alias_prefix: String,
+    pub snd_alias_prefix: XString,
     pub pieces_spread_fraction: f32,
     pub pieces_upward_velocity: f32,
     pub can_float: bool,
@@ -1225,7 +1225,7 @@ assert_size!(PhysConstraintsRaw, 2696);
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Default, Debug)]
 pub struct PhysConstraints {
-    pub name: String,
+    pub name: XString,
     pub count: usize,
     pub data: Vec<PhysConstraint>,
 }
@@ -1325,16 +1325,16 @@ pub enum AttachPointType {
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Default, Debug)]
 pub struct PhysConstraint {
-    pub targetname: String,
+    pub targetname: XString,
     pub type_: ConstraintType,
     pub attach_point_type1: AttachPointType,
     pub target_index1: usize,
-    pub target_ent1: String,
-    pub target_bone1: String,
+    pub target_ent1: XString,
+    pub target_bone1: XString,
     pub attach_point_type2: AttachPointType,
     pub target_index2: usize,
-    pub target_ent2: String,
-    pub target_bone2: String,
+    pub target_ent2: XString,
+    pub target_bone2: XString,
     pub offset: Vec3,
     pub pos: Vec3,
     pub pos2: Vec3,
@@ -1363,10 +1363,10 @@ impl<'a> XFileDeserializeInto<PhysConstraint, ()> for PhysConstraintRaw<'a> {
         _data: (),
     ) -> Result<PhysConstraint> {
         //dbg!(self);
-        let targetname = self.targetname.to_string(de).unwrap_or_default();
-        let target_ent1 = self.target_ent1.to_string(de).unwrap_or_default();
+        let targetname = XString(self.targetname.to_string(de).unwrap_or_default());
+        let target_ent1 = XString(self.target_ent1.to_string(de).unwrap_or_default());
         let target_bone1 = self.target_bone1.xfile_deserialize_into(de, ())?;
-        let target_ent2 = self.target_ent2.to_string(de).unwrap_or_default();
+        let target_ent2 = XString(self.target_ent2.to_string(de).unwrap_or_default());
         let target_bone2 = self.target_bone2.xfile_deserialize_into(de, ())?;
         let material = self.material.xfile_deserialize_into(de, ())?;
         //dbg!(&targetname);
@@ -1444,7 +1444,7 @@ assert_size!(XModelPiecesRaw, 12);
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Clone, Default, Debug, Deserialize)]
 pub struct XModelPieces {
-    pub name: String,
+    pub name: XString,
     pub pieces: Vec<XModelPiece>,
 }
 

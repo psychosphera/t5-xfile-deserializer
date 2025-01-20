@@ -33,7 +33,7 @@ pub struct Font {
 impl<'a> XFileDeserializeInto<Font, ()> for FontRaw<'a> {
     fn xfile_deserialize_into(&self, de: &mut impl T5XFileDeserialize, _data: ()) -> Result<Font> {
         Ok(Font {
-            font_name: XString(self.font_name.xfile_deserialize_into(de, ())?),
+            font_name: self.font_name.xfile_deserialize_into(de, ())?,
             pixel_height: self.pixel_height,
             material: self.material.xfile_deserialize_into(de, ())?,
             glow_material: self.glow_material.xfile_deserialize_into(de, ())?,

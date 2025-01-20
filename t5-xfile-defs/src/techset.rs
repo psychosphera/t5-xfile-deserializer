@@ -1,6 +1,6 @@
 use core::mem::transmute;
 
-use alloc::{boxed::Box, format, string::String, vec::Vec};
+use alloc::{boxed::Box, format, vec::Vec};
 
 #[allow(unused_imports)]
 use crate::prelude::*;
@@ -8,7 +8,7 @@ use crate::prelude::*;
 use crate::{
     Error, ErrorKind, FatPointer, FatPointerCountLastU32, FlexibleArray, FlexibleArrayU16,
     FlexibleArrayU32, Ptr32, Result, T5XFileDeserialize, T5XFileSerialize, XFileDeserializeInto,
-    XFileSerialize, XStringRaw, assert_size,
+    XFileSerialize, XString, XStringRaw, assert_size,
     common::{GfxCubeTexture, GfxPixelShader, GfxVertexShader, GfxVolumeTexture, Vec2, Vec4},
     file_line_col,
 };
@@ -46,7 +46,7 @@ impl<'a> Default for MaterialTechniqueSetRaw<'a> {
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug)]
 pub struct MaterialTechniqueSet {
-    pub name: String,
+    pub name: XString,
     pub world_vert_format: u8,
     pub techset_flags: u16,
     pub techniques: Vec<Box<MaterialTechnique>>,
@@ -93,7 +93,7 @@ assert_size!(MaterialTechniqueRaw, 8);
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug)]
 pub struct MaterialTechnique {
-    pub name: String,
+    pub name: XString,
     pub flags: u16,
     pub passes: Vec<MaterialPass>,
 }
@@ -244,7 +244,7 @@ assert_size!(MaterialVertexShaderRaw, 16);
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug)]
 pub struct MaterialVertexShader {
-    pub name: String,
+    pub name: XString,
     pub prog: MaterialVertexShaderProgram,
 }
 
@@ -377,7 +377,7 @@ assert_size!(MaterialPixelShaderRaw, 16);
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug)]
 pub struct MaterialPixelShader {
-    pub name: String,
+    pub name: XString,
     pub prog: MaterialPixelShaderProgram,
 }
 
@@ -746,7 +746,7 @@ assert_size!(MaterialInfoRaw, 40);
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Default, Debug)]
 pub struct MaterialInfo {
-    pub name: String,
+    pub name: XString,
     pub game_flags: u32,
     pub sort_key: u8,
     pub texture_atlas_row_count: u8,
@@ -1040,7 +1040,7 @@ pub struct GfxImage {
     pub pixels: Vec<u8>,
     pub loaded_size: u32,
     pub skipped_mip_levels: u8,
-    pub name: String,
+    pub name: XString,
     pub hash: u32,
 }
 
@@ -1101,6 +1101,12 @@ impl<'a> XFileDeserializeInto<GfxImage, ()> for GfxImageRaw<'a> {
             name,
             hash: self.hash,
         })
+    }
+}
+
+impl XFileSerialize<()> for GfxImage {
+    fn xfile_serialize(&self, _ser: &mut impl T5XFileSerialize, _data: ()) -> Result<()> {
+        todo!()
     }
 }
 

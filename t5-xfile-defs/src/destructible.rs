@@ -1,8 +1,8 @@
-use alloc::{boxed::Box, string::String, vec::Vec};
+use alloc::{boxed::Box, vec::Vec};
 
 use crate::{
     FatPointerCountFirstU32, Ptr32, Result, ScriptString, T5XFileDeserialize, XFileDeserializeInto,
-    XStringRaw, assert_size,
+    XString, XStringRaw, assert_size,
     fx::{FxEffectDef, FxEffectDefRaw},
     xmodel::{PhysConstraints, PhysConstraintsRaw, PhysPreset, PhysPresetRaw, XModel, XModelRaw},
 };
@@ -23,7 +23,7 @@ assert_size!(DestructibleDefRaw, 24);
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug)]
 pub struct DestructibleDef {
-    pub name: String,
+    pub name: XString,
     pub model: Option<Box<XModel>>,
     pub pristine_model: Option<Box<XModel>>,
     pub pieces: Vec<DestructiblePiece>,
@@ -84,9 +84,9 @@ pub struct DestructiblePiece {
     pub entity_damage_transfer: f32,
     pub phys_constraints: Option<Box<PhysConstraints>>,
     pub health: i32,
-    pub damage_sound: String,
+    pub damage_sound: XString,
     pub burn_effect: Option<Box<FxEffectDef>>,
-    pub burn_sound: String,
+    pub burn_sound: XString,
     pub enable_label: u16,
     pub hide_bones: [i32; 5],
 }
@@ -142,14 +142,14 @@ assert_size!(DestructibleStageRaw, 48);
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug)]
 pub struct DestructibleStage {
-    pub show_bone: String,
+    pub show_bone: XString,
     pub break_health: f32,
     pub max_time: f32,
     pub flags: u32,
     pub break_effect: Option<Box<FxEffectDef>>,
-    pub break_sound: String,
-    pub break_notify: String,
-    pub loop_sound: String,
+    pub break_sound: XString,
+    pub break_notify: XString,
+    pub loop_sound: XString,
     pub spawn_model: [Option<Box<XModel>>; 3],
     pub phys_preset: Option<Box<PhysPreset>>,
 }
@@ -161,7 +161,7 @@ impl<'a> XFileDeserializeInto<DestructibleStage, ()> for DestructibleStageRaw<'a
         _data: (),
     ) -> Result<DestructibleStage> {
         Ok(DestructibleStage {
-            show_bone: self.show_bone.to_string(de).unwrap_or_default(),
+            show_bone: XString(self.show_bone.to_string(de).unwrap_or_default()),
             break_health: self.break_health,
             max_time: self.max_time,
             flags: self.flags,

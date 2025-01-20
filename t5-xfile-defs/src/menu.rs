@@ -1,6 +1,6 @@
 use core::mem::transmute;
 
-use alloc::{boxed::Box, format, string::String, vec::Vec};
+use alloc::{boxed::Box, format, vec::Vec};
 
 use num::FromPrimitive;
 use num_derive::FromPrimitive;
@@ -11,7 +11,7 @@ use crate::prelude::*;
 
 use crate::{
     Error, ErrorKind, FatPointerCountFirstU32, FatPointerCountLastU32, Ptr32, Result,
-    T5XFileDeserialize, XFileDeserializeInto, XStringRaw, assert_size,
+    T5XFileDeserialize, XFileDeserializeInto, XString, XStringRaw, assert_size,
     common::Vec4,
     file_line_col,
     techset::{Material, MaterialRaw},
@@ -28,7 +28,7 @@ assert_size!(MenuListRaw<1>, 12);
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug)]
 pub struct MenuList<const MAX_LOCAL_CLIENTS: usize> {
-    pub name: String,
+    pub name: XString,
     pub menus: Vec<Box<MenuDef<MAX_LOCAL_CLIENTS>>>,
 }
 
@@ -153,7 +153,7 @@ impl<'a, const MAX_LOCAL_CLIENTS: usize> Default for MenuDefRaw<'a, MAX_LOCAL_CL
 #[derive(Clone, Debug)]
 pub struct MenuDef<const MAX_LOCAL_CLIENTS: usize> {
     pub window: WindowDef<MAX_LOCAL_CLIENTS>,
-    pub font: String,
+    pub font: XString,
     pub full_screen: bool,
     pub ui_3d_window_id: i32,
     pub font_index: i32,
@@ -179,8 +179,8 @@ pub struct MenuDef<const MAX_LOCAL_CLIENTS: usize> {
     pub visible_exp: ExpressionStatement,
     pub show_bits: u64,
     pub hide_bits: u64,
-    pub allowed_binding: String,
-    pub sound_name: String,
+    pub allowed_binding: XString,
+    pub sound_name: XString,
     pub image_track: i32,
     pub control: i32,
     pub focus_color: Vec4,
@@ -343,10 +343,10 @@ impl<'a, const MAX_LOCAL_CLIENTS: usize> Default for WindowDefRaw<'a, MAX_LOCAL_
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug)]
 pub struct WindowDef<const MAX_LOCAL_CLIENTS: usize> {
-    pub name: String,
+    pub name: XString,
     pub rect: RectDef,
     pub rect_client: RectDef,
-    pub group: String,
+    pub group: XString,
     pub style: u8,
     pub border: u8,
     pub modal: u8,
@@ -469,7 +469,7 @@ assert_size!(GenericEventHandlerRaw, 12);
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug)]
 pub struct GenericEventHandler {
-    pub name: String,
+    pub name: XString,
     pub event_script: Option<Box<GenericEventScript>>,
     pub next: Option<Box<Self>>, // TODO
 }
@@ -518,7 +518,7 @@ pub struct GenericEventScript {
     pub condition: ExpressionStatement,
     pub type_: i32,
     pub fire_on_true: bool,
-    pub action: String,
+    pub action: XString,
     pub block_id: i32,
     pub construct_id: i32,
     pub next: Option<Box<Self>>, // TODO,
@@ -605,7 +605,7 @@ assert_size!(ExpressionStatementRaw, 16);
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug)]
 pub struct ExpressionStatement {
-    pub filename: String,
+    pub filename: XString,
     pub line: i32,
     pub rpn: Vec<ExpressionRpn>,
 }
@@ -729,7 +729,7 @@ assert_size!(OperandInternalDataUnionRaw, 4);
 pub enum OperandInternalDataUnion {
     Int(i32),
     Float(f32),
-    String(String),
+    String(XString),
 }
 
 impl XFileDeserializeInto<OperandInternalDataUnion, ExpDataType> for OperandInternalDataUnionRaw {
@@ -819,9 +819,9 @@ pub struct ItemDef<const MAX_LOCAL_CLIENTS: usize> {
     pub type_: i32,
     pub data_type: i32,
     pub image_track: i32,
-    pub dvar: String,
-    pub dvar_text: String,
-    pub enable_dvar: String,
+    pub dvar: XString,
+    pub dvar_text: XString,
+    pub enable_dvar: XString,
     pub dvar_flags: i32,
     pub type_data: Option<ItemDefData<MAX_LOCAL_CLIENTS>>,
     pub parent: Option<Box<MenuDef<MAX_LOCAL_CLIENTS>>>, // TODO
@@ -1021,7 +1021,7 @@ pub struct TextDef<const MAX_LOCAL_CLIENTS: usize> {
     pub textaligny: f32,
     pub textscale: f32,
     pub text_style: i32,
-    pub text: String,
+    pub text: XString,
     pub text_exp_data: Option<Box<TextExp>>,
     pub text_type_data: Option<TextDefData<MAX_LOCAL_CLIENTS>>,
 }
@@ -1148,10 +1148,10 @@ assert_size!(FocusItemDefRaw<1>, 24);
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug)]
 pub struct FocusItemDef<const MAX_LOCAL_CLIENTS: usize> {
-    pub mouse_enter_text: String,
-    pub mouse_exit_text: String,
-    pub mouse_enter: String,
-    pub mouse_exit: String,
+    pub mouse_enter_text: XString,
+    pub mouse_exit_text: XString,
+    pub mouse_enter: XString,
+    pub mouse_exit: XString,
     pub on_key: Option<Box<ItemKeyHandler>>,
     pub focus_type_data: Option<FocusDefData<MAX_LOCAL_CLIENTS>>,
 }
@@ -1450,8 +1450,8 @@ assert_size!(MenuRowRaw, 24);
 #[derive(Clone, Debug)]
 pub struct MenuRow {
     pub cells: Vec<MenuCell>,
-    pub event_name: String,
-    pub on_focus_event_name: String,
+    pub event_name: XString,
+    pub on_focus_event_name: XString,
     pub disable_arg: bool,
     pub status: i32,
     pub name: i32,
@@ -1495,7 +1495,7 @@ assert_size!(MenuCellRaw, 12);
 pub struct MenuCell {
     pub type_: i32,
     pub max_chars: i32,
-    pub string_value: String,
+    pub string_value: XString,
 }
 
 impl<'a> XFileDeserializeInto<MenuCell, ()> for MenuCellRaw<'a> {
@@ -1529,8 +1529,8 @@ assert_size!(MultiDefRaw, 396);
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug)]
 pub struct MultiDef {
-    pub dvar_list: [String; 32],
-    pub dvar_str: [String; 32],
+    pub dvar_list: [XString; 32],
+    pub dvar_str: [XString; 32],
     pub dvar_value: [f32; 32],
     pub count: i32,
     pub action_on_press_enter_only: bool,
@@ -1612,7 +1612,7 @@ assert_size!(EnumDvarDefRaw, 4);
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug)]
 pub struct EnumDvarDef {
-    pub enum_dvar_name: String,
+    pub enum_dvar_name: XString,
 }
 
 impl<'a> XFileDeserializeInto<EnumDvarDef, ()> for EnumDvarDefRaw<'a> {
@@ -1793,7 +1793,7 @@ assert_size!(AnimParamsDefRaw, 108);
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug)]
 pub struct AnimParamsDef {
-    pub name: String,
+    pub name: XString,
     pub rect_client: RectDef,
     pub border_size: f32,
     pub fore_color: Vec4,
