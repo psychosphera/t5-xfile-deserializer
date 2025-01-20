@@ -5,7 +5,8 @@ use crate::prelude::*;
 
 use crate::{
     Error, ErrorKind, FatPointer, FatPointerCountFirstU32, Ptr32, Ptr32ArrayConst, Result,
-    T5XFileDeserialize, XFileDeserializeInto, XString, XStringRaw, assert_size,
+    T5XFileDeserialize, T5XFileSerialize, XFileDeserializeInto, XFileSerialize, XString,
+    XStringRaw, assert_size,
     common::{Vec2, Vec3, Vec4},
     file_line_col,
     techset::{Material, MaterialRaw},
@@ -98,6 +99,12 @@ impl<'a> XFileDeserializeInto<FxEffectDef, ()> for FxEffectDefRaw<'a> {
             bounding_box_dim: self.bounding_box_dim.into(),
             bounding_sphere: self.bounding_sphere.into(),
         })
+    }
+}
+
+impl XFileSerialize<()> for FxEffectDef {
+    fn xfile_serialize(&self, _ser: &mut impl T5XFileSerialize, _data: ()) -> Result<()> {
+        todo!()
     }
 }
 

@@ -11,7 +11,7 @@ use std::{
 use crate::{BincodeOptions, Error, ErrorKind, Result, StreamLen, file_line_col, size_of};
 
 use t5_xfile_defs::{
-    FatPointer, ScriptString, T5XFileDeserialize, XFile, XFileDeserializeInto, XFileHeader,
+    FatPointer, ScriptStringRaw, T5XFileDeserialize, XFile, XFileDeserializeInto, XFileHeader,
     XFilePlatform, XFileVersion,
     xasset::{XAsset, XAssetListRaw, XAssetRaw},
 };
@@ -638,7 +638,7 @@ impl<'a> T5XFileDeserialize for T5XFileDeserializer<'a> {
             })
     }
 
-    fn get_script_string(&mut self, string: ScriptString) -> Result<Option<String>> {
+    fn get_script_string(&mut self, string: ScriptStringRaw) -> Result<Option<String>> {
         Ok(self.script_strings.get(string.as_u16() as usize).cloned())
     }
 }

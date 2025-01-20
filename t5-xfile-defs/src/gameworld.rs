@@ -4,7 +4,7 @@ use alloc::{boxed::Box, vec::Vec};
 
 use crate::{
     Error, ErrorKind, FatPointer, FatPointerCountFirstU16, FatPointerCountFirstU32, Ptr32, Result,
-    ScriptString, T5XFileDeserialize, XFileDeserializeInto, XString, XStringRaw, assert_size,
+    ScriptStringRaw, T5XFileDeserialize, XFileDeserializeInto, XString, XStringRaw, assert_size,
     common::{Vec2, Vec3},
     file_line_col,
 };
@@ -166,11 +166,11 @@ impl<'a> XFileDeserializeInto<PathNode, ()> for PathNodeRaw<'a> {
 pub(crate) struct PathNodeConstantRaw<'a> {
     pub type_: u16,
     pub spawnflags: u16,
-    pub targetname: ScriptString,
-    pub script_linkname: ScriptString,
-    pub script_noteworthy: ScriptString,
-    pub target: ScriptString,
-    pub animscript: ScriptString,
+    pub targetname: ScriptStringRaw,
+    pub script_linkname: ScriptStringRaw,
+    pub script_noteworthy: ScriptStringRaw,
+    pub target: ScriptStringRaw,
+    pub animscript: ScriptStringRaw,
     pub animscriptfunc: i32,
     pub origin: [f32; 3],
     pub angle: f32,

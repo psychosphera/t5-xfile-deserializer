@@ -567,10 +567,10 @@ impl<'a, const MAX_LOCAL_CLIENTS: usize> XFileSerialize<()> for XAssetGeneric<MA
         ser.store_into_xfile(asset)?;
         match self {
             // Self::PhysPreset(p) => if let Some(p) = p { p.xfile_serialize(ser, ()) } else { Ok(()) },
-            // Self::PhysConstraints(p) => if let Some(p) = p { p.xfile_serialize(ser, ()) } else { Ok(()) },
-            // Self::DestructibleDef(p) => if let Some(p) = p { p.xfile_serialize(ser, ()) } else { Ok(()) },
+            Self::PhysConstraints(p) => if let Some(p) = p { p.xfile_serialize(ser, ()) } else { Ok(()) },
+            Self::DestructibleDef(p) => if let Some(p) = p { p.xfile_serialize(ser, ()) } else { Ok(()) },
             // Self::XAnimParts(p) => if let Some(p) = p { p.xfile_serialize(ser, ()) } else { Ok(()) },
-            // Self::XModel(p) => if let Some(p) = p { p.xfile_serialize(ser, ()) } else { Ok(()) },
+            Self::XModel(p) => if let Some(p) = p { p.xfile_serialize(ser, ()) } else { Ok(()) },
             // Self::Material(p) => if let Some(p) = p { p.xfile_serialize(ser, ()) } else { Ok(()) },
             // Self::TechniqueSet(p) => if let Some(p) = p { p.xfile_serialize(ser, ()) } else { Ok(()) },
             Self::Image(p) => {
@@ -595,7 +595,7 @@ impl<'a, const MAX_LOCAL_CLIENTS: usize> XFileSerialize<()> for XAssetGeneric<MA
                 }
             }
             // Self::GfxWorld(p) => if let Some(p) = p { p.xfile_serialize(ser, ()) } else { Ok(()) },
-            // Self::LightDef(p) => if let Some(p) = p { p.xfile_serialize(ser, ()) } else { Ok(()) },
+            Self::LightDef(p) => if let Some(p) = p { p.xfile_serialize(ser, ()) } else { Ok(()) },
             Self::Font(p) => {
                 if let Some(p) = p {
                     p.xfile_serialize(ser, ())
@@ -614,7 +614,13 @@ impl<'a, const MAX_LOCAL_CLIENTS: usize> XFileSerialize<()> for XAssetGeneric<MA
             }
             // Self::Weapon(p) => if let Some(p) = p { p.xfile_serialize(ser, ()) } else { Ok(()) },
             // Self::SndDriverGlobals(p) => if let Some(p) = p { p.xfile_serialize(ser, ()) } else { Ok(()) },
-            // Self::Fx(p) => if let Some(p) = p { p.xfile_serialize(ser, ()) } else { Ok(()) },
+            Self::Fx(p) => {
+                if let Some(p) = p {
+                    p.xfile_serialize(ser, ())
+                } else {
+                    Ok(())
+                }
+            }
             // Self::ImpactFx(p) => if let Some(p) = p { p.xfile_serialize(ser, ()) } else { Ok(()) },
             Self::RawFile(p) => {
                 if let Some(p) = p {
@@ -644,8 +650,20 @@ impl<'a, const MAX_LOCAL_CLIENTS: usize> XFileSerialize<()> for XAssetGeneric<MA
                     Ok(())
                 }
             }
-            // Self::Ddl(p) => if let Some(p) = p { p.xfile_serialize(ser, ()) } else { Ok(()) },
-            // Self::Glasses(p) => if let Some(p) = p { p.xfile_serialize(ser, ()) } else { Ok(()) },
+            Self::Ddl(p) => {
+                if let Some(p) = p {
+                    p.xfile_serialize(ser, ())
+                } else {
+                    Ok(())
+                }
+            }
+            Self::Glasses(p) => {
+                if let Some(p) = p {
+                    p.xfile_serialize(ser, ())
+                } else {
+                    Ok(())
+                }
+            }
             Self::EmblemSet(p) => {
                 if let Some(p) = p {
                     p.xfile_serialize(ser, ())

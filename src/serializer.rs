@@ -8,8 +8,8 @@ use std::{
 use crate::{BincodeOptions, file_line_col};
 
 use t5_xfile_defs::{
-    Error, ErrorKind, FatPointerCountFirstU32, Ptr32, Result, T5XFileSerialize, XFile, XFileHeader,
-    XFilePlatform, XFileSerialize,
+    Error, ErrorKind, FatPointerCountFirstU32, Ptr32, Result, ScriptStringRaw, T5XFileSerialize,
+    XFile, XFileHeader, XFilePlatform, XFileSerialize,
     xasset::{XAsset, XAssetListRaw},
 };
 
@@ -160,7 +160,7 @@ impl T5XFileSerialize for T5XFileSerializer {
             })
     }
 
-    fn get_or_insert_script_string(&mut self, string: String) -> Result<Option<String>> {
+    fn get_or_insert_script_string(&mut self, string: &str) -> Result<ScriptStringRaw> {
         if self.script_strings.len() >= u16::MAX as usize {
             Err(Error::new_with_offset(
                 file_line_col!(),
@@ -168,12 +168,18 @@ impl T5XFileSerialize for T5XFileSerializer {
                 ErrorKind::ScriptStringOverflow,
             ))
         } else {
-            if let Some(s) = self.script_strings.get(&string) {
-                Ok(Some(s.clone()))
-            } else {
+            let string = string.to_owned();
+            if !self.script_strings.contains(&string) {
                 self.script_strings.insert(string.clone());
-                Ok(None)
             }
+
+            let (i, _) = self
+                .script_strings
+                .iter()
+                .enumerate()
+                .find(|(_, &ref s)| s.as_str() == string.as_str())
+                .unwrap();
+            Ok(ScriptStringRaw(i as _))
         }
     }
 

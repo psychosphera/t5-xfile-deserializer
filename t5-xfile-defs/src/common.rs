@@ -4,7 +4,7 @@
 #[cfg(feature = "serde")]
 use core::mem::transmute;
 
-use crate::{assert_size, size_of};
+use crate::{Result, T5XFileSerialize, XFileSerialize, assert_size, size_of};
 
 #[cfg(feature = "serde")]
 use serde::de::Visitor;
@@ -114,6 +114,24 @@ impl From<[f32; 3]> for Vec3 {
     }
 }
 
+impl XFileSerialize<()> for Vec2 {
+    fn xfile_serialize(&self, ser: &mut impl T5XFileSerialize, _data: ()) -> Result<()> {
+        ser.store_into_xfile(self.0)
+    }
+}
+
+impl Vec3 {
+    #[cfg(not(feature = "cgmath"))]
+    pub fn get(self) -> [f32; 3] {
+        self.0
+    }
+
+    #[cfg(feature = "cgmath")]
+    pub fn get(self) -> [f32; 3] {
+        [self.0.x, self.0.y, self.0.z]
+    }
+}
+
 #[cfg(feature = "cgmath")]
 #[derive(Copy, Clone, Debug)]
 #[repr(transparent)]
@@ -178,7 +196,7 @@ impl Vec4 {
 
     #[cfg(feature = "cgmath")]
     pub fn get(self) -> [f32; 4] {
-        [self.x, self.y, self.z, self.w]
+        [self.0.x, self.0.y, self.0.z, self.0.w]
     }
 }
 
@@ -313,6 +331,22 @@ pub struct Mat3(pub [Vec3; 3]);
 impl From<[[f32; 3]; 3]> for Mat3 {
     fn from(value: [[f32; 3]; 3]) -> Self {
         Self([value[0].into(), value[1].into(), value[2].into()])
+    }
+}
+
+impl Mat3 {
+    #[cfg(not(feature = "cgmath"))]
+    pub fn get(self) -> [[f32; 3]; 3] {
+        [self.0[0].get(), self.0[1].get(), self.0[2].get()]
+    }
+
+    #[cfg(feature = "cgmath")]
+    pub fn get(self) -> [[f32; 3]; 3] {
+        [
+            [self.0.x.x, self.0.x.y, self.0.x.z],
+            [self.0.y.x, self.0.y.y, self.0.y.z],
+            [self.0.z.x, self.0.z.y, self.0.z.z],
+        ]
     }
 }
 

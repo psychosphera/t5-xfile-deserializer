@@ -1,6 +1,6 @@
 use crate::{
     FatPointer, FatPointerCountFirstU32, FatPointerCountLastU32, Ptr32, Result, T5XFileDeserialize,
-    XFileDeserializeInto, XString, XStringRaw, assert_size,
+    T5XFileSerialize, XFileDeserializeInto, XFileSerialize, XString, XStringRaw, assert_size,
     common::{Mat3, Vec2, Vec3},
     fx::{FxEffectDef, FxEffectDefRaw},
     techset::{Material, MaterialRaw},
@@ -70,6 +70,34 @@ impl<'a> XFileDeserializeInto<Glasses, ()> for GlassesRaw<'a> {
     }
 }
 
+impl XFileSerialize<()> for Glasses {
+    fn xfile_serialize(&self, ser: &mut impl T5XFileSerialize, _data: ()) -> Result<()> {
+        let name = XStringRaw::from_str(self.name.get());
+        let glasses = FatPointerCountFirstU32::from_slice(&self.glasses);
+        let work_memory = FatPointerCountLastU32::from_slice(&self.work_memory);
+
+        let glasses = GlassesRaw {
+            name,
+            glasses,
+            work_memory,
+            small_allocator_blocks: self.small_allocator_blocks,
+            max_groups: self.max_groups,
+            max_shards: self.max_shards,
+            max_physics: self.max_physics,
+            shard_memory_size: self.shard_memory_size,
+            max_free_cmd: self.max_free_cmd,
+            num_slots: self.num_slots,
+            num_verts: self.num_verts,
+            num_indices: self.num_indices,
+        };
+
+        ser.store_into_xfile(glasses)?;
+        self.name.xfile_serialize(ser, ())?;
+        self.glasses.xfile_serialize(ser, ())?;
+        self.work_memory.xfile_serialize(ser, ())
+    }
+}
+
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
 pub(crate) struct GlassRaw<'a> {
@@ -111,14 +139,15 @@ pub struct Glass {
 impl<'a> XFileDeserializeInto<Glass, ()> for GlassRaw<'a> {
     fn xfile_deserialize_into(&self, de: &mut impl T5XFileDeserialize, _data: ()) -> Result<Glass> {
         let glass_def = self.glass_def.xfile_deserialize_into(de, ())?;
-        let origin = self.origin.into();
-        let angles = self.angles.into();
-        let absmin = self.absmin.into();
-        let absmax = self.absmax.into();
         let outline = self
             .outline
             .to_array(self.num_outline_verts as _)
             .to_vec_into(de)?;
+
+        let origin = self.origin.into();
+        let angles = self.angles.into();
+        let absmin = self.absmin.into();
+        let absmax = self.absmax.into();
         let outline_axis = self.outline_axis.into();
         let outline_origin = self.outline_origin.into();
 
@@ -137,6 +166,41 @@ impl<'a> XFileDeserializeInto<Glass, ()> for GlassRaw<'a> {
             uv_scale: self.uv_scale,
             thickness: self.thickness,
         })
+    }
+}
+
+impl XFileSerialize<()> for Glass {
+    fn xfile_serialize(&self, ser: &mut impl T5XFileSerialize, _data: ()) -> Result<()> {
+        let glass_def = Ptr32::from_box(&self.glass_def);
+        let outline = Ptr32::from_slice(&self.outline);
+
+        let origin = self.origin.get();
+        let angles = self.angles.get();
+        let absmin = self.absmin.get();
+        let absmax = self.absmax.get();
+        let outline_axis = self.outline_axis.get();
+        let outline_origin = self.outline_origin.get();
+
+        let glass = GlassRaw {
+            glass_def,
+            index: self.index,
+            brush_model: self.brush_model,
+            origin,
+            angles,
+            absmin,
+            absmax,
+            is_planar: self.is_planar,
+            num_outline_verts: self.outline.len() as _,
+            outline,
+            outline_axis,
+            outline_origin,
+            uv_scale: self.uv_scale,
+            thickness: self.thickness,
+        };
+
+        ser.store_into_xfile(glass)?;
+        self.glass_def.xfile_serialize(ser, ())?;
+        self.outline.xfile_serialize(ser, ())
     }
 }
 
@@ -214,5 +278,48 @@ impl<'a> XFileDeserializeInto<GlassDef, ()> for GlassDefRaw<'a> {
             crack_effect,
             shatter_effect,
         })
+    }
+}
+
+impl XFileSerialize<()> for GlassDef {
+    fn xfile_serialize(&self, ser: &mut impl T5XFileSerialize, _data: ()) -> Result<()> {
+        let name = XStringRaw::from_str(self.name.get());
+        let pristine_material = Ptr32::from_box(&self.pristine_material);
+        let cracked_material = Ptr32::from_box(&self.cracked_material);
+        let shard_material = Ptr32::from_box(&self.shard_material);
+        let crack_sound = XStringRaw::from_str(self.crack_sound.get());
+        let shatter_sound = XStringRaw::from_str(self.shatter_sound.get());
+        let auto_shatter_sound = XStringRaw::from_str(self.auto_shatter_sound.get());
+        let crack_effect = Ptr32::from_box(&self.crack_effect);
+        let shatter_effect = Ptr32::from_box(&self.shatter_effect);
+
+        let glass_def = GlassDefRaw {
+            name,
+            max_health: self.max_health,
+            thickness: self.thickness,
+            min_shard_size: self.min_shard_size,
+            max_shard_size: self.max_shard_size,
+            shard_life_probability: self.shard_life_probability,
+            max_shards: self.max_shards,
+            pristine_material,
+            cracked_material,
+            shard_material,
+            crack_sound,
+            shatter_effect,
+            shatter_sound,
+            auto_shatter_sound,
+            crack_effect,
+        };
+
+        ser.store_into_xfile(glass_def)?;
+        self.name.xfile_serialize(ser, ())?;
+        self.pristine_material.xfile_serialize(ser, ())?;
+        self.cracked_material.xfile_serialize(ser, ())?;
+        self.shard_material.xfile_serialize(ser, ())?;
+        self.crack_sound.xfile_serialize(ser, ())?;
+        self.shatter_sound.xfile_serialize(ser, ())?;
+        self.auto_shatter_sound.xfile_serialize(ser, ())?;
+        self.crack_effect.xfile_serialize(ser, ())?;
+        self.shatter_effect.xfile_serialize(ser, ())
     }
 }

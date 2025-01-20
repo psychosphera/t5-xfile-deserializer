@@ -509,6 +509,8 @@ pub(crate) struct FlexibleArrayU32<T: DeserializeOwned> {
 pub(crate) trait FlexibleArray<T: DeserializeOwned> {
     fn count(&self) -> usize;
 
+    fn new(count: usize) -> Self;
+
     fn to_vec(&self, de: &mut impl T5XFileDeserialize) -> Result<Vec<T>> {
         let mut vt = Vec::new();
 
@@ -532,6 +534,13 @@ macro_rules! impl_flexible_array {
             impl<T: DeserializeOwned> FlexibleArray<T> for $s<T> {
                 fn count(&self) -> usize {
                     self.count as _
+                }
+
+                fn new(count: usize) -> Self {
+                    Self {
+                        count: count as _,
+                        _p: PhantomData,
+                    }
                 }
             }
         )+

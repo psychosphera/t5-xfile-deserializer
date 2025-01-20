@@ -9,7 +9,8 @@ use crate::prelude::*;
 
 use crate::{
     Error, ErrorKind, FatPointer, FatPointerCountFirstU32, FatPointerCountLastU32, Ptr32, Result,
-    ScriptString, T5XFileDeserialize, XFileDeserializeInto, XString, XStringRaw, assert_size,
+    ScriptStringRaw, T5XFileDeserialize, T5XFileSerialize, XFileDeserializeInto, XFileSerialize,
+    XString, XStringRaw, assert_size,
     common::{GfxIndexBuffer, GfxVertexBuffer, Mat3, Vec3, Vec4},
     file_line_col,
     techset::{Material, MaterialRaw},
@@ -23,7 +24,7 @@ pub(crate) struct XModelRaw<'a> {
     pub num_root_bones: u8,
     pub numsurfs: u8,
     pub lod_ramp_type: u8,
-    pub bone_names: Ptr32<'a, ScriptString>,
+    pub bone_names: Ptr32<'a, ScriptStringRaw>,
     pub parent_list: Ptr32<'a, u8>,
     pub quats: Ptr32<'a, i16>,
     pub trans: Ptr32<'a, f32>,
@@ -281,6 +282,12 @@ impl<'a> XFileDeserializeInto<XModel, ()> for XModelRaw<'a> {
             collmaps,
             phys_constraints,
         })
+    }
+}
+
+impl XFileSerialize<()> for XModel {
+    fn xfile_serialize(&self, _ser: &mut impl T5XFileSerialize, _data: ()) -> Result<()> {
+        todo!()
     }
 }
 
@@ -1252,22 +1259,28 @@ impl<'a> XFileDeserializeInto<PhysConstraints, ()> for PhysConstraintsRaw<'a> {
     }
 }
 
+impl XFileSerialize<()> for PhysConstraints {
+    fn xfile_serialize(&self, _ser: &mut impl T5XFileSerialize, _data: ()) -> Result<()> {
+        todo!()
+    }
+}
+
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
 pub(crate) struct PhysConstraintRaw<'a> {
-    pub targetname: ScriptString,
+    pub targetname: ScriptStringRaw,
     #[allow(dead_code)]
     pad: [u8; 2],
     pub type_: i32,
     pub attach_point_type1: i32,
     pub target_index1: i32,
-    pub target_ent1: ScriptString,
+    pub target_ent1: ScriptStringRaw,
     #[allow(dead_code)]
     pad_2: [u8; 2],
     pub target_bone1: XStringRaw<'a>,
     pub attach_point_type2: i32,
     pub target_index2: i32,
-    pub target_ent2: ScriptString,
+    pub target_ent2: ScriptStringRaw,
     #[allow(dead_code)]
     pad_3: [u8; 2],
     pub target_bone2: XStringRaw<'a>,

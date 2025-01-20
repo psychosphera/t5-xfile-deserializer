@@ -1,8 +1,8 @@
 use alloc::{boxed::Box, vec::Vec};
 
 use crate::{
-    Error, ErrorKind, FatPointer, Ptr32, Ptr32ArrayConst, Result, ScriptString, T5XFileDeserialize,
-    XFileDeserializeInto, XString, XStringRaw, assert_size,
+    Error, ErrorKind, FatPointer, Ptr32, Ptr32ArrayConst, Result, ScriptStringRaw,
+    T5XFileDeserialize, XFileDeserializeInto, XString, XStringRaw, assert_size,
     common::{Vec2, Vec3},
     file_line_col, fx, techset, xmodel,
 };
@@ -20,7 +20,7 @@ pub(crate) struct WeaponVariantDefRaw<'a> {
     pub display_name: XStringRaw<'a>,
     pub xanims: Ptr32ArrayConst<'a, XStringRaw<'a>, 66>,
     pub alt_weapon_name: XStringRaw<'a>,
-    pub hide_tags: Ptr32ArrayConst<'a, ScriptString, 32>,
+    pub hide_tags: Ptr32ArrayConst<'a, ScriptStringRaw, 32>,
     pub alt_weapon_index: u32,
     pub clip_size: i32,
     pub reload_time: i32,
@@ -224,8 +224,8 @@ pub(crate) struct WeaponDefRaw<'a> {
     pub gun_xmodel: Ptr32ArrayConst<'a, Ptr32<'a, xmodel::XModelRaw<'a>>, 16>,
     pub hand_xmodel: Ptr32<'a, xmodel::XModelRaw<'a>>,
     pub mode_name: XStringRaw<'a>,
-    pub notetrack_sound_map_keys: Ptr32ArrayConst<'a, ScriptString, 20>,
-    pub notetrack_sound_map_values: Ptr32ArrayConst<'a, ScriptString, 20>,
+    pub notetrack_sound_map_keys: Ptr32ArrayConst<'a, ScriptStringRaw, 20>,
+    pub notetrack_sound_map_values: Ptr32ArrayConst<'a, ScriptStringRaw, 20>,
     pub player_anim_type: i32,
     pub weap_type: u32,
     pub weap_class: u32,
@@ -400,7 +400,7 @@ pub(crate) struct WeaponDefRaw<'a> {
     pub player_damage: i32,
     pub melee_damage: i32,
     pub damage_type: i32,
-    pub explosion_tag: ScriptString,
+    pub explosion_tag: ScriptStringRaw,
     #[allow(dead_code)]
     pad3: [u8; 2],
     pub fire_delay: i32,

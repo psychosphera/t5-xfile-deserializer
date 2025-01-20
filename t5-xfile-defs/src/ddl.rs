@@ -1,8 +1,8 @@
 use alloc::{boxed::Box, vec::Vec};
 
 use crate::{
-    FatPointerCountFirstU32, FatPointerCountLastU32, Ptr32, Result, T5XFileDeserialize,
-    XFileDeserializeInto, XString, XStringRaw, assert_size,
+    FatPointer, FatPointerCountFirstU32, FatPointerCountLastU32, Ptr32, Result, T5XFileDeserialize,
+    T5XFileSerialize, XFileDeserializeInto, XFileSerialize, XString, XStringRaw, assert_size,
 };
 
 use serde::{Deserialize, Serialize};
@@ -47,6 +47,26 @@ impl<'a> XFileDeserializeInto<DdlRoot, ()> for DdlRootRaw<'a> {
     }
 }
 
+impl XFileSerialize<()> for DdlRoot {
+    fn xfile_serialize(&self, ser: &mut impl T5XFileSerialize, _data: ()) -> Result<()> {
+        let name = XStringRaw::from_str(self.name.get());
+        let ddl_defs = Ptr32::from_slice(&self.ddl_defs);
+
+        let ddl_root = DdlRootRaw {
+            name,
+            ddl_def: ddl_defs,
+        };
+
+        ser.store_into_xfile(ddl_root)?;
+
+        for ddl_def in &self.ddl_defs[..self.ddl_defs.len() - 2] {
+            ddl_def.xfile_serialize(ser, false)?;
+        }
+
+        self.ddl_defs.last().unwrap().xfile_serialize(ser, true)
+    }
+}
+
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Debug, Deserialize)]
 pub(crate) struct DdlDefRaw<'a> {
@@ -85,6 +105,29 @@ impl<'a> XFileDeserializeInto<DdlDef, ()> for DdlDefRaw<'a> {
     }
 }
 
+impl XFileSerialize<bool> for DdlDef {
+    fn xfile_serialize(&self, ser: &mut impl T5XFileSerialize, is_last: bool) -> Result<()> {
+        let struct_list = FatPointerCountLastU32::from_slice(&self.struct_list);
+        let enum_list = FatPointerCountLastU32::from_slice(&self.enum_list);
+        let next = if is_last {
+            Ptr32::null()
+        } else {
+            Ptr32::unreal()
+        };
+        let ddl_def_raw = DdlDefRaw {
+            version: self.version,
+            size: self.size,
+            struct_list,
+            enum_list,
+            next,
+        };
+
+        ser.store_into_xfile(ddl_def_raw)?;
+        self.struct_list.xfile_serialize(ser, ())?;
+        self.enum_list.xfile_serialize(ser, ())
+    }
+}
+
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Debug, Deserialize)]
 pub(crate) struct DdlStructDefRaw<'a> {
@@ -116,6 +159,23 @@ impl<'a> XFileDeserializeInto<DdlStructDef, ()> for DdlStructDefRaw<'a> {
             size: self.size,
             members,
         })
+    }
+}
+
+impl XFileSerialize<()> for DdlStructDef {
+    fn xfile_serialize(&self, ser: &mut impl T5XFileSerialize, _data: ()) -> Result<()> {
+        let name = XStringRaw::from_str(self.name.get());
+        let members = FatPointerCountFirstU32::from_slice(&self.members);
+
+        let struct_def = DdlStructDefRaw {
+            name,
+            size: self.size,
+            members,
+        };
+
+        ser.store_into_xfile(struct_def)?;
+        self.name.xfile_serialize(ser, ())?;
+        self.members.xfile_serialize(ser, ())
     }
 }
 
@@ -179,6 +239,31 @@ impl<'a> XFileDeserializeInto<DdlMemberDef, ()> for DdlMemberDefRaw<'a> {
     }
 }
 
+impl XFileSerialize<()> for DdlMemberDef {
+    fn xfile_serialize(&self, ser: &mut impl T5XFileSerialize, _data: ()) -> Result<()> {
+        let name = XStringRaw::from_str(self.name.get());
+
+        let member_def = DdlMemberDefRaw {
+            name,
+            size: self.size,
+            offset: self.offset,
+            type_: self.type_,
+            external_index: self.external_index,
+            min: self.min,
+            max: self.max,
+            server_delta: self.server_delta,
+            client_delta: self.client_delta,
+            array_size: self.array_size,
+            enum_index: self.enum_index,
+            permission: self.permission,
+        };
+
+        ser.store_into_xfile(member_def)?;
+
+        self.name.xfile_serialize(ser, ())
+    }
+}
+
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Debug, Deserialize)]
 pub(crate) struct DdlEnumDefRaw<'a> {
@@ -204,5 +289,19 @@ impl<'a> XFileDeserializeInto<DdlEnumDef, ()> for DdlEnumDefRaw<'a> {
         let members = self.members.xfile_deserialize_into(de, ())?;
 
         Ok(DdlEnumDef { name, members })
+    }
+}
+
+impl XFileSerialize<()> for DdlEnumDef {
+    fn xfile_serialize(&self, ser: &mut impl T5XFileSerialize, _data: ()) -> Result<()> {
+        let name = XStringRaw::from_str(self.name.get());
+        let members = FatPointerCountFirstU32::from_slice(&self.members);
+
+        let enum_def = DdlEnumDefRaw { name, members };
+
+        ser.store_into_xfile(enum_def)?;
+
+        self.name.xfile_serialize(ser, ())?;
+        self.members.xfile_serialize(ser, ())
     }
 }

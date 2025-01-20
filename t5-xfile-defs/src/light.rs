@@ -5,7 +5,8 @@ use serde::{Deserialize, Serialize};
 use crate::prelude::*;
 
 use crate::{
-    Ptr32, Result, T5XFileDeserialize, XFileDeserializeInto, XString, XStringRaw, assert_size,
+    Ptr32, Result, T5XFileDeserialize, T5XFileSerialize, XFileDeserializeInto, XFileSerialize,
+    XString, XStringRaw, assert_size,
     techset::{GfxImage, GfxImageRaw},
 };
 
@@ -24,6 +25,27 @@ pub struct GfxLightDef {
     pub name: XString,
     pub attenuation: GfxLightImage,
     pub lmap_lookup_start: i32,
+}
+
+impl XFileSerialize<()> for GfxLightDef {
+    fn xfile_serialize(&self, ser: &mut impl T5XFileSerialize, _data: ()) -> Result<()> {
+        let name = XStringRaw::from_str(self.name.get());
+        let attenuation = GfxLightImageRaw {
+            image: Ptr32::from_box(&self.attenuation.image),
+            sampler_state: self.attenuation.sampler_state,
+            pad: [0u8; 3],
+        };
+
+        let light_def = GfxLightDefRaw {
+            name,
+            attenuation,
+            lmap_lookup_start: self.lmap_lookup_start,
+        };
+
+        ser.store_into_xfile(light_def)?;
+        self.name.xfile_serialize(ser, ())?;
+        self.attenuation.xfile_serialize(ser, ())
+    }
 }
 
 impl<'a> XFileDeserializeInto<GfxLightDef, ()> for GfxLightDefRaw<'a> {
@@ -78,5 +100,20 @@ impl<'a> XFileDeserializeInto<GfxLightImage, ()> for GfxLightImageRaw<'a> {
             image,
             sampler_state: self.sampler_state,
         })
+    }
+}
+
+impl XFileSerialize<()> for GfxLightImage {
+    fn xfile_serialize(&self, ser: &mut impl T5XFileSerialize, _data: ()) -> Result<()> {
+        let image = Ptr32::from_box(&self.image);
+
+        let light_image = GfxLightImageRaw {
+            image,
+            sampler_state: self.sampler_state,
+            pad: [0u8; 3],
+        };
+
+        ser.store_into_xfile(light_image)?;
+        self.image.xfile_serialize(ser, ())
     }
 }

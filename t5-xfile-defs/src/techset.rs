@@ -1105,8 +1105,39 @@ impl<'a> XFileDeserializeInto<GfxImage, ()> for GfxImageRaw<'a> {
 }
 
 impl XFileSerialize<()> for GfxImage {
-    fn xfile_serialize(&self, _ser: &mut impl T5XFileSerialize, _data: ()) -> Result<()> {
-        todo!()
+    fn xfile_serialize(&self, ser: &mut impl T5XFileSerialize, _data: ()) -> Result<()> {
+        let texture = GfxTextureRaw { p: Ptr32::unreal() };
+
+        let pixels = Ptr32::from_slice(&self.pixels);
+        let name = XStringRaw::from_str(self.name.get());
+
+        let image = GfxImageRaw {
+            texture,
+            map_type: self.map_type as _,
+            semantic: self.semantic as _,
+            category: self.category as _,
+            delay_load_pixels: self.delay_load_pixels,
+            picmip: self.picmip.unwrap_or_default(),
+            no_picmip: self.picmip.is_some(),
+            track: self.track,
+            card_memory: self.card_memory,
+            width: self.width,
+            height: self.height,
+            depth: self.depth,
+            level_count: self.level_count,
+            streaming: self.streaming,
+            base_size: self.base_size,
+            pixels,
+            loaded_size: self.loaded_size,
+            skipped_mip_levels: self.skipped_mip_levels,
+            pad: [0u8; 3],
+            name,
+            hash: self.hash,
+        };
+
+        ser.store_into_xfile(image)?;
+        self.name.xfile_serialize(ser, ())?;
+        self.texture.xfile_serialize(ser, ())
     }
 }
 
@@ -1149,6 +1180,31 @@ impl<'a> XFileDeserializeInto<GfxTexture, ()> for GfxTextureRaw<'a> {
             .xfile_deserialize_into(de, ())?;
 
         Ok(GfxTexture::LoadDef(load_def))
+    }
+}
+
+impl XFileSerialize<()> for GfxTexture {
+    fn xfile_serialize(&self, ser: &mut impl T5XFileSerialize, _data: ()) -> Result<()> {
+        match self {
+            Self::LoadDef(d) => {
+                let Some(d) = d else {
+                    return Ok(());
+                };
+
+                let resource = FlexibleArrayU32::new(d.resource.len() as _);
+                let load_def = GfxImageLoadDefRaw {
+                    level_count: d.level_count,
+                    flags: d.flags,
+                    pad: [0u8; 2],
+                    format: d.format,
+                    resource,
+                };
+
+                ser.store_into_xfile(load_def)?;
+                d.resource.xfile_serialize(ser, ())
+            }
+            _ => unimplemented!(),
+        }
     }
 }
 

@@ -195,9 +195,9 @@ assert_size!(XFile, 36);
 
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
-pub struct ScriptString(u16);
+pub struct ScriptStringRaw(pub u16);
 
-impl ScriptString {
+impl ScriptStringRaw {
     pub fn to_string(self, de: &mut impl T5XFileDeserialize) -> Result<String> {
         de.get_script_string(self)?.ok_or(Error::new_with_offset(
             file_line_col!(),
@@ -465,7 +465,7 @@ pub trait T5XFileDeserialize {
 
     /// Returns [`Ok(Some)`] if `string` is present, [`Ok(None)`]
     /// if not, or, depending on the implementation, [`Err`].
-    fn get_script_string(&mut self, string: ScriptString) -> Result<Option<String>>;
+    fn get_script_string(&mut self, string: ScriptStringRaw) -> Result<Option<String>>;
 }
 
 pub trait T5XFileSerialize {
@@ -474,7 +474,7 @@ pub trait T5XFileSerialize {
     /// Returns [`Ok(Some)`] when `string` was already present, [`Ok(None)`]
     /// when `string` wasn't already present, or [`Err`] when
     /// [`Error::ScriptStringOverflow`] or some other error occurs.
-    fn get_or_insert_script_string(&mut self, string: String) -> Result<Option<String>>;
+    fn get_or_insert_script_string(&mut self, string: &str) -> Result<ScriptStringRaw>;
 
     fn script_strings(&self) -> Vec<&str>;
 

@@ -1,8 +1,8 @@
 use alloc::{boxed::Box, vec::Vec};
 
 use crate::{
-    FatPointerCountFirstU32, Ptr32, Result, ScriptString, T5XFileDeserialize, XFileDeserializeInto,
-    XString, XStringRaw, assert_size,
+    FatPointer, FatPointerCountFirstU32, Ptr32, Result, ScriptStringRaw, T5XFileDeserialize,
+    T5XFileSerialize, XFileDeserializeInto, XFileSerialize, XString, XStringRaw, assert_size,
     fx::{FxEffectDef, FxEffectDefRaw},
     xmodel::{PhysConstraints, PhysConstraintsRaw, PhysPreset, PhysPresetRaw, XModel, XModelRaw},
 };
@@ -36,13 +36,41 @@ impl<'a> XFileDeserializeInto<DestructibleDef, ()> for DestructibleDefRaw<'a> {
         de: &mut impl T5XFileDeserialize,
         _data: (),
     ) -> Result<DestructibleDef> {
+        let name = self.name.xfile_deserialize_into(de, ())?;
+        let model = self.model.xfile_deserialize_into(de, ())?;
+        let pristine_model = self.pristine_model.xfile_deserialize_into(de, ())?;
+        let pieces = self.pieces.xfile_deserialize_into(de, ())?;
+
         Ok(DestructibleDef {
-            name: self.name.xfile_deserialize_into(de, ())?,
-            model: self.model.xfile_deserialize_into(de, ())?,
-            pristine_model: self.pristine_model.xfile_deserialize_into(de, ())?,
-            pieces: self.pieces.xfile_deserialize_into(de, ())?,
+            name,
+            model,
+            pristine_model,
+            pieces,
             client_only: self.client_only != 0,
         })
+    }
+}
+
+impl XFileSerialize<()> for DestructibleDef {
+    fn xfile_serialize(&self, ser: &mut impl T5XFileSerialize, _data: ()) -> Result<()> {
+        let name = XStringRaw::from_str(self.name.get());
+        let model = Ptr32::from_box(&self.model);
+        let pristine_model = Ptr32::from_box(&self.pristine_model);
+        let pieces = FatPointerCountFirstU32::from_slice(&self.pieces);
+
+        let destructible_def = DestructibleDefRaw {
+            name,
+            model,
+            pristine_model,
+            pieces,
+            client_only: self.client_only as _,
+        };
+
+        ser.store_into_xfile(destructible_def)?;
+        self.name.xfile_serialize(ser, ())?;
+        self.model.xfile_serialize(ser, ())?;
+        self.pristine_model.xfile_serialize(ser, ())?;
+        self.pieces.xfile_serialize(ser, ())
     }
 }
 
@@ -97,14 +125,20 @@ impl<'a> XFileDeserializeInto<DestructiblePiece, ()> for DestructiblePieceRaw<'a
         de: &mut impl T5XFileDeserialize,
         _data: (),
     ) -> Result<DestructiblePiece> {
+        let stages = [
+            self.stages[0].xfile_deserialize_into(de, ())?,
+            self.stages[1].xfile_deserialize_into(de, ())?,
+            self.stages[2].xfile_deserialize_into(de, ())?,
+            self.stages[3].xfile_deserialize_into(de, ())?,
+            self.stages[4].xfile_deserialize_into(de, ())?,
+        ];
+        let phys_constraints = self.phys_constraints.xfile_deserialize_into(de, ())?;
+        let damage_sound = self.damage_sound.xfile_deserialize_into(de, ())?;
+        let burn_effect = self.burn_effect.xfile_deserialize_into(de, ())?;
+        let burn_sound = self.burn_sound.xfile_deserialize_into(de, ())?;
+
         Ok(DestructiblePiece {
-            stages: [
-                self.stages[0].xfile_deserialize_into(de, ())?,
-                self.stages[1].xfile_deserialize_into(de, ())?,
-                self.stages[2].xfile_deserialize_into(de, ())?,
-                self.stages[3].xfile_deserialize_into(de, ())?,
-                self.stages[4].xfile_deserialize_into(de, ())?,
-            ],
+            stages,
             parent_piece: self.parent_piece,
             parent_damage_percent: self.parent_damage_percent,
             bullet_damage_scale: self.bullet_damage_scale,
@@ -112,21 +146,91 @@ impl<'a> XFileDeserializeInto<DestructiblePiece, ()> for DestructiblePieceRaw<'a
             melee_damage_scale: self.melee_damage_scale,
             impact_damage_scael: self.impact_damage_scael,
             entity_damage_transfer: self.entity_damage_transfer,
-            phys_constraints: self.phys_constraints.xfile_deserialize_into(de, ())?,
+            phys_constraints,
             health: self.health,
-            damage_sound: self.damage_sound.xfile_deserialize_into(de, ())?,
-            burn_effect: self.burn_effect.xfile_deserialize_into(de, ())?,
-            burn_sound: self.burn_sound.xfile_deserialize_into(de, ())?,
+            damage_sound,
+            burn_effect,
+            burn_sound,
             enable_label: self.enable_label,
             hide_bones: self.hide_bones,
         })
     }
 }
 
+impl XFileSerialize<()> for DestructiblePiece {
+    fn xfile_serialize(&self, ser: &mut impl T5XFileSerialize, _data: ()) -> Result<()> {
+        let stages = self
+            .stages
+            .iter()
+            .map(|s| {
+                let show_bone = ser.get_or_insert_script_string(s.show_bone.get())?;
+                let break_effect = Ptr32::from_box(&s.break_effect);
+                let break_sound = XStringRaw::from_str(s.break_sound.get());
+                let break_notify = XStringRaw::from_str(s.break_notify.get());
+                let loop_sound = XStringRaw::from_str(s.loop_sound.get());
+                let spawn_model = s
+                    .spawn_model
+                    .iter()
+                    .into_iter()
+                    .map(|m| Ptr32::from_box(m))
+                    .collect::<Vec<_>>()
+                    .try_into()
+                    .unwrap();
+                let phys_preset = Ptr32::from_box(&s.phys_preset);
+
+                Ok(DestructibleStageRaw {
+                    show_bone,
+                    break_effect,
+                    break_health: s.break_health,
+                    max_time: s.max_time,
+                    flags: s.flags,
+                    break_sound,
+                    break_notify,
+                    loop_sound,
+                    spawn_model,
+                    phys_preset,
+                })
+            })
+            .collect::<Result<Vec<_>>>()?
+            .try_into()
+            .unwrap();
+        let phys_constraints = Ptr32::from_box(&self.phys_constraints);
+        let damage_sound = XStringRaw::from_str(self.damage_sound.get());
+        let burn_effect = Ptr32::from_box(&self.burn_effect);
+        let burn_sound = XStringRaw::from_str(self.burn_sound.get());
+
+        let destructible_piece = DestructiblePieceRaw {
+            stages,
+            parent_piece: self.parent_piece,
+            unused: [0u8; 3],
+            parent_damage_percent: self.parent_damage_percent,
+            bullet_damage_scale: self.bullet_damage_scale,
+            explosive_damage_scale: self.explosive_damage_scale,
+            melee_damage_scale: self.melee_damage_scale,
+            impact_damage_scael: self.impact_damage_scael,
+            entity_damage_transfer: self.entity_damage_transfer,
+            phys_constraints,
+            health: self.health,
+            damage_sound,
+            burn_effect,
+            burn_sound,
+            enable_label: self.enable_label,
+            unused_2: [0u8; 2],
+            hide_bones: self.hide_bones,
+        };
+
+        ser.store_into_xfile(destructible_piece)?;
+        self.phys_constraints.xfile_serialize(ser, ())?;
+        self.damage_sound.xfile_serialize(ser, ())?;
+        self.burn_effect.xfile_serialize(ser, ())?;
+        self.burn_sound.xfile_serialize(ser, ())
+    }
+}
+
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Clone, Debug, Deserialize)]
 pub(crate) struct DestructibleStageRaw<'a> {
-    pub show_bone: ScriptString,
+    pub show_bone: ScriptStringRaw,
     pub break_health: f32,
     pub max_time: f32,
     pub flags: u32,

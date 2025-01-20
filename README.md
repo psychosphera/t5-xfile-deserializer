@@ -78,14 +78,15 @@ I primarily created this to integrate into OpenT5 once it's done, but I figured 
 
 ## Todo
 1. Fix deserialization logic of remaining `XAssets`.
-2. Account for shared pointers. (All pointers get boxed currently, but that's definitely not correct semantically for a lot of them.)
-3. Relatedly, account for linked lists.
-4. Tidy up the deserializer's API (typestated now, but still a little janky).
-5. Let the deserializer use a custom, user-defined allocator.
-6. Make sure all the arrays sized by `MAX_LOCAL_CLIENTS` were caught (pretty sure a couple in `techset.rs` slipped through).
-7. Verify whether macOS `XFiles` are identical to Windows.
-8. Verify whether Wii even uses `XFiles`.
-9. Docs (lol)
+2. Serialization.
+3. Account for shared pointers. (All pointers get boxed currently, but that's definitely not correct semantically for a lot of them.)
+4. Relatedly, account for linked lists.
+5. Tidy up the deserializer's API (typestated now, but still a little janky).
+6. Let the serializer and deserializer use a custom, user-defined allocator.
+7. Make sure all the arrays sized by `MAX_LOCAL_CLIENTS` were caught (pretty sure a couple in `techset.rs` slipped through).
+8. Verify whether macOS `XFiles` are identical to Windows.
+9. Verify whether Wii even uses `XFiles`.
+10. Docs (lol)
 
 ## Future Todo
 1. Account for differences in macOS `XFiles`, if they're different from Windows.
@@ -93,4 +94,3 @@ I primarily created this to integrate into OpenT5 once it's done, but I figured 
 
 ## Far Future Todo
 1. Account for differences in console `XFiles`.
-2. Serialization.
