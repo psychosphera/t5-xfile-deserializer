@@ -215,12 +215,6 @@ const XFILE_VERSION: u32 = 0x000001D9u32;
 const XFILE_VERSION_LE: u32 = XFILE_VERSION.to_le();
 const XFILE_VERSION_BE: u32 = XFILE_VERSION.to_be();
 
-#[cfg(target_endian = "little")]
-const XFILE_VERSION_OE: u32 = XFILE_VERSION_BE;
-
-#[cfg(target_endian = "big")]
-const XFILE_VERSION_OE: u32 = XFILE_VERSION_LE;
-
 #[repr(u32)]
 pub enum XFileVersion {
     LE = XFILE_VERSION_LE,
@@ -239,7 +233,7 @@ impl XFileVersion {
     }
 
     pub const fn is_other_endian(version: u32) -> bool {
-        version == XFILE_VERSION_OE
+        version.swap_bytes() == XFILE_VERSION
     }
 
     pub const fn from_u32(value: u32) -> Option<Self> {
