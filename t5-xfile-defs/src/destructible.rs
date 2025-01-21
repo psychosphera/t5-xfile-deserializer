@@ -1,7 +1,7 @@
 use alloc::{boxed::Box, vec::Vec};
 
 use crate::{
-    FatPointer, FatPointerCountFirstU32, Ptr32, Result, ScriptStringRaw, T5XFileDeserialize,
+    FatPointer, FatPointerCountFirstU32, Ptr32, Result, ScriptString, T5XFileDeserialize,
     T5XFileSerialize, XFileDeserializeInto, XFileSerialize, XString, XStringRaw, assert_size,
     fx::{FxEffectDef, FxEffectDefRaw},
     xmodel::{PhysConstraints, PhysConstraintsRaw, PhysPreset, PhysPresetRaw, XModel, XModelRaw},
@@ -230,7 +230,7 @@ impl XFileSerialize<()> for DestructiblePiece {
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Clone, Debug, Deserialize)]
 pub(crate) struct DestructibleStageRaw<'a> {
-    pub show_bone: ScriptStringRaw,
+    pub show_bone: ScriptString,
     pub break_health: f32,
     pub max_time: f32,
     pub flags: u32,

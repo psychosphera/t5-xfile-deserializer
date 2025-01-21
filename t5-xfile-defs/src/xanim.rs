@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use crate::prelude::*;
 
 use crate::{
-    FatPointer, Ptr32, Result, ScriptStringRaw, T5XFileDeserialize, XFileDeserializeInto, XString,
+    FatPointer, Ptr32, Result, ScriptString, T5XFileDeserialize, XFileDeserializeInto, XString,
     XStringRaw, assert_size, common::Vec3,
 };
 
@@ -37,7 +37,7 @@ pub(crate) struct XAnimPartsRaw<'a> {
     pub frequency: f32,
     pub primed_length: f32,
     pub loop_entry_time: f32,
-    pub names: Ptr32<'a, ScriptStringRaw>,
+    pub names: Ptr32<'a, ScriptString>,
     pub data_byte: Ptr32<'a, u8>,
     pub data_short: Ptr32<'a, i16>,
     pub data_int: Ptr32<'a, i32>,
@@ -206,7 +206,7 @@ impl<'a> XFileDeserializeInto<XAnimIndices, (u16, u32)> for XAnimIndicesRaw<'a> 
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Debug, Default, Deserialize)]
 pub(crate) struct XAnimNotifyInfoRaw {
-    pub name: ScriptStringRaw,
+    pub name: ScriptString,
     pad: [u8; 2],
     pub time: f32,
 }

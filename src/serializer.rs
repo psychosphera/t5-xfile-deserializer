@@ -8,7 +8,7 @@ use std::{
 use crate::{BincodeOptions, file_line_col};
 
 use t5_xfile_defs::{
-    Error, ErrorKind, FatPointerCountFirstU32, Ptr32, Result, ScriptStringRaw, T5XFileSerialize,
+    Error, ErrorKind, FatPointerCountFirstU32, Ptr32, Result, ScriptString, T5XFileSerialize,
     XFile, XFileHeader, XFilePlatform, XFileSerialize,
     xasset::{XAsset, XAssetListRaw},
 };
@@ -160,7 +160,7 @@ impl T5XFileSerialize for T5XFileSerializer {
             })
     }
 
-    fn get_or_insert_script_string(&mut self, string: &str) -> Result<ScriptStringRaw> {
+    fn get_or_insert_script_string(&mut self, string: &str) -> Result<ScriptString> {
         if self.script_strings.len() >= u16::MAX as usize {
             Err(Error::new_with_offset(
                 file_line_col!(),
@@ -179,7 +179,7 @@ impl T5XFileSerialize for T5XFileSerializer {
                 .enumerate()
                 .find(|(_, &ref s)| s.as_str() == string.as_str())
                 .unwrap();
-            Ok(ScriptStringRaw(i as _))
+            Ok(ScriptString(i as _))
         }
     }
 

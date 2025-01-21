@@ -9,7 +9,7 @@ use crate::prelude::*;
 
 use crate::{
     Error, ErrorKind, FatPointer, FatPointerCountFirstU32, FatPointerCountLastU32, Ptr32, Result,
-    ScriptStringRaw, T5XFileDeserialize, T5XFileSerialize, XFileDeserializeInto, XFileSerialize,
+    ScriptString, T5XFileDeserialize, T5XFileSerialize, XFileDeserializeInto, XFileSerialize,
     XString, XStringRaw, assert_size,
     common::{GfxIndexBuffer, GfxVertexBuffer, Mat3, Vec3, Vec4},
     file_line_col,
@@ -24,7 +24,7 @@ pub(crate) struct XModelRaw<'a> {
     pub num_root_bones: u8,
     pub numsurfs: u8,
     pub lod_ramp_type: u8,
-    pub bone_names: Ptr32<'a, ScriptStringRaw>,
+    pub bone_names: Ptr32<'a, ScriptString>,
     pub parent_list: Ptr32<'a, u8>,
     pub quats: Ptr32<'a, i16>,
     pub trans: Ptr32<'a, f32>,
@@ -1268,19 +1268,19 @@ impl XFileSerialize<()> for PhysConstraints {
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
 pub(crate) struct PhysConstraintRaw<'a> {
-    pub targetname: ScriptStringRaw,
+    pub targetname: ScriptString,
     #[allow(dead_code)]
     pad: [u8; 2],
     pub type_: i32,
     pub attach_point_type1: i32,
     pub target_index1: i32,
-    pub target_ent1: ScriptStringRaw,
+    pub target_ent1: ScriptString,
     #[allow(dead_code)]
     pad_2: [u8; 2],
     pub target_bone1: XStringRaw<'a>,
     pub attach_point_type2: i32,
     pub target_index2: i32,
-    pub target_ent2: ScriptStringRaw,
+    pub target_ent2: ScriptString,
     #[allow(dead_code)]
     pad_3: [u8; 2],
     pub target_bone2: XStringRaw<'a>,

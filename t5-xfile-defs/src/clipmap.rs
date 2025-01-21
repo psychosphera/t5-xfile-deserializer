@@ -6,7 +6,7 @@ use alloc::{
 
 use crate::{
     Error, ErrorKind, FatPointer, FatPointerCountFirstU32, MapEnts, MapEntsRaw, Ptr32, Result,
-    ScriptStringRaw, T5XFileDeserialize, XFileDeserializeInto, XString, XStringRaw, assert_size,
+    ScriptString, T5XFileDeserialize, XFileDeserializeInto, XString, XStringRaw, assert_size,
     common::{Mat3, Vec3, Vec4},
     file_line_col,
     fx::{FxEffectDef, FxEffectDefRaw},
@@ -731,8 +731,8 @@ pub(crate) struct DynEntityDefRaw<'a> {
     pub health: i32,
     pub flags: i32,
     pub contents: i32,
-    pub targetname: ScriptStringRaw,
-    pub target: ScriptStringRaw,
+    pub targetname: ScriptString,
+    pub target: ScriptString,
 }
 assert_size!(DynEntityDefRaw, 84);
 

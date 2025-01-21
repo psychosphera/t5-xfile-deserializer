@@ -195,11 +195,12 @@ assert_size!(XFile, 36);
 
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
-pub struct ScriptStringRaw(pub u16);
+pub struct ScriptString(pub u16);
 
-impl ScriptStringRaw {
+impl ScriptString {
+    // can't `impl Display` since we need `de`
     pub fn to_string(self, de: &mut impl T5XFileDeserialize) -> Result<String> {
-        de.get_script_string(self)?.ok_or(Error::new_with_offset(
+        de.get_script_string(self)?.map(|s| s.to_owned()).ok_or(Error::new_with_offset(
             file_line_col!(),
             de.stream_pos()? as _,
             ErrorKind::BadScriptString(self.0),
@@ -346,20 +347,24 @@ pub enum ErrorKind {
     /// Occurs when a character has invalid encoding.
     BadChar(u32),
     /// Occurs when an invariant expected by the deserializer is broken.
-    /// Likely indicates the file is corrupt or some deserialization logic is wrong
+    /// Likely indicates the file is corrupt or some deserialization logic is 
+    /// wrong.
     BrokenInvariant(String),
-    /// Occurs when attempting to seek to an offset beyond the bounds of a file.
+    /// Occurs when attempting to seek to an offset beyond the bounds of a 
+    /// file.
     InvalidSeek { off: u32, max: u32 },
     /// Occurs when an XFile's `magic` field is invalid.
     /// Likely indicates the file is corrupt or isn't an XFile.
     BadHeaderMagic(String),
-    /// Occurs when an XFile's version doesn't match the expected version ([`XFILE_VERSION`]).
+    /// Occurs when an XFile's version doesn't match the expected version 
+    /// ([`XFILE_VERSION`]).
     WrongVersion(u32),
     /// Occurs when an XFile has the wrong endianness for the given platform.
     WrongEndiannessForPlatform(XFilePlatform),
     /// Occurs when an XFile's platform is unimplemented (currently just Wii).
     UnimplementedPlatform(XFilePlatform),
-    /// Occurs when an XFile's platform is unsupported (all platforms except Windows).
+    /// Occurs when an XFile's platform is unsupported 
+    /// (all platforms except Windows).
     UnsupportedPlatform(XFilePlatform),
     /// Occurs when some part of the library hasn't yet been implemented.
     Todo(String),
@@ -367,10 +372,11 @@ pub enum ErrorKind {
     BadScriptString(u16),
     /// Occurs when more than [`u16::MAX`] [`ScriptString`]s are present.
     ScriptStringOverflow,
-    /// Occurs when an `XAsset`'s `asset_type` isn't a variant of [`XAssetType`].
+    /// Occurs when an `XAsset`'s `asset_type` isn't a variant of 
+    /// [`XAssetType`].
     InvalidXAssetType(u32),
-    /// Occurs when an `XAsset`'s `asset_type` *is* a variant of [`XAssetType`],
-    /// but that `asset_type` isn't used by T5.
+    /// Occurs when an `XAsset`'s `asset_type` *is* a variant of 
+    /// [`XAssetType`], but that `asset_type` isn't used by T5.
     UnusedXAssetType(XAssetType),
     /// Occurs when an error is returned by D3D9.
     #[cfg(feature = "d3d9")]
@@ -459,16 +465,27 @@ pub trait T5XFileDeserialize {
 
     /// Returns [`Ok(Some)`] if `string` is present, [`Ok(None)`]
     /// if not, or, depending on the implementation, [`Err`].
-    fn get_script_string(&mut self, string: ScriptStringRaw) -> Result<Option<String>>;
+    fn get_script_string(&self, string: ScriptString) -> Result<Option<&str>>;
+
+    fn script_strings(&self) -> Result<Vec<&str>> {
+        let mut v = Vec::new();
+        let mut i = 0;
+        while let Ok(Some(s)) = self.get_script_string(ScriptString(i)) {
+            v.push(s);
+            i += 1;
+        };
+
+        Ok(v)
+    }
 }
 
 pub trait T5XFileSerialize {
     fn store_into_xfile<T: Serialize>(&mut self, t: T) -> Result<()>;
 
-    /// Returns [`Ok(Some)`] when `string` was already present, [`Ok(None)`]
-    /// when `string` wasn't already present, or [`Err`] when
-    /// [`Error::ScriptStringOverflow`] or some other error occurs.
-    fn get_or_insert_script_string(&mut self, string: &str) -> Result<ScriptStringRaw>;
+    /// Returns [`Ok`] if `string` was already present or was successfully 
+    /// inserted, or [`Err`] when [`Error::ScriptStringOverflow`] or some 
+    /// other error occurs.
+    fn get_or_insert_script_string(&mut self, string: &str) -> Result<ScriptString>;
 
     fn script_strings(&self) -> Vec<&str>;
 
