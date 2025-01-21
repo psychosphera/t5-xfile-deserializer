@@ -763,6 +763,22 @@ impl<'a> XFileDeserializeInto<FxImpactTable, ()> for FxImpactTableRaw<'a> {
     }
 }
 
+impl XFileSerialize<()> for FxImpactTable {
+    fn xfile_serialize(&self, ser: &mut impl T5XFileSerialize, _data: ()) -> Result<()> {
+        let name = XStringRaw::from_str(self.name.get());
+        let table = Ptr32ArrayConst::from_slice(&self.table);
+
+        let impact_table = FxImpactTableRaw {
+            name,
+            table,
+        };
+
+        ser.store_into_xfile(impact_table)?;
+        self.name.xfile_serialize(ser, ())?;
+        self.table.xfile_serialize(ser, ())
+    }
+}
+
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Debug, Deserialize)]
 pub(crate) struct FxImpactEntryRaw<'a> {
@@ -802,5 +818,21 @@ impl<'a> XFileDeserializeInto<FxImpactEntry, ()> for FxImpactEntryRaw<'a> {
             .unwrap();
 
         Ok(FxImpactEntry { nonflesh, flesh })
+    }
+}
+
+impl XFileSerialize<()> for FxImpactEntry {
+    fn xfile_serialize(&self, ser: &mut impl T5XFileSerialize, _data: ()) -> Result<()> {
+        let nonflesh = self.nonflesh.iter().map(|e| Ptr32::from_box(&e)).collect::<Vec<_>>().try_into().unwrap();
+        let flesh = self.flesh.iter().map(|e| Ptr32::from_box(&e)).collect::<Vec<_>>().try_into().unwrap();
+        
+        let entry = FxImpactEntryRaw {
+            nonflesh,
+            flesh,
+        };
+
+        ser.store_into_xfile(entry)?;
+        self.nonflesh.xfile_serialize(ser, ())?;
+        self.flesh.xfile_serialize(ser, ())
     }
 }

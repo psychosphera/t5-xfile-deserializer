@@ -1,9 +1,7 @@
 use alloc::{boxed::Box, vec::Vec};
 
 use crate::{
-    FatPointer, FatPointerCountFirstU32, Ptr32ArrayConst, Result, T5XFileDeserialize,
-    XFileDeserializeInto, XString, XStringRaw, assert_size,
-    common::{Vec3, Vec4},
+    assert_size, common::{Vec3, Vec4}, FatPointer, FatPointerCountFirstU32, Ptr32ArrayConst, Result, T5XFileDeserialize, T5XFileSerialize, XFileDeserializeInto, XFileSerialize, XString, XStringRaw
 };
 
 use serde::{Deserialize, Serialize};
@@ -52,6 +50,34 @@ impl<'a> XFileDeserializeInto<ComWorld, ()> for ComWorldRaw<'a> {
             burnable_header: self.burnable_header.clone(),
             burnable_cells,
         })
+    }
+}
+
+impl XFileSerialize<()> for ComWorld {
+    fn xfile_serialize(&self, ser: &mut impl T5XFileSerialize, _data: ()) -> Result<()> {
+        let name = XStringRaw::from_str(self.name.get());
+        let primary_lights = FatPointerCountFirstU32::from_slice(&self.primary_lights);
+        let water_header = self.water_header;
+        let water_cells = FatPointerCountFirstU32::from_slice(&self.water_cells);
+        let burnable_header = self.burnable_header;
+        let burnable_cells = FatPointerCountFirstU32::from_slice(&self.burnable_cells);
+        
+        let com_world = ComWorldRaw {
+            name,
+            is_in_use: self.is_in_use as _,
+            primary_lights,
+            water_header,
+            water_cells,
+            burnable_header,
+            burnable_cells,
+        };
+
+        ser.store_into_xfile(com_world)?;
+        self.primary_lights.xfile_serialize(ser, ())?;
+        self.water_header.xfile_serialize(ser, ())?;
+        self.water_cells.xfile_serialize(ser, ())?;
+        self.burnable_header.xfile_serialize(ser, ())?;
+        self.burnable_cells.xfile_serialize(ser, ())
     }
 }
 
@@ -168,8 +194,46 @@ impl<'a> XFileDeserializeInto<ComPrimaryLight, ()> for ComPrimaryLightRaw<'a> {
     }
 }
 
+impl XFileSerialize<()> for ComPrimaryLight {
+    fn xfile_serialize(&self, ser: &mut impl T5XFileSerialize, _data: ()) -> Result<()> {
+        let def_name = XStringRaw::from_str(self.def_name.get());
+
+        let primary_light = ComPrimaryLightRaw {
+            type_: self.type_,
+            can_use_shadow_map: self.can_use_shadow_map as _,
+            exponent: self.exponent,
+            priority: self.priority,
+            cull_dist: self.cull_dist,
+            pad: [0u8; 2],
+            color: self.color.get(),
+            dir: self.dir.get(),
+            origin: self.origin.get(),
+            radius: self.radius,
+            cos_half_fov_outer: self.cos_half_fov_outer,
+            cos_half_fov_inner: self.cos_half_fov_inner,
+            cos_half_fov_expanded: self.cos_half_fov_expanded,
+            rotation_limit: self.rotation_limit,
+            translation_limit: self.translation_limit,
+            mip_distance: self.mip_distance,
+            diffuse_color: self.diffuse_color.get(),
+            specular_color: self.specular_color.get(),
+            attenuation: self.attenuation.get(),
+            falloff: self.falloff.get(),
+            angle: self.angle.get(),
+            aabb: self.aabb.get(),
+            cookie_control_0: self.cookie_control_0.get(),
+            cookie_control_1: self.cookie_control_1.get(),
+            cookie_control_2: self.cookie_control_2.get(),
+            def_name,
+        };
+
+        ser.store_into_xfile(primary_light)?;
+        self.def_name.xfile_serialize(ser, ())
+    }
+}
+
 #[cfg_attr(feature = "serde", derive(Serialize))]
-#[derive(Clone, Default, Debug, Deserialize)]
+#[derive(Copy, Clone, Default, Debug, Deserialize)]
 pub struct ComWaterHeader {
     pub minx: i32,
     pub miny: i32,
@@ -178,8 +242,14 @@ pub struct ComWaterHeader {
 }
 assert_size!(ComWaterHeader, 16);
 
+impl XFileSerialize<()> for ComWaterHeader {
+    fn xfile_serialize(&self, ser: &mut impl T5XFileSerialize, _data: ()) -> Result<()> {
+        ser.store_into_xfile(*self)
+    }
+}
+
 #[cfg_attr(feature = "serde", derive(Serialize))]
-#[derive(Clone, Default, Debug, Deserialize)]
+#[derive(Copy, Clone, Default, Debug, Deserialize)]
 pub struct ComWaterCell {
     pub waterheight: i16,
     pub flooroffset: u8,
@@ -188,8 +258,14 @@ pub struct ComWaterCell {
 }
 assert_size!(ComWaterCell, 8);
 
+impl XFileSerialize<()> for ComWaterCell {
+    fn xfile_serialize(&self, ser: &mut impl T5XFileSerialize, _data: ()) -> Result<()> {
+        ser.store_into_xfile(*self)
+    }
+}
+
 #[cfg_attr(feature = "serde", derive(Serialize))]
-#[derive(Clone, Default, Debug, Deserialize)]
+#[derive(Copy, Clone, Default, Debug, Deserialize)]
 pub struct ComBurnableHeader {
     pub minx: i32,
     pub miny: i32,
@@ -198,8 +274,14 @@ pub struct ComBurnableHeader {
 }
 assert_size!(ComWaterHeader, 16);
 
+impl XFileSerialize<()> for ComBurnableHeader {
+    fn xfile_serialize(&self, ser: &mut impl T5XFileSerialize, _data: ()) -> Result<()> {
+        ser.store_into_xfile(*self)
+    }
+}
+
 #[cfg_attr(feature = "serde", derive(Serialize))]
-#[derive(Clone, Default, Debug, Deserialize)]
+#[derive(Copy, Clone, Default, Debug, Deserialize)]
 pub(crate) struct ComBurnableCellRaw<'a> {
     pub x: i32,
     pub y: i32,
@@ -234,9 +316,30 @@ impl<'a> XFileDeserializeInto<ComBurnableCell, ()> for ComBurnableCellRaw<'a> {
     }
 }
 
+impl XFileSerialize<()> for ComBurnableCell {
+    fn xfile_serialize(&self, ser: &mut impl T5XFileSerialize, _data: ()) -> Result<()> {
+        let data = self.data.as_ref().map(|s| Ptr32ArrayConst::from_slice(&**s)).unwrap_or_default(); 
+
+        let burnable_cell = ComBurnableCellRaw {
+            x: self.x,
+            y: self.y,
+            data,
+        };
+        
+        ser.store_into_xfile(burnable_cell)?;
+        self.data.xfile_serialize(ser, ())
+    }
+}
+
 #[cfg_attr(feature = "serde", derive(Serialize))]
-#[derive(Clone, Default, Debug, Deserialize)]
+#[derive(Copy, Clone, Default, Debug, Deserialize)]
 pub struct ComBurnableSample {
     pub state: u8,
 }
 assert_size!(ComBurnableSample, 1);
+
+impl XFileSerialize<()> for ComBurnableSample {
+    fn xfile_serialize(&self, ser: &mut impl T5XFileSerialize, _data: ()) -> Result<()> {
+        ser.store_into_xfile(*self)
+    }
+}

@@ -584,7 +584,7 @@ impl<'a, const MAX_LOCAL_CLIENTS: usize> XFileSerialize<()> for XAssetGeneric<MA
             // Self::SoundPatch(p) => if let Some(p) = p { p.xfile_serialize(ser, ()) } else { Ok(()) },
             // Self::ClipMap(p) => if let Some(p) = p { p.xfile_serialize(ser, ()) } else { Ok(()) },
             // Self::ClipMapPVS(p) => if let Some(p) = p { p.xfile_serialize(ser, ()) } else { Ok(()) },
-            // Self::ComWorld(p) => if let Some(p) = p { p.xfile_serialize(ser, ()) } else { Ok(()) },
+            Self::ComWorld(p) => if let Some(p) = p { p.xfile_serialize(ser, ()) } else { Ok(()) },
             // Self::GameWorldSp(p) => if let Some(p) = p { p.xfile_serialize(ser, ()) } else { Ok(()) },
             // Self::GameWorldMp(p) => if let Some(p) = p { p.xfile_serialize(ser, ()) } else { Ok(()) },
             Self::MapEnts(p) => {
@@ -621,7 +621,7 @@ impl<'a, const MAX_LOCAL_CLIENTS: usize> XFileSerialize<()> for XAssetGeneric<MA
                     Ok(())
                 }
             }
-            // Self::ImpactFx(p) => if let Some(p) = p { p.xfile_serialize(ser, ()) } else { Ok(()) },
+            Self::ImpactFx(p) => if let Some(p) = p { p.xfile_serialize(ser, ()) } else { Ok(()) },
             Self::RawFile(p) => {
                 if let Some(p) = p {
                     p.xfile_serialize(ser, ())
