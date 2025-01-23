@@ -7,8 +7,8 @@ use serde::{Deserialize, Serialize};
 use crate::prelude::*;
 
 use crate::{
-    FatPointer, Ptr32, Result, ScriptString, T5XFileDeserialize, XFileDeserializeInto, XString,
-    XStringRaw, assert_size, common::Vec3,
+    FatPointer, Ptr32, Result, ScriptString, T5XFileDeserialize, T5XFileSerialize,
+    XFileDeserializeInto, XFileSerialize, XString, XStringRaw, assert_size, common::Vec3,
 };
 
 #[cfg_attr(feature = "serde", derive(Serialize))]
@@ -71,7 +71,7 @@ pub struct XAnimParts {
     pub frequency: f32,
     pub primed_length: f32,
     pub loop_entry_time: f32,
-    pub names: Vec<String>,
+    pub names: Vec<XString>,
     pub data_byte: Vec<u8>,
     pub data_short: Vec<i16>,
     pub data_int: Vec<i32>,
@@ -97,7 +97,7 @@ impl<'a> XFileDeserializeInto<XAnimParts, ()> for XAnimPartsRaw<'a> {
             .to_array(self.bone_count[PART_TYPE_ALL] as _)
             .to_vec(de)?
             .into_iter()
-            .map(|s| s.to_string(de))
+            .map(|s| s.to_string(de).map(XString))
             .collect::<Result<Vec<_>>>()?;
         //dbg!(&names);
         let notify = self
@@ -173,6 +173,74 @@ impl<'a> XFileDeserializeInto<XAnimParts, ()> for XAnimPartsRaw<'a> {
     }
 }
 
+impl<'a> XFileSerialize<()> for XAnimParts {
+    fn xfile_serialize(&self, ser: &mut impl T5XFileSerialize, _data: ()) -> Result<()> {
+        let name = XStringRaw::from_str(self.name.get());
+        let names = Ptr32::from_slice(&self.names);
+        let data_byte = Ptr32::from_slice(&self.data_byte);
+        let data_short = Ptr32::from_slice(&self.data_short);
+        let data_int = Ptr32::from_slice(&self.data_int);
+        let random_data_byte = Ptr32::from_slice(&self.random_data_byte);
+        let random_data_short = Ptr32::from_slice(&self.random_data_short);
+        let random_data_int = Ptr32::from_slice(&self.random_data_int);
+        let indices = self.indices.clone().into();
+        let notify = Ptr32::from_slice(&self.notify);
+        let delta_part = Ptr32::from_box(&self.delta_part);
+
+        let parts = XAnimPartsRaw {
+            name,
+            data_byte_count: self.data_byte.len() as _,
+            data_short_count: self.data_short.len() as _,
+            data_int_count: self.data_int.len() as _,
+            random_data_byte_count: self.random_data_byte.len() as _,
+            random_data_int_count: self.random_data_int.len() as _,
+            numframes: self.numframes,
+            loop_: self.loop_,
+            delta: self.delta,
+            left_hand_grip_ik: self.left_hand_grip_ik,
+            streamable: self.streamable,
+            streamed_file_size: self.streamed_file_size as _,
+            bone_count: self.bone_count,
+            notify_count: self.notify_count,
+            asset_type: self.asset_type,
+            is_default: self.is_default,
+            pad: [0u8; 3],
+            random_data_short_count: self.random_data_short.len() as _,
+            index_count: self.index_count,
+            framerate: self.framerate,
+            frequency: self.frequency,
+            primed_length: self.primed_length,
+            loop_entry_time: self.loop_entry_time,
+            names,
+            data_byte,
+            data_short,
+            data_int,
+            random_data_short,
+            random_data_byte,
+            random_data_int,
+            indices,
+            notify,
+            delta_part,
+        };
+
+        ser.store_into_xfile(parts)?;
+        self.name.xfile_serialize(ser, ())?;
+        self.names.xfile_serialize(ser, ())?;
+        self.notify.xfile_serialize(ser, ())?;
+        self.delta_part.xfile_serialize(ser, ())?;
+        self.data_byte.xfile_serialize(ser, ())?;
+        self.data_short.xfile_serialize(ser, ())?;
+        self.data_int.xfile_serialize(ser, ())?;
+        self.random_data_byte.xfile_serialize(ser, ())?;
+        self.random_data_short.xfile_serialize(ser, ())?;
+        self.random_data_int.xfile_serialize(ser, ())?;
+        match &self.indices {
+            XAnimIndices::_1(v) => v.xfile_serialize(ser, ()),
+            XAnimIndices::_2(v) => v.xfile_serialize(ser, ()),
+        }
+    }
+}
+
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Debug, Default, Deserialize)]
 pub(crate) struct XAnimIndicesRaw<'a>(Ptr32<'a, ()>);
@@ -199,6 +267,15 @@ impl<'a> XFileDeserializeInto<XAnimIndices, (u16, u32)> for XAnimIndicesRaw<'a> 
             Ok(XAnimIndices::_2(
                 self.0.cast::<u16>().to_array(index_count as _).to_vec(de)?,
             ))
+        }
+    }
+}
+
+impl<'a> From<XAnimIndices> for XAnimIndicesRaw<'a> {
+    fn from(value: XAnimIndices) -> Self {
+        match value {
+            XAnimIndices::_1(v) => XAnimIndicesRaw(Ptr32::from_slice(&v)),
+            XAnimIndices::_2(v) => XAnimIndicesRaw(Ptr32::from_slice(&v)),
         }
     }
 }
@@ -232,6 +309,21 @@ impl XFileDeserializeInto<XAnimNotifyInfo, ()> for XAnimNotifyInfoRaw {
     }
 }
 
+impl XFileSerialize<()> for XAnimNotifyInfo {
+    fn xfile_serialize(&self, ser: &mut impl T5XFileSerialize, _data: ()) -> Result<()> {
+        let name = ser.get_or_insert_script_string(self.name.get())?;
+
+        let notify = XAnimNotifyInfoRaw {
+            name,
+            pad: [0u8; 2],
+            time: self.time,
+        };
+
+        ser.store_into_xfile(notify)?;
+        self.name.xfile_serialize(ser, ())
+    }
+}
+
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Debug, Default, Deserialize)]
 pub(crate) struct XAnimDeltaPartRaw<'a> {
@@ -258,6 +350,19 @@ impl<'a> XFileDeserializeInto<XAnimDeltaPart, u16> for XAnimDeltaPartRaw<'a> {
             trans: self.trans.xfile_deserialize_into(de, numframes)?,
             quat: self.quat.xfile_deserialize_into(de, numframes)?,
         })
+    }
+}
+
+impl XFileSerialize<()> for XAnimDeltaPart {
+    fn xfile_serialize(&self, ser: &mut impl T5XFileSerialize, _data: ()) -> Result<()> {
+        let trans = Ptr32::from_box(&self.trans);
+        let quat = Ptr32::from_box(&self.quat);
+
+        let part = XAnimDeltaPartRaw { trans, quat };
+
+        ser.store_into_xfile(part)?;
+        self.trans.xfile_serialize(ser, ())?;
+        self.quat.xfile_serialize(ser, ())
     }
 }
 
@@ -293,6 +398,66 @@ impl XFileDeserializeInto<XAnimPartTrans, u16> for XAnimPartTransRaw {
                 .u
                 .xfile_deserialize_into(de, (numframes, self.small_trans, self.size))?,
         })
+    }
+}
+
+impl XFileSerialize<()> for XAnimPartTrans {
+    fn xfile_serialize(&self, ser: &mut impl T5XFileSerialize, _data: ()) -> Result<()> {
+        let u = if let Some(u) = &self.u {
+            match u {
+                XAnimPartTransData::Frame0(v) => {
+                    let v_bytes = unsafe { transmute::<_, [u8; 12]>(*v) };
+                    let mut bytes = [0u8; 32];
+                    bytes[0..12].clone_from_slice(&v_bytes);
+                    XAnimPartTransDataRaw(bytes)
+                }
+                XAnimPartTransData::Frames(f) => {
+                    let frames = XAnimDynamicFramesRaw(Ptr32::unreal());
+                    let indices = match &f.indices {
+                        XAnimDynamicIndices::_1(v) => XAnimDynamicIndicesRaw(Ptr32::from_slice(v)),
+                        XAnimDynamicIndices::_2(v) => XAnimDynamicIndicesRaw(Ptr32::from_slice(v)),
+                    };
+
+                    let frames = XAnimPartTransFramesRaw {
+                        mins: f.mins.get(),
+                        maxs: f.maxs.get(),
+                        frames,
+                        indices,
+                    };
+                    let bytes = unsafe { transmute::<_, [u8; 32]>(frames) };
+                    XAnimPartTransDataRaw(bytes)
+                }
+            }
+        } else {
+            XAnimPartTransDataRaw([0u8; 32])
+        };
+
+        let trans = XAnimPartTransRaw {
+            size: self.size,
+            small_trans: self.small_trans,
+            pad: [0u8; 1],
+            u,
+        };
+
+        ser.store_into_xfile(trans)?;
+        if let Some(u) = &self.u {
+            match u {
+                XAnimPartTransData::Frames(f) => {
+                    match &f.frames {
+                        XAnimDynamicFrames::_1(v) => v.xfile_serialize(ser, ())?,
+                        XAnimDynamicFrames::_2(v) => v.xfile_serialize(ser, ())?,
+                    };
+
+                    match &f.indices {
+                        XAnimDynamicIndices::_1(v) => v.xfile_serialize(ser, ()),
+                        XAnimDynamicIndices::_2(v) => v.xfile_serialize(ser, ()),
+                    }
+                }
+                _ => Ok(()),
+            }
+        } else {
+            Ok(())
+        }
     }
 }
 
@@ -465,6 +630,55 @@ impl XFileDeserializeInto<XAnimDeltaPartQuat, u16> for XAnimDeltaPartQuatRaw {
             size: self.size,
             u: self.u.xfile_deserialize_into(de, (numframes, self.size))?,
         })
+    }
+}
+
+impl XFileSerialize<()> for XAnimDeltaPartQuat {
+    fn xfile_serialize(&self, ser: &mut impl T5XFileSerialize, _data: ()) -> Result<()> {
+        let u = if let Some(u) = &self.u {
+            match u {
+                XAnimDeltaPartQuatData::Frame0(v) => {
+                    let v_bytes = unsafe { transmute::<_, [u8; 4]>(*v) };
+                    let mut bytes = [0u8; 8];
+                    bytes.copy_from_slice(&v_bytes);
+                    XAnimDeltaPartQuatDataRaw(bytes)
+                }
+                XAnimDeltaPartQuatData::Frames(f) => {
+                    let frames = Ptr32::from_slice(&f.frames);
+                    let indices = match &f.indices {
+                        XAnimDynamicIndices::_1(v) => XAnimDynamicIndicesRaw(Ptr32::from_slice(v)),
+                        XAnimDynamicIndices::_2(v) => XAnimDynamicIndicesRaw(Ptr32::from_slice(v)),
+                    };
+                    let frames = XAnimDeltaPartQuatDataFramesRaw { frames, indices };
+                    let bytes = unsafe { transmute::<_, [u8; 8]>(frames) };
+                    XAnimDeltaPartQuatDataRaw(bytes)
+                }
+            }
+        } else {
+            XAnimDeltaPartQuatDataRaw([0u8; 8])
+        };
+
+        let quat = XAnimDeltaPartQuatRaw {
+            size: self.size,
+            pad: [0u8; 2],
+            u,
+        };
+
+        ser.store_into_xfile(quat)?;
+        if let Some(u) = &self.u {
+            match u {
+                XAnimDeltaPartQuatData::Frames(f) => {
+                    f.frames.xfile_serialize(ser, ())?;
+                    match &f.indices {
+                        XAnimDynamicIndices::_1(v) => v.xfile_serialize(ser, ()),
+                        XAnimDynamicIndices::_2(v) => v.xfile_serialize(ser, ()),
+                    }
+                }
+                _ => Ok(()),
+            }
+        } else {
+            Ok(())
+        }
     }
 }
 

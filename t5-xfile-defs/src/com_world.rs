@@ -1,7 +1,9 @@
 use alloc::{boxed::Box, vec::Vec};
 
 use crate::{
-    assert_size, common::{Vec3, Vec4}, FatPointer, FatPointerCountFirstU32, Ptr32ArrayConst, Result, T5XFileDeserialize, T5XFileSerialize, XFileDeserializeInto, XFileSerialize, XString, XStringRaw
+    FatPointer, FatPointerCountFirstU32, Ptr32ArrayConst, Result, T5XFileDeserialize,
+    T5XFileSerialize, XFileDeserializeInto, XFileSerialize, XString, XStringRaw, assert_size,
+    common::{Vec3, Vec4},
 };
 
 use serde::{Deserialize, Serialize};
@@ -61,7 +63,7 @@ impl XFileSerialize<()> for ComWorld {
         let water_cells = FatPointerCountFirstU32::from_slice(&self.water_cells);
         let burnable_header = self.burnable_header;
         let burnable_cells = FatPointerCountFirstU32::from_slice(&self.burnable_cells);
-        
+
         let com_world = ComWorldRaw {
             name,
             is_in_use: self.is_in_use as _,
@@ -318,14 +320,18 @@ impl<'a> XFileDeserializeInto<ComBurnableCell, ()> for ComBurnableCellRaw<'a> {
 
 impl XFileSerialize<()> for ComBurnableCell {
     fn xfile_serialize(&self, ser: &mut impl T5XFileSerialize, _data: ()) -> Result<()> {
-        let data = self.data.as_ref().map(|s| Ptr32ArrayConst::from_slice(&**s)).unwrap_or_default(); 
+        let data = self
+            .data
+            .as_ref()
+            .map(|s| Ptr32ArrayConst::from_slice(&**s))
+            .unwrap_or_default();
 
         let burnable_cell = ComBurnableCellRaw {
             x: self.x,
             y: self.y,
             data,
         };
-        
+
         ser.store_into_xfile(burnable_cell)?;
         self.data.xfile_serialize(ser, ())
     }

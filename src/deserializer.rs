@@ -639,6 +639,9 @@ impl<'a> T5XFileDeserialize for T5XFileDeserializer<'a> {
     }
 
     fn get_script_string(&self, string: ScriptString) -> Result<Option<&str>> {
-        Ok(self.script_strings.get(string.as_u16() as usize).map(|s| &**s))
+        Ok(self
+            .script_strings
+            .get(string.as_u16() as usize)
+            .map(|s| &**s))
     }
 }

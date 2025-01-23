@@ -933,6 +933,35 @@ impl<'a> XFileDeserializeInto<PhysPreset, ()> for PhysPresetRaw<'a> {
     }
 }
 
+impl XFileSerialize<()> for PhysPreset {
+    fn xfile_serialize(&self, ser: &mut impl T5XFileSerialize, _data: ()) -> Result<()> {
+        let name = XStringRaw::from_str(self.name.get());
+        let snd_alias_prefix = XStringRaw::from_str(self.snd_alias_prefix.get());
+
+        let phys_preset = PhysPresetRaw {
+            name,
+            flags: self.flags,
+            mass: self.mass,
+            bounce: self.bounce,
+            friction: self.friction,
+            bullet_force_scale: self.bullet_force_scale,
+            explosive_force_scale: self.explosive_force_scale,
+            snd_alias_prefix,
+            pieces_spread_fraction: self.pieces_spread_fraction,
+            pieces_upward_velocity: self.pieces_upward_velocity,
+            can_float: self.can_float as _,
+            gravity_scale: self.gravity_scale,
+            center_of_mass_offset: self.center_of_mass_offset.get(),
+            buoyancy_box_min: self.buoyancy_box_min.get(),
+            buoyancy_box_max: self.buoyancy_box_max.get(),
+        };
+
+        ser.store_into_xfile(phys_preset)?;
+        self.name.xfile_serialize(ser, ())?;
+        self.snd_alias_prefix.xfile_serialize(ser, ())
+    }
+}
+
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
 pub(crate) struct CollmapRaw<'a> {

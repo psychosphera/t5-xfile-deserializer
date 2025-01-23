@@ -1,8 +1,8 @@
 use alloc::{boxed::Box, vec::Vec};
 
 use crate::{
-    Error, ErrorKind, FatPointer, Ptr32, Ptr32ArrayConst, Result, ScriptString,
-    T5XFileDeserialize, XFileDeserializeInto, XString, XStringRaw, assert_size,
+    Error, ErrorKind, FatPointer, Ptr32, Ptr32ArrayConst, Result, ScriptString, T5XFileDeserialize,
+    XFileDeserializeInto, XString, XStringRaw, assert_size,
     common::{Vec2, Vec3},
     file_line_col, fx, techset, xmodel,
 };
