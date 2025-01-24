@@ -61,6 +61,18 @@ impl From<[f32; 2]> for Vec2 {
     }
 }
 
+impl Vec2 {
+    #[cfg(not(feature = "cgmath"))]
+    pub fn get(self) -> [f32; 2] {
+        self.0
+    }
+
+    #[cfg(feature = "cgmath")]
+    pub fn get(self) -> [f32; 2] {
+        [self.0.x, self.0.y]
+    }
+}
+
 #[cfg(feature = "cgmath")]
 #[derive(Copy, Clone, Debug)]
 #[repr(transparent)]

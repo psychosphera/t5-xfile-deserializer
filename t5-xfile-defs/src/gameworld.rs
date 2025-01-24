@@ -3,10 +3,7 @@ use core::mem::transmute;
 use alloc::{boxed::Box, vec::Vec};
 
 use crate::{
-    Error, ErrorKind, FatPointer, FatPointerCountFirstU16, FatPointerCountFirstU32, Ptr32, Result,
-    ScriptString, T5XFileDeserialize, XFileDeserializeInto, XString, XStringRaw, assert_size,
-    common::{Vec2, Vec3},
-    file_line_col,
+    assert_size, common::{Vec2, Vec3}, file_line_col, Error, ErrorKind, FatPointer, FatPointerCountFirstU16, FatPointerCountFirstU32, Ptr32, Result, ScriptString, T5XFileDeserialize, T5XFileSerialize, XFileDeserializeInto, XFileSerialize, XString, XStringRaw
 };
 
 use bitflags::bitflags;
@@ -40,6 +37,44 @@ impl<'a> XFileDeserializeInto<GameWorldSp, ()> for GameWorldSpRaw<'a> {
     }
 }
 
+impl XFileSerialize<()> for GameWorldSp {
+    fn xfile_serialize(&self, ser: &mut impl T5XFileSerialize, _data: ()) -> Result<()> {
+        let name = XStringRaw::from_str(self.name.get());
+
+        let nodes = Ptr32::from_slice(&self.path.nodes);
+        let basenodes = Ptr32::from_slice(&self.path.basenodes);
+        let chain_node_for_node = Ptr32::from_slice(&self.path.chain_node_for_node);
+        let node_for_chain_node = Ptr32::from_slice(&self.path.node_for_chain_node);
+        let path_vis = FatPointerCountFirstU32::new(Ptr32::from_slice(&self.path.path_vis), self.path.path_vis.len());
+        let node_tree = FatPointerCountFirstU32::new(Ptr32::from_slice(&self.path.node_tree), self.path.node_tree.len());
+        let path = PathDataRaw {
+            node_count: self.path.nodes.len() as _,
+            nodes,
+            basenodes,
+            chain_node_count: self.path.nodes.len() as _,
+            chain_node_for_node,
+            node_for_chain_node,
+            path_vis,
+            node_tree,
+        };
+
+        let gameworld = GameWorldSpRaw {
+            name,
+            path,
+        };
+
+        ser.store_into_xfile(gameworld)?;
+        self.name.xfile_serialize(ser, ())?;
+
+        self.path.nodes.xfile_serialize(ser, ())?;
+        self.path.basenodes.xfile_serialize(ser, ())?;
+        self.path.chain_node_for_node.xfile_serialize(ser, ())?;
+        self.path.node_for_chain_node.xfile_serialize(ser, ())?;
+        self.path.path_vis.xfile_serialize(ser, ())?;
+        self.path.node_tree.xfile_serialize(ser, ())
+    }
+}
+
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Debug, Deserialize)]
 pub(crate) struct GameWorldMpRaw<'a> {
@@ -67,6 +102,44 @@ impl<'a> XFileDeserializeInto<GameWorldMp, ()> for GameWorldMpRaw<'a> {
     }
 }
 
+impl XFileSerialize<()> for GameWorldMp {
+    fn xfile_serialize(&self, ser: &mut impl T5XFileSerialize, _data: ()) -> Result<()> {
+        let name = XStringRaw::from_str(self.name.get());
+
+        let nodes = Ptr32::from_slice(&self.path.nodes);
+        let basenodes = Ptr32::from_slice(&self.path.basenodes);
+        let chain_node_for_node = Ptr32::from_slice(&self.path.chain_node_for_node);
+        let node_for_chain_node = Ptr32::from_slice(&self.path.node_for_chain_node);
+        let path_vis = FatPointerCountFirstU32::new(Ptr32::from_slice(&self.path.path_vis), self.path.path_vis.len());
+        let node_tree = FatPointerCountFirstU32::new(Ptr32::from_slice(&self.path.node_tree), self.path.node_tree.len());
+        let path = PathDataRaw {
+            node_count: self.path.nodes.len() as _,
+            nodes,
+            basenodes,
+            chain_node_count: self.path.nodes.len() as _,
+            chain_node_for_node,
+            node_for_chain_node,
+            path_vis,
+            node_tree,
+        };
+
+        let gameworld = GameWorldMpRaw {
+            name,
+            path,
+        };
+
+        ser.store_into_xfile(gameworld)?;
+        self.name.xfile_serialize(ser, ())?;
+
+        self.path.nodes.xfile_serialize(ser, ())?;
+        self.path.basenodes.xfile_serialize(ser, ())?;
+        self.path.chain_node_for_node.xfile_serialize(ser, ())?;
+        self.path.node_for_chain_node.xfile_serialize(ser, ())?;
+        self.path.path_vis.xfile_serialize(ser, ())?;
+        self.path.node_tree.xfile_serialize(ser, ())
+    }
+}
+
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Debug, Deserialize)]
 pub(crate) struct PathDataRaw<'a> {
@@ -83,10 +156,8 @@ pub(crate) struct PathDataRaw<'a> {
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug)]
 pub struct PathData {
-    pub node_count: usize,
     pub nodes: Vec<PathNode>,
     pub basenodes: Vec<PathBaseNode>,
-    pub chain_node_count: usize,
     pub chain_node_for_node: Vec<u16>,
     pub node_for_chain_node: Vec<u16>,
     pub path_vis: Vec<u8>,
@@ -119,10 +190,8 @@ impl<'a> XFileDeserializeInto<PathData, ()> for PathDataRaw<'a> {
         let node_tree = self.node_tree.xfile_deserialize_into(de, ())?;
 
         Ok(PathData {
-            node_count: self.node_count as _,
             nodes,
             basenodes,
-            chain_node_count: self.chain_node_count as _,
             chain_node_for_node,
             node_for_chain_node,
             path_vis,
@@ -158,6 +227,67 @@ impl<'a> XFileDeserializeInto<PathNode, ()> for PathNodeRaw<'a> {
             dynamic: self.dynamic.into(),
             transient: self.transient.into(),
         })
+    }
+}
+
+impl XFileSerialize<()> for PathNode {
+    fn xfile_serialize(&self, ser: &mut impl T5XFileSerialize, _data: ()) -> Result<()> {
+        let links = FatPointerCountFirstU16::from_slice(&self.constant.links);
+        let constant = PathNodeConstantRaw {
+            type_: self.constant.type_ as _,
+            spawnflags: self.constant.spawnflags.bits(),
+            targetname: ser.get_or_insert_script_string(self.constant.targetname.get())?,
+            script_linkname: ser.get_or_insert_script_string(self.constant.script_linkname.get())?,
+            script_noteworthy: ser.get_or_insert_script_string(self.constant.script_noteworthy.get())?,
+            target: ser.get_or_insert_script_string(self.constant.target.get())?,
+            animscript: ser.get_or_insert_script_string(self.constant.animscript.get())?,
+            animscriptfunc: self.constant.animscriptfunc,
+            origin: self.constant.origin.get(),
+            angle: self.constant.angle,
+            forward: self.constant.forward.get(),
+            radius: self.constant.radius,
+            min_use_dist_sq: self.constant.min_use_dist_sq,
+            overlap_node: self.constant.overlap_node,
+            chain_id: self.constant.chain_id,
+            chain_depth: self.constant.chain_depth,
+            chain_parent: self.constant.chain_parent,
+            links,
+        };
+
+        let owner = SentientHandleRaw {
+            number: self.dynamic.owner.number,
+            info_index: self.dynamic.owner.info_index as _,
+        };
+
+        let dynamic = PathNodeDynamicRaw {
+            owner,
+            free_time: self.dynamic.free_time,
+            valid_time: self.dynamic.valid_time,
+            in_player_los_time: self.dynamic.in_player_los_time,
+            link_count: self.dynamic.link_count,
+            overlap_count: self.dynamic.overlap_count,
+            turret_ent_number: self.dynamic.turret_ent_number,
+            user_count: self.dynamic.user_count,
+        };
+
+        let transient = PathNodeTransientRaw {
+            search_frame: self.transient.search_frame,
+            next_open: Ptr32::null(),
+            prev_open: Ptr32::null(),
+            parent: Ptr32::null(),
+            cost: self.transient.cost,
+            heuristic: self.transient.heuristic,
+            cost_factor: self.transient.cost_factor,
+        };
+
+        let node = PathNodeRaw {
+            constant,
+            dynamic,
+            transient,
+        };
+
+        ser.store_into_xfile(node)?;
+        self.constant.links.xfile_serialize(ser, ())
     }
 }
 
@@ -246,6 +376,12 @@ pub struct PathLink {
     pub bad_place_count: [u8; 4],
 }
 assert_size!(PathLink, 12);
+
+impl XFileSerialize<()> for PathLink {
+    fn xfile_serialize(&self, ser: &mut impl T5XFileSerialize, _data: ()) -> Result<()> {
+        ser.store_into_xfile(*self)
+    }
+}
 
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug)]
@@ -433,6 +569,17 @@ impl From<PathBaseNodeRaw> for PathBaseNode {
     }
 }
 
+impl XFileSerialize<()> for PathBaseNode {
+    fn xfile_serialize(&self, ser: &mut impl T5XFileSerialize, _data: ()) -> Result<()> {
+        let node = PathBaseNodeRaw {
+            origin: self.origin.get(),
+            type_: self.type_,
+        };
+
+        ser.store_into_xfile(node)
+    }
+}
+
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Debug, Deserialize)]
 pub(crate) struct PathNodeTreeRaw {
@@ -477,6 +624,36 @@ impl XFileDeserializeInto<PathNodeTree, ()> for PathNodeTreeRaw {
             dist: self.dist,
             u,
         })
+    }
+}
+
+impl XFileSerialize<()> for PathNodeTree {
+    fn xfile_serialize(&self, ser: &mut impl T5XFileSerialize, _data: ()) -> Result<()> {
+        let u = match &self.u {
+            PathNodeTreeInfo::S(nodes) => {
+                let p = FatPointerCountFirstU32::<'_, PathNodeTreeNodesRaw>::from_slice(&nodes.nodes);
+                unsafe { transmute::<_, [u8; 8]>(p) }
+            }, 
+            PathNodeTreeInfo::Child((a, b)) => {
+                let p: [Ptr32<'_, PathNodeTree>; 2] = [Ptr32::<'_, PathNodeTree>::from_box(&a), Ptr32::<'_, PathNodeTree>::from_box(&b)];
+                unsafe { transmute::<_, [u8; 8]>(p) }
+            }
+        };
+
+        let tree = PathNodeTreeRaw {
+            axis: self.axis,
+            dist: self.dist,
+            u,
+        };
+
+        ser.store_into_xfile(tree)?;
+        match &self.u {
+            PathNodeTreeInfo::S(nodes) => nodes.nodes.xfile_serialize(ser, ()),
+            PathNodeTreeInfo::Child((a, b)) => {
+                a.xfile_serialize(ser, ())?;
+                b.xfile_serialize(ser, ())
+            }
+        }
     }
 }
 
