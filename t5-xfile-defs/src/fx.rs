@@ -1,3 +1,5 @@
+use core::mem::transmute;
+
 use alloc::{boxed::Box, vec, vec::Vec};
 
 #[allow(unused_imports)]
@@ -103,8 +105,28 @@ impl<'a> XFileDeserializeInto<FxEffectDef, ()> for FxEffectDefRaw<'a> {
 }
 
 impl XFileSerialize<()> for FxEffectDef {
-    fn xfile_serialize(&self, _ser: &mut impl T5XFileSerialize, _data: ()) -> Result<()> {
-        todo!()
+    fn xfile_serialize(&self, ser: &mut impl T5XFileSerialize, _data: ()) -> Result<()> {
+        let name = XStringRaw::from_str(self.name.get());
+        let elem_defs = Ptr32::from_slice(&self.elem_defs);
+
+        let effect_def = FxEffectDefRaw {
+            name,
+            flags: self.flags.bits(),
+            ef_priority: self.ef_priority,
+            reserved: [0u8; 2],
+            total_size: self.total_size as _,
+            msec_looping_life: self.msec_looping_life,
+            elem_def_count_looping: self.elem_def_count_looping,
+            elem_def_count_one_shot: self.elem_def_count_one_shot,
+            elem_def_count_emission: self.elem_def_count_emission,
+            elem_defs,
+            bounding_box_dim: self.bounding_box_dim.get(),
+            bounding_sphere: self.bounding_sphere.get(),
+        };
+
+        ser.store_into_xfile(effect_def)?;
+        self.name.xfile_serialize(ser, ())?;
+        self.elem_defs.xfile_serialize(ser, ())
     }
 }
 
@@ -162,7 +184,7 @@ pub(crate) struct FxElemDefRaw<'a> {
 assert_size!(FxElemDefRaw, 292);
 
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[derive(Clone, Debug, PartialOrd, Ord, PartialEq, Eq, FromPrimitive)]
+#[derive(Copy, Clone, Debug, PartialOrd, Ord, PartialEq, Eq, FromPrimitive)]
 #[repr(u8)]
 pub enum FxElemType {
     UNKNOWN = 0x00,
@@ -179,7 +201,7 @@ pub enum FxElemType {
 bitflags! {
     #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
     #[derive(Clone, Debug)]
-    pub struct FxElemFlags: u32 {
+    pub struct FxElemFlags: i32 {
         const SPAWN_RELATIVE_TO_EFFECT = 0x00000002;
         const SPAWN_FRUSTUM_CULL = 0x00000004;
         const RUNNER_USES_RAND_ROT = 0x00000008;
@@ -202,6 +224,7 @@ bitflags! {
         const USE_MODEL_PHYSICS = 0x08000000;
         const NONUNIFORM_SCALE = 0x10000000;
         const HAS_REFLECTION = 0x40000000;
+        #[allow(overflowing_literals)]
         const IS_MATURE_CONTENT = 0x80000000;
     }
 }
@@ -359,6 +382,121 @@ impl<'a> XFileDeserializeInto<FxElemDef, ()> for FxElemDefRaw<'a> {
     }
 }
 
+impl XFileSerialize<()> for FxElemDef {
+    fn xfile_serialize(&self, ser: &mut impl T5XFileSerialize, _data: ()) -> Result<()> {
+        let vel_samples = Ptr32::from_slice(&self.vel_samples);
+        let vis_samples = Ptr32::from_slice(&self.vis_samples);
+        let visuals = FxElemDefVisualsRaw(if let Some(v) = &self.visuals {
+            match v {
+                FxElemDefVisuals::Instance(i) => if let Some(i) = i {
+                    match i {
+                        FxElemVisuals::EffectDef(e) => match e {
+                            FxEffectDefRef::Name(n) => Ptr32::from_u32(XStringRaw::from_str(n.get()).as_u32()),
+                            FxEffectDefRef::Handle(h) => Ptr32::from_box(&h),
+                        },
+                        FxElemVisuals::Material(m) => Ptr32::from_box(&m),
+                        FxElemVisuals::Model(m) => Ptr32::from_box(&m),
+                        FxElemVisuals::SoundName(n) => Ptr32::from_u32(XStringRaw::from_str(n.get()).as_u32()),
+                    }
+                } else {
+                    Ptr32::null()
+                },
+                FxElemDefVisuals::Array(a) => Ptr32::from_slice(&a),
+                FxElemDefVisuals::MarkArray(a) => Ptr32::from_slice(&a),
+            }
+        } else {
+            Ptr32::null()
+        });
+        let effect_on_impact = FxEffectDefRefRaw(match &self.effect_on_impact {
+            FxEffectDefRef::Handle(h) => Ptr32::from_box(&h),
+            FxEffectDefRef::Name(n) => Ptr32::from_u32(XStringRaw::from_str(n.get()).as_u32()),
+        });
+        let effect_on_death = FxEffectDefRefRaw(match &self.effect_on_death {
+            FxEffectDefRef::Handle(h) => Ptr32::from_box(&h),
+            FxEffectDefRef::Name(n) => Ptr32::from_u32(XStringRaw::from_str(n.get()).as_u32()),
+        });
+        let effect_emitted = FxEffectDefRefRaw(match &self.effect_emitted {
+            FxEffectDefRef::Handle(h) => Ptr32::from_box(&h),
+            FxEffectDefRef::Name(n) => Ptr32::from_u32(XStringRaw::from_str(n.get()).as_u32()),
+        });
+        let effect_attached = FxEffectDefRefRaw(match &self.effect_attached {
+            FxEffectDefRef::Handle(h) => Ptr32::from_box(&h),
+            FxEffectDefRef::Name(n) => Ptr32::from_u32(XStringRaw::from_str(n.get()).as_u32()),
+        });
+        let trail_def = Ptr32::from_box(&self.trail_def);
+        let u = if let Some(u) = &self.u {
+            match u {
+                FxElemDefUnion::Billboard(b) => unsafe { transmute(b) },
+                FxElemDefUnion::CloudDensityRange(r) => unsafe { transmute(r) },
+            }
+        } else {
+            [0u8; 8]
+        };
+        let spawn_sound = FxElemSpawnSoundRaw {
+            spawn_sound: XStringRaw::from_str(self.spawn_sound.spawn_sound.get())
+        };
+
+        let elem_def = FxElemDefRaw {
+            flags: self.flags.bits(),
+            spawn: self.spawn,
+            spawn_range: self.spawn_range,
+            fade_in_range: self.fade_in_range,
+            fade_out_range: self.fade_out_range,
+            spawn_frustum_cull_radius: self.spawn_frustum_cull_radius,
+            spawn_delay_msec: self.spawn_delay_msec,
+            life_span_msec: self.life_span_msec,
+            spawn_origin: self.spawn_origin,
+            spawn_offset_radius: self.spawn_offset_radius,
+            spawn_offset_height: self.spawn_offset_height,
+            spawn_angles: self.spawn_angles,
+            angular_velocity: self.angular_velocity,
+            initial_rotation: self.initial_rotation,
+            rotation_axis: self.rotation_axis,
+            gravity: self.gravity,
+            reflection_factor: self.reflection_factor,
+            atlas: self.atlas,
+            wind_influence: self.wind_influence,
+            elem_type: self.elem_type as _,
+            visual_count: self.visual_count,
+            vel_interval_count: self.vel_interval_count,
+            vis_state_interval_count: self.vis_state_interval_count,
+            vel_samples,
+            vis_samples,
+            visuals,
+            coll_mins: self.coll_mins.get(),
+            coll_maxs: self.coll_maxs.get(),
+            effect_on_impact,
+            effect_on_death,
+            effect_emitted,
+            emit_dist: self.emit_dist,
+            emit_dist_variance: self.emit_dist_variance,
+            effect_attached,
+            trail_def,
+            sort_order: self.sort_order,
+            lighting_frac: self.lighting_frac,
+            unused: [0u8; 2],
+            alpha_fade_time_msec: self.alpha_fade_time_msec,
+            max_wind_strength: self.max_wind_strength,
+            spawn_interval_at_max_wind: self.spawn_interval_at_max_wind,
+            lifespan_at_max_wind: self.lifespan_at_max_wind,
+            u,
+            spawn_sound,
+            billboard_pivot: self.billboard_pivot.get(),
+        };
+
+        ser.store_into_xfile(elem_def)?;
+        self.vel_samples.xfile_serialize(ser, ())?;
+        self.vis_samples.xfile_serialize(ser, ())?;
+        self.visuals.xfile_serialize(ser, ())?;
+        self.effect_on_impact.xfile_serialize(ser, ())?;
+        self.effect_on_death.xfile_serialize(ser, ())?;
+        self.effect_emitted.xfile_serialize(ser, ())?;
+        self.effect_attached.xfile_serialize(ser, ())?;
+        self.trail_def.xfile_serialize(ser, ())?;
+        self.spawn_sound.spawn_sound.xfile_serialize(ser, ())
+    }
+}
+
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug)]
 pub enum FxElemDefUnion {
@@ -377,6 +515,13 @@ pub struct FxBillboardTrim {
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
 pub(crate) struct FxEffectDefRefRaw<'a>(Ptr32<'a, ()>);
 
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Clone, Debug)]
+pub enum FxEffectDefRef {
+    Name(XString),
+    Handle(Option<Box<FxEffectDef>>),
+}
+
 impl<'a> XFileDeserializeInto<FxEffectDefRef, ()> for FxEffectDefRefRaw<'a> {
     fn xfile_deserialize_into(
         &self,
@@ -392,11 +537,20 @@ impl<'a> XFileDeserializeInto<FxEffectDefRef, ()> for FxEffectDefRefRaw<'a> {
     }
 }
 
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[derive(Clone, Debug)]
-pub enum FxEffectDefRef {
-    Name(XString),
-    Handle(Option<Box<FxEffectDef>>),
+impl XFileSerialize<()> for FxEffectDefRef {
+    fn xfile_serialize(&self, ser: &mut impl T5XFileSerialize, _data: ()) -> Result<()> {
+        let effect_def_ref = FxEffectDefRefRaw(match self {
+            FxEffectDefRef::Name(n) => Ptr32::from_u32(XStringRaw::from_str(n.get()).as_u32()),
+            FxEffectDefRef::Handle(h) => Ptr32::from_box(&h),
+        });
+
+        ser.store_into_xfile(effect_def_ref)?;
+
+        match self {
+            FxEffectDefRef::Name(n) => n.xfile_serialize(ser, ()),
+            FxEffectDefRef::Handle(h) => h.xfile_serialize(ser, ()),
+        }
+    }
 }
 
 #[cfg_attr(feature = "serde", derive(Serialize))]
@@ -449,6 +603,30 @@ impl<'a> XFileDeserializeInto<Option<FxElemDefVisuals>, (u8, u8)> for FxElemDefV
     }
 }
 
+impl XFileSerialize<()> for FxElemDefVisuals {
+    fn xfile_serialize(&self, ser: &mut impl T5XFileSerialize, _data: ()) -> Result<()> {
+        // intentionally don't serialize FxElemDefVisualsRaw since it's only 
+        // used embedded directly into FxElemDefRaw, not with a pointer
+        match self {
+            Self::Instance(i) => if let Some(i) = i {
+                match i {
+                    FxElemVisuals::EffectDef(e) => match e {
+                        FxEffectDefRef::Name(n) => n.xfile_serialize(ser, ()),
+                        FxEffectDefRef::Handle(h) => h.xfile_serialize(ser, ()),
+                    },
+                    FxElemVisuals::Material(m) => m.xfile_serialize(ser, ()),
+                    FxElemVisuals::Model(m) => m.xfile_serialize(ser, ()),
+                    FxElemVisuals::SoundName(n) => n.xfile_serialize(ser, ()),
+                }
+            } else {
+                Ok(())
+            },
+            Self::Array(a) => a.xfile_serialize(ser, ()),
+            Self::MarkArray(a) => a.xfile_serialize(ser, ()),
+        }
+    }
+}
+
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Debug, Deserialize)]
 pub(crate) struct FxElemMarkVisualsRaw<'a> {
@@ -476,6 +654,21 @@ impl<'a> XFileDeserializeInto<FxElemMarkVisuals, ()> for FxElemMarkVisualsRaw<'a
                 self.materials[1].xfile_deserialize_into(de, ())?,
             ],
         })
+    }
+}
+
+impl XFileSerialize<()> for FxElemMarkVisuals {
+    fn xfile_serialize(&self, ser: &mut impl T5XFileSerialize, _data: ()) -> Result<()> {
+        let mark_visuals = FxElemMarkVisualsRaw {
+            materials: [
+                Ptr32::from_box(&self.materials[0]),
+                Ptr32::from_box(&self.materials[1]),
+            ]
+        };
+
+        ser.store_into_xfile(mark_visuals)?;
+        self.materials[0].xfile_serialize(ser, ())?;
+        self.materials[1].xfile_serialize(ser, ())
     }
 }
 
@@ -528,6 +721,32 @@ impl<'a> XFileDeserializeInto<Option<FxElemVisuals>, u8> for FxElemVisualsRaw<'a
     }
 }
 
+impl XFileSerialize<()> for FxElemVisuals {
+    fn xfile_serialize(&self, ser: &mut impl T5XFileSerialize, _data: ()) -> Result<()> {
+        let visuals = FxElemVisualsRaw(match self {
+            FxElemVisuals::EffectDef(e) => match e {
+                FxEffectDefRef::Name(n) => Ptr32::from_u32(XStringRaw::from_str(n.get()).as_u32()),
+                FxEffectDefRef::Handle(h) => Ptr32::from_box(&h),
+            },
+            FxElemVisuals::Material(m) => Ptr32::from_box(&m),
+            FxElemVisuals::Model(m) => Ptr32::from_box(&m),
+            FxElemVisuals::SoundName(n) => Ptr32::from_u32(XStringRaw::from_str(n.get()).as_u32()),
+        });
+
+        ser.store_into_xfile(visuals)?;
+
+        match self {
+            Self::EffectDef(e) => match e {
+                FxEffectDefRef::Name(n) => n.xfile_serialize(ser, ()),
+                FxEffectDefRef::Handle(h) => h.xfile_serialize(ser, ()),
+            },
+            Self::Material(m) => m.xfile_serialize(ser, ()),
+            Self::Model(m) => m.xfile_serialize(ser, ()),
+            Self::SoundName(n) => n.xfile_serialize(ser, ()),
+        }
+    }
+}
+
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Debug, Deserialize)]
 pub struct FxFloatRange {
@@ -564,6 +783,12 @@ pub struct FxElemVelStateSample {
     pub world: FxElemVelStateInFrame,
 }
 assert_size!(FxElemVelStateSample, 96);
+
+impl XFileSerialize<()> for FxElemVelStateSample {
+    fn xfile_serialize(&self, ser: &mut impl T5XFileSerialize, _data: ()) -> Result<()> {
+        ser.store_into_xfile(*self)
+    }
+}
 
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Debug, Deserialize)]
@@ -602,6 +827,29 @@ impl From<FxElemVisStateSampleRaw> for FxElemVisStateSample {
             base: value.base.into(),
             amplitude: value.amplitude.into(),
         }
+    }
+}
+
+impl XFileSerialize<()> for FxElemVisStateSample {
+    fn xfile_serialize(&self, ser: &mut impl T5XFileSerialize, _data: ()) -> Result<()> {
+        let sample = FxElemVisStateSampleRaw {
+            base: FxElemVisualStateRaw {
+                color: self.base.color,
+                rotation_delta: self.base.rotation_delta,
+                rotation_total: self.base.rotation_total,
+                size: self.base.size.get(),
+                scale: self.base.scale,
+            },
+            amplitude: FxElemVisualStateRaw {
+                color: self.amplitude.color,
+                rotation_delta: self.amplitude.rotation_delta,
+                rotation_total: self.amplitude.rotation_total,
+                size: self.amplitude.size.get(),
+                scale: self.amplitude.scale,
+            }
+        };
+
+        ser.store_into_xfile(sample)
     }
 }
 
@@ -677,6 +925,25 @@ impl<'a> XFileDeserializeInto<FxTrailDef, ()> for FxTrailDefRaw<'a> {
     }
 }
 
+impl XFileSerialize<()> for FxTrailDef {
+    fn xfile_serialize(&self, ser: &mut impl T5XFileSerialize, _data: ()) -> Result<()> {
+        let verts = FatPointerCountFirstU32::from_slice(&self.verts);
+        let inds = FatPointerCountFirstU32::from_slice(&self.inds);
+
+        let trail_def = FxTrailDefRaw {
+            scroll_time_msec: self.scroll_time_msec,
+            repeat_dist: self.repeat_dist,
+            split_dist: self.split_dist,
+            verts,
+            inds,
+        };
+
+        ser.store_into_xfile(trail_def)?;
+        self.verts.xfile_serialize(ser, ())?;
+        self.inds.xfile_serialize(ser, ())
+    }
+}
+
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Debug, Deserialize)]
 pub(crate) struct FxTrailVertexRaw {
@@ -701,6 +968,18 @@ impl From<FxTrailVertexRaw> for FxTrailVertex {
             normal: value.normal.into(),
             tex_coord: value.tex_coord,
         }
+    }
+}
+
+impl XFileSerialize<()> for FxTrailVertex {
+    fn xfile_serialize(&self, ser: &mut impl T5XFileSerialize, _data: ()) -> Result<()> {
+        let vertex = FxTrailVertexRaw {
+            pos: self.pos.get(),
+            normal: self.normal.get(),
+            tex_coord: self.tex_coord,
+        };
+
+        ser.store_into_xfile(vertex)
     }
 }
 
