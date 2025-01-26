@@ -13,8 +13,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     Error, ErrorKind, FatPointer, FatPointerCountFirstU32, FatPointerCountLastU32, Ptr32, Result,
-    T5XFileDeserialize, XFileDeserializeInto, XString, XStringRaw, assert_size, file_line_col,
-    prelude::*,
+    T5XFileDeserialize, T5XFileSerialize, XFileDeserializeInto, XFileSerialize, XString,
+    XStringRaw, assert_size, common::Vec2, file_line_col, prelude::*,
 };
 
 #[cfg_attr(feature = "serde", derive(Serialize))]
@@ -71,6 +71,33 @@ impl<'a> XFileDeserializeInto<SndBank, ()> for SndBankRaw<'a> {
     }
 }
 
+impl XFileSerialize<()> for SndBank {
+    fn xfile_serialize(&self, ser: &mut impl T5XFileSerialize, _data: ()) -> Result<()> {
+        let name = XStringRaw::from_str(self.name.get());
+        let aliases = FatPointerCountFirstU32::from_slice(&self.aliases);
+        let alias_index = Ptr32::from_slice(&self.alias_index);
+        let radverbs = FatPointerCountFirstU32::from_slice(&self.radverbs);
+        let snapshots = FatPointerCountLastU32::from_slice(&self.snapshots);
+
+        let snd_bank = SndBankRaw {
+            name,
+            aliases,
+            alias_index,
+            pack_hash: self.pack_hash,
+            pack_location: self.pack_location,
+            radverbs,
+            snapshots,
+        };
+
+        ser.store_into_xfile(snd_bank)?;
+        self.name.xfile_serialize(ser, ())?;
+        self.aliases.xfile_serialize(ser, ())?;
+        self.alias_index.xfile_serialize(ser, ())?;
+        self.radverbs.xfile_serialize(ser, ())?;
+        self.snapshots.xfile_serialize(ser, ())
+    }
+}
+
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Debug, Deserialize)]
 pub(crate) struct SndAliasListRaw<'a> {
@@ -104,6 +131,24 @@ impl<'a> XFileDeserializeInto<SndAliasList, ()> for SndAliasListRaw<'a> {
             aliases,
             sequence: self.sequence,
         })
+    }
+}
+
+impl XFileSerialize<()> for SndAliasList {
+    fn xfile_serialize(&self, ser: &mut impl T5XFileSerialize, _data: ()) -> Result<()> {
+        let name = XStringRaw::from_str(self.name.get());
+        let aliases = FatPointerCountLastU32::from_slice(&self.aliases);
+
+        let snd_alias_list = SndAliasListRaw {
+            name,
+            id: self.id,
+            aliases,
+            sequence: self.sequence,
+        };
+
+        ser.store_into_xfile(snd_alias_list)?;
+        self.name.xfile_serialize(ser, ())?;
+        self.aliases.xfile_serialize(ser, ())
     }
 }
 
@@ -258,6 +303,65 @@ impl<'a> XFileDeserializeInto<SndAlias, ()> for SndAliasRaw<'a> {
     }
 }
 
+impl XFileSerialize<()> for SndAlias {
+    fn xfile_serialize(&self, ser: &mut impl T5XFileSerialize, _data: ()) -> Result<()> {
+        let name = XStringRaw::from_str(self.name.get());
+        let subtitle = XStringRaw::from_str(self.subtitle.get());
+        let secondaryname = XStringRaw::from_str(self.secondaryname.get());
+        let sound_file = Ptr32::from_box(&self.sound_file);
+
+        let snd_alias = SndAliasRaw {
+            name,
+            id: self.id,
+            subtitle,
+            secondaryname,
+            sound_file,
+            flags: self.flags,
+            duck: self.duck,
+            context_type: self.context_type,
+            context_value: self.context_value,
+            flux_time: self.flux_time,
+            start_delay: self.start_delay,
+            radverb_send: self.radverb_send,
+            center_send: self.center_send,
+            vol_min: self.vol_min,
+            vol_max: self.vol_max,
+            team_vol_mod: self.team_vol_mod,
+            pitch_min: self.pitch_min,
+            pitch_max: self.pitch_max,
+            team_pitch_mod: self.team_pitch_mod,
+            dist_min: self.dist_min,
+            dist_max: self.dist_max,
+            dist_radverb_max: self.dist_radverb_max,
+            envelop_min: self.envelop_min,
+            envelop_max: self.envelop_max,
+            envelop_perecentage: self.envelop_perecentage,
+            min_priority_threshold: self.min_priority_threshold,
+            max_priority_threshold: self.max_priority_threshold,
+            probability: self.probability,
+            occlusion_level: self.occlusion_level,
+            occlusion_wet_dry: self.occlusion_wet_dry,
+            min_priority: self.min_priority,
+            max_priority: self.max_priority,
+            pan: self.pan,
+            dry_curve: self.dry_curve,
+            wet_curve: self.wet_curve,
+            dry_min_curve: self.dry_min_curve,
+            wet_min_curve: self.wet_min_curve,
+            limit_count: self.limit_count,
+            entity_limit_count: self.entity_limit_count,
+            snapshot_group: self.snapshot_group,
+            pad: [0u8; 1],
+        };
+
+        ser.store_into_xfile(snd_alias)?;
+        self.name.xfile_serialize(ser, ())?;
+        self.subtitle.xfile_serialize(ser, ())?;
+        self.secondaryname.xfile_serialize(ser, ())?;
+        self.sound_file.xfile_serialize(ser, ())
+    }
+}
+
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Debug, Deserialize)]
 pub(crate) struct SoundFileRaw<'a> {
@@ -285,6 +389,29 @@ impl<'a> XFileDeserializeInto<SoundFile, ()> for SoundFileRaw<'a> {
         let exists = self.exists != 0;
 
         Ok(SoundFile { u, exists })
+    }
+}
+
+impl XFileSerialize<()> for SoundFile {
+    fn xfile_serialize(&self, ser: &mut impl T5XFileSerialize, _data: ()) -> Result<()> {
+        let (u, type_) = match &self.u {
+            SoundFileRef::Loaded(l) => (SoundFileRefRaw(Ptr32::from_box(&l)), 1u8),
+            SoundFileRef::Streamed(s) => (SoundFileRefRaw(Ptr32::from_box(&s)), 0u8),
+        };
+
+        let sound_file = SoundFileRaw {
+            u,
+            type_,
+            exists: self.exists as _,
+            pad: [0u8; 2],
+        };
+
+        ser.store_into_xfile(sound_file)?;
+
+        match &self.u {
+            SoundFileRef::Loaded(l) => l.xfile_serialize(ser, ()),
+            SoundFileRef::Streamed(s) => s.xfile_serialize(ser, ()),
+        }
     }
 }
 
@@ -348,6 +475,36 @@ impl<'a> XFileDeserializeInto<LoadedSound, ()> for LoadedSoundRaw<'a> {
         let sound = self.sound.xfile_deserialize_into(de, ())?;
 
         Ok(LoadedSound { name, sound })
+    }
+}
+
+impl XFileSerialize<()> for LoadedSound {
+    fn xfile_serialize(&self, ser: &mut impl T5XFileSerialize, _data: ()) -> Result<()> {
+        let name = XStringRaw::from_str(self.name.get());
+
+        let seek_table = FatPointerCountFirstU32::from_slice(&self.sound.seek_table);
+        let data = FatPointerCountFirstU32::from_slice(&self.sound.data);
+        let sound = SndAssetRaw {
+            version: self.sound.version,
+            frame_count: self.sound.frame_count,
+            frame_rate: self.sound.frame_rate,
+            channel_count: self.sound.channel_count,
+            header_size: self.sound.header_size,
+            block_size: self.sound.block_size,
+            buffer_size: self.sound.buffer_size,
+            format: self.sound.format as _,
+            channel_flags: self.sound.channel_flags.bits(),
+            flags: self.sound.flags.bits(),
+            seek_table,
+            data,
+        };
+
+        let loaded_sound = LoadedSoundRaw { name, sound };
+
+        ser.store_into_xfile(loaded_sound)?;
+        self.name.xfile_serialize(ser, ())?;
+        self.sound.seek_table.xfile_serialize(ser, ())?;
+        self.sound.data.xfile_serialize(ser, ())
     }
 }
 
@@ -499,6 +656,22 @@ impl<'a> XFileDeserializeInto<StreamedSound, ()> for StreamedSoundRaw<'a> {
     }
 }
 
+impl XFileSerialize<()> for StreamedSound {
+    fn xfile_serialize(&self, ser: &mut impl T5XFileSerialize, _data: ()) -> Result<()> {
+        let filename = XStringRaw::from_str(self.filename.get());
+        let prime_snd = Ptr32::from_box(&self.prime_snd);
+
+        let streamed_sound = StreamedSoundRaw {
+            filename,
+            prime_snd,
+        };
+
+        ser.store_into_xfile(streamed_sound)?;
+        self.filename.xfile_serialize(ser, ())?;
+        self.prime_snd.xfile_serialize(ser, ())
+    }
+}
+
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Debug, Deserialize)]
 pub(crate) struct PrimedSndRaw<'a> {
@@ -528,6 +701,19 @@ impl<'a> XFileDeserializeInto<PrimedSnd, ()> for PrimedSndRaw<'a> {
     }
 }
 
+impl XFileSerialize<()> for PrimedSnd {
+    fn xfile_serialize(&self, ser: &mut impl T5XFileSerialize, _data: ()) -> Result<()> {
+        let name = XStringRaw::from_str(self.name.get());
+        let buffer = FatPointerCountLastU32::from_slice(&self.buffer);
+
+        let primed_snd = PrimedSndRaw { name, buffer };
+
+        ser.store_into_xfile(primed_snd)?;
+        self.name.xfile_serialize(ser, ())?;
+        self.buffer.xfile_serialize(ser, ())
+    }
+}
+
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Debug, Deserialize)]
 pub struct SndIndexEntry {
@@ -535,6 +721,12 @@ pub struct SndIndexEntry {
     pub next: u16,
 }
 assert_size!(SndIndexEntry, 4);
+
+impl XFileSerialize<()> for SndIndexEntry {
+    fn xfile_serialize(&self, ser: &mut impl T5XFileSerialize, _data: ()) -> Result<()> {
+        ser.store_into_xfile(*self)
+    }
+}
 
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Debug, Default, Deserialize)]
@@ -551,6 +743,23 @@ impl Display for SndName {
             .unwrap_or(32);
         let s = self.0[..len].iter().map(|c| *c as char).collect::<String>();
         write!(f, "{}", s)
+    }
+}
+
+impl SndName {
+    fn from_str(string: &str) -> Result<Self> {
+        if string.len() > 32 {
+            return Err(Error::new(
+                file_line_col!(),
+                ErrorKind::BrokenInvariant(format!(
+                    "SndName: string \"{string}\" too long (must be <=32 bytes)."
+                )),
+            ));
+        }
+
+        let mut bytes = string.chars().map(|c| c as u8).collect::<Vec<_>>();
+        bytes.resize(32, 0);
+        Ok(Self(bytes.try_into().unwrap()))
     }
 }
 
@@ -625,6 +834,34 @@ impl From<SndRadverbRaw> for SndRadverb {
     }
 }
 
+impl XFileSerialize<()> for SndRadverb {
+    fn xfile_serialize(&self, ser: &mut impl T5XFileSerialize, _data: ()) -> Result<()> {
+        let name = SndName::from_str(self.name.get())?;
+
+        let snd_radverb = SndRadverbRaw {
+            name,
+            id: self.id,
+            smoothing: self.smoothing,
+            early_time: self.early_time,
+            late_time: self.late_time,
+            early_gain: self.early_gain,
+            late_gain: self.late_gain,
+            return_gain: self.return_gain,
+            early_lpf: self.early_lpf,
+            late_lpf: self.late_lpf,
+            input_lpf: self.input_lpf,
+            damp_lpf: self.damp_lpf,
+            wall_reflect: self.wall_reflect,
+            dry_gain: self.dry_gain,
+            early_size: self.early_size,
+            late_size: self.late_size,
+            diffusion: self.diffusion,
+        };
+
+        ser.store_into_xfile(snd_radverb)
+    }
+}
+
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Debug, Deserialize)]
 pub(crate) struct SndSnapshotRaw {
@@ -680,6 +917,30 @@ impl From<SndSnapshotRaw> for SndSnapshot {
     }
 }
 
+impl XFileSerialize<()> for SndSnapshot {
+    fn xfile_serialize(&self, ser: &mut impl T5XFileSerialize, _data: ()) -> Result<()> {
+        let name = SndName::from_str(self.name.get())?;
+        let occlusion_name = SndName::from_str(self.occlusion_name.get())?;
+
+        let snd_snapshot = SndSnapshotRaw {
+            name,
+            id: self.id,
+            occlusion_name,
+            occlusion_id: self.occlusion_id,
+            fade_in: self.fade_in,
+            fade_out: self.fade_out,
+            distance: self.distance,
+            fade_in_curve: self.fade_in_curve,
+            fade_out_curve: self.fade_out_curve,
+            attenuation: self.attenuation,
+        };
+
+        ser.store_into_xfile(snd_snapshot)?;
+        self.name.xfile_serialize(ser, ())?;
+        self.occlusion_name.xfile_serialize(ser, ())
+    }
+}
+
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Debug, Deserialize)]
 pub(crate) struct SndPatchRaw<'a> {
@@ -713,6 +974,25 @@ impl<'a> XFileDeserializeInto<SndPatch, ()> for SndPatchRaw<'a> {
             elements,
             files,
         })
+    }
+}
+
+impl XFileSerialize<()> for SndPatch {
+    fn xfile_serialize(&self, ser: &mut impl T5XFileSerialize, _data: ()) -> Result<()> {
+        let name = XStringRaw::from_str(self.name.get());
+        let elements = FatPointerCountFirstU32::from_slice(&self.elements);
+        let files = FatPointerCountFirstU32::from_slice(&self.files);
+
+        let snd_patch = SndPatchRaw {
+            name,
+            elements,
+            files,
+        };
+
+        ser.store_into_xfile(snd_patch)?;
+        self.name.xfile_serialize(ser, ())?;
+        self.elements.xfile_serialize(ser, ())?;
+        self.files.xfile_serialize(ser, ())
     }
 }
 
@@ -770,6 +1050,37 @@ impl<'a> XFileDeserializeInto<SndDriverGlobals, ()> for SndDriverGlobalsRaw<'a> 
             contexts,
             masters,
         })
+    }
+}
+
+impl XFileSerialize<()> for SndDriverGlobals {
+    fn xfile_serialize(&self, ser: &mut impl T5XFileSerialize, _data: ()) -> Result<()> {
+        let name = XStringRaw::from_str(self.name.get());
+        let groups = FatPointerCountFirstU32::from_slice(&self.groups);
+        let curves = FatPointerCountFirstU32::from_slice(&self.curves);
+        let pans = FatPointerCountFirstU32::from_slice(&self.pans);
+        let snapshot_groups = FatPointerCountFirstU32::from_slice(&self.snapshot_groups);
+        let contexts = FatPointerCountFirstU32::from_slice(&self.contexts);
+        let masters = FatPointerCountFirstU32::from_slice(&self.masters);
+
+        let snddriver_globals = SndDriverGlobalsRaw {
+            name,
+            groups,
+            curves,
+            pans,
+            snapshot_groups,
+            contexts,
+            masters,
+        };
+
+        ser.store_into_xfile(snddriver_globals)?;
+        self.name.xfile_serialize(ser, ())?;
+        self.groups.xfile_serialize(ser, ())?;
+        self.curves.xfile_serialize(ser, ())?;
+        self.pans.xfile_serialize(ser, ())?;
+        self.snapshot_groups.xfile_serialize(ser, ())?;
+        self.contexts.xfile_serialize(ser, ())?;
+        self.masters.xfile_serialize(ser, ())
     }
 }
 
@@ -835,6 +1146,25 @@ impl TryInto<SndGroup> for SndGroupRaw {
     }
 }
 
+impl XFileSerialize<()> for SndGroup {
+    fn xfile_serialize(&self, ser: &mut impl T5XFileSerialize, _data: ()) -> Result<()> {
+        let name = SndName::from_str(self.name.get())?;
+        let parent_name = SndName::from_str(self.parent_name.get())?;
+
+        let snd_group = SndGroupRaw {
+            name,
+            parent_name,
+            id: self.id,
+            parent_index: self.parent_index,
+            category: self.category as _,
+            attenuation_sp: self.attenuation_sp,
+            attenuation_mp: self.attenuation_mp,
+        };
+
+        ser.store_into_xfile(snd_group)
+    }
+}
+
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
 pub(crate) struct SndCurveRaw {
@@ -849,19 +1179,35 @@ assert_size!(SndCurveRaw, 100);
 pub struct SndCurve {
     pub name: XString,
     pub id: u32,
-    pub points: [[f32; 2]; 8],
+    pub points: [Vec2; 8],
 }
 
 impl From<SndCurveRaw> for SndCurve {
     fn from(value: SndCurveRaw) -> Self {
         let name = XString(value.name.to_string());
+        let points = value.points.map(|p| Vec2::from(p));
         //dbg!(&name);
 
         SndCurve {
             name,
             id: value.id,
-            points: value.points,
+            points,
         }
+    }
+}
+
+impl XFileSerialize<()> for SndCurve {
+    fn xfile_serialize(&self, ser: &mut impl T5XFileSerialize, _data: ()) -> Result<()> {
+        let name = SndName::from_str(self.name.get())?;
+        let points = self.points.map(|p| p.get());
+
+        let snd_curve = SndCurveRaw {
+            name,
+            id: self.id,
+            points,
+        };
+
+        ser.store_into_xfile(snd_curve)
     }
 }
 
@@ -910,6 +1256,25 @@ impl From<SndPanRaw> for SndPan {
     }
 }
 
+impl XFileSerialize<()> for SndPan {
+    fn xfile_serialize(&self, ser: &mut impl T5XFileSerialize, _data: ()) -> Result<()> {
+        let name = SndName::from_str(self.name.get())?;
+
+        let snd_pan = SndPanRaw {
+            name,
+            id: self.id,
+            front: self.front,
+            back: self.back,
+            center: self.center,
+            lfe: self.lfe,
+            left: self.left,
+            right: self.right,
+        };
+
+        ser.store_into_xfile(snd_pan)
+    }
+}
+
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
 pub(crate) struct SndSnapshotGroupRaw {
@@ -931,6 +1296,16 @@ impl From<SndSnapshotGroupRaw> for SndSnapshotGroup {
     }
 }
 
+impl XFileSerialize<()> for SndSnapshotGroup {
+    fn xfile_serialize(&self, ser: &mut impl T5XFileSerialize, _data: ()) -> Result<()> {
+        let name = SndName::from_str(self.name.get())?;
+
+        let snd_snapshot_group = SndSnapshotGroupRaw { name };
+
+        ser.store_into_xfile(snd_snapshot_group)
+    }
+}
+
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
 pub struct SndContext {
@@ -939,6 +1314,12 @@ pub struct SndContext {
     pub values: [u32; 8],
 }
 assert_size!(SndContext, 40);
+
+impl XFileSerialize<()> for SndContext {
+    fn xfile_serialize(&self, ser: &mut impl T5XFileSerialize, _data: ()) -> Result<()> {
+        ser.store_into_xfile(*self)
+    }
+}
 
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
@@ -1069,5 +1450,53 @@ impl From<SndMasterRaw> for SndMaster {
             limit_ta: value.limit_ta,
             limit_tr: value.limit_tr,
         }
+    }
+}
+
+impl XFileSerialize<()> for SndMaster {
+    fn xfile_serialize(&self, ser: &mut impl T5XFileSerialize, _data: ()) -> Result<()> {
+        let name = SndName::from_str(self.name.get())?;
+
+        let snd_master = SndMasterRaw {
+            name,
+            id: self.id,
+            notch_e: self.notch_e,
+            notch_g: self.notch_g,
+            notch_f: self.notch_f,
+            notch_q: self.notch_q,
+            low_e: self.low_e,
+            low_g: self.low_g,
+            low_f: self.low_f,
+            low_q: self.low_q,
+            peak_1_e: self.peak_1_e,
+            peak_1_g: self.peak_1_g,
+            peak_1_f: self.peak_1_f,
+            peak_1_q: self.peak_1_q,
+            peak_2_e: self.peak_2_e,
+            peak_2_g: self.peak_2_g,
+            peak_2_f: self.peak_2_f,
+            peak_2_q: self.peak_2_q,
+            hi_e: self.hi_e,
+            hi_g: self.hi_g,
+            hi_f: self.hi_f,
+            hi_q: self.hi_q,
+            eq_g: self.eq_g,
+            comp_e: self.comp_e,
+            comp_pg: self.comp_pg,
+            comp_mg: self.comp_mg,
+            comp_t: self.comp_t,
+            comp_r: self.comp_r,
+            comp_ta: self.comp_ta,
+            comp_tr: self.comp_tr,
+            limit_e: self.limit_e,
+            limit_pg: self.limit_pg,
+            limit_mg: self.limit_mg,
+            limit_t: self.limit_t,
+            limit_r: self.limit_r,
+            limit_ta: self.limit_ta,
+            limit_tr: self.limit_tr,
+        };
+
+        ser.store_into_xfile(snd_master)
     }
 }

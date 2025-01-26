@@ -388,19 +388,25 @@ impl XFileSerialize<()> for FxElemDef {
         let vis_samples = Ptr32::from_slice(&self.vis_samples);
         let visuals = FxElemDefVisualsRaw(if let Some(v) = &self.visuals {
             match v {
-                FxElemDefVisuals::Instance(i) => if let Some(i) = i {
-                    match i {
-                        FxElemVisuals::EffectDef(e) => match e {
-                            FxEffectDefRef::Name(n) => Ptr32::from_u32(XStringRaw::from_str(n.get()).as_u32()),
-                            FxEffectDefRef::Handle(h) => Ptr32::from_box(&h),
-                        },
-                        FxElemVisuals::Material(m) => Ptr32::from_box(&m),
-                        FxElemVisuals::Model(m) => Ptr32::from_box(&m),
-                        FxElemVisuals::SoundName(n) => Ptr32::from_u32(XStringRaw::from_str(n.get()).as_u32()),
+                FxElemDefVisuals::Instance(i) => {
+                    if let Some(i) = i {
+                        match i {
+                            FxElemVisuals::EffectDef(e) => match e {
+                                FxEffectDefRef::Name(n) => {
+                                    Ptr32::from_u32(XStringRaw::from_str(n.get()).as_u32())
+                                }
+                                FxEffectDefRef::Handle(h) => Ptr32::from_box(&h),
+                            },
+                            FxElemVisuals::Material(m) => Ptr32::from_box(&m),
+                            FxElemVisuals::Model(m) => Ptr32::from_box(&m),
+                            FxElemVisuals::SoundName(n) => {
+                                Ptr32::from_u32(XStringRaw::from_str(n.get()).as_u32())
+                            }
+                        }
+                    } else {
+                        Ptr32::null()
                     }
-                } else {
-                    Ptr32::null()
-                },
+                }
                 FxElemDefVisuals::Array(a) => Ptr32::from_slice(&a),
                 FxElemDefVisuals::MarkArray(a) => Ptr32::from_slice(&a),
             }
@@ -433,7 +439,7 @@ impl XFileSerialize<()> for FxElemDef {
             [0u8; 8]
         };
         let spawn_sound = FxElemSpawnSoundRaw {
-            spawn_sound: XStringRaw::from_str(self.spawn_sound.spawn_sound.get())
+            spawn_sound: XStringRaw::from_str(self.spawn_sound.spawn_sound.get()),
         };
 
         let elem_def = FxElemDefRaw {
@@ -605,22 +611,24 @@ impl<'a> XFileDeserializeInto<Option<FxElemDefVisuals>, (u8, u8)> for FxElemDefV
 
 impl XFileSerialize<()> for FxElemDefVisuals {
     fn xfile_serialize(&self, ser: &mut impl T5XFileSerialize, _data: ()) -> Result<()> {
-        // intentionally don't serialize FxElemDefVisualsRaw since it's only 
+        // intentionally don't serialize FxElemDefVisualsRaw since it's only
         // used embedded directly into FxElemDefRaw, not with a pointer
         match self {
-            Self::Instance(i) => if let Some(i) = i {
-                match i {
-                    FxElemVisuals::EffectDef(e) => match e {
-                        FxEffectDefRef::Name(n) => n.xfile_serialize(ser, ()),
-                        FxEffectDefRef::Handle(h) => h.xfile_serialize(ser, ()),
-                    },
-                    FxElemVisuals::Material(m) => m.xfile_serialize(ser, ()),
-                    FxElemVisuals::Model(m) => m.xfile_serialize(ser, ()),
-                    FxElemVisuals::SoundName(n) => n.xfile_serialize(ser, ()),
+            Self::Instance(i) => {
+                if let Some(i) = i {
+                    match i {
+                        FxElemVisuals::EffectDef(e) => match e {
+                            FxEffectDefRef::Name(n) => n.xfile_serialize(ser, ()),
+                            FxEffectDefRef::Handle(h) => h.xfile_serialize(ser, ()),
+                        },
+                        FxElemVisuals::Material(m) => m.xfile_serialize(ser, ()),
+                        FxElemVisuals::Model(m) => m.xfile_serialize(ser, ()),
+                        FxElemVisuals::SoundName(n) => n.xfile_serialize(ser, ()),
+                    }
+                } else {
+                    Ok(())
                 }
-            } else {
-                Ok(())
-            },
+            }
             Self::Array(a) => a.xfile_serialize(ser, ()),
             Self::MarkArray(a) => a.xfile_serialize(ser, ()),
         }
@@ -663,7 +671,7 @@ impl XFileSerialize<()> for FxElemMarkVisuals {
             materials: [
                 Ptr32::from_box(&self.materials[0]),
                 Ptr32::from_box(&self.materials[1]),
-            ]
+            ],
         };
 
         ser.store_into_xfile(mark_visuals)?;
@@ -846,7 +854,7 @@ impl XFileSerialize<()> for FxElemVisStateSample {
                 rotation_total: self.amplitude.rotation_total,
                 size: self.amplitude.size.get(),
                 scale: self.amplitude.scale,
-            }
+            },
         };
 
         ser.store_into_xfile(sample)

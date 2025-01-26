@@ -610,8 +610,20 @@ impl<'a, const MAX_LOCAL_CLIENTS: usize> XFileSerialize<()> for XAssetGeneric<MA
                     Ok(())
                 }
             }
-            // Self::Sound(p) => if let Some(p) = p { p.xfile_serialize(ser, ()) } else { Ok(()) },
-            // Self::SoundPatch(p) => if let Some(p) = p { p.xfile_serialize(ser, ()) } else { Ok(()) },
+            Self::Sound(p) => {
+                if let Some(p) = p {
+                    p.xfile_serialize(ser, ())
+                } else {
+                    Ok(())
+                }
+            }
+            Self::SoundPatch(p) => {
+                if let Some(p) = p {
+                    p.xfile_serialize(ser, ())
+                } else {
+                    Ok(())
+                }
+            }
             // Self::ClipMap(p) => if let Some(p) = p { p.xfile_serialize(ser, ()) } else { Ok(()) },
             // Self::ClipMapPVS(p) => if let Some(p) = p { p.xfile_serialize(ser, ()) } else { Ok(()) },
             Self::ComWorld(p) => {
@@ -621,8 +633,20 @@ impl<'a, const MAX_LOCAL_CLIENTS: usize> XFileSerialize<()> for XAssetGeneric<MA
                     Ok(())
                 }
             }
-            Self::GameWorldSp(p) => if let Some(p) = p { p.xfile_serialize(ser, ()) } else { Ok(()) },
-            Self::GameWorldMp(p) => if let Some(p) = p { p.xfile_serialize(ser, ()) } else { Ok(()) },
+            Self::GameWorldSp(p) => {
+                if let Some(p) = p {
+                    p.xfile_serialize(ser, ())
+                } else {
+                    Ok(())
+                }
+            }
+            Self::GameWorldMp(p) => {
+                if let Some(p) = p {
+                    p.xfile_serialize(ser, ())
+                } else {
+                    Ok(())
+                }
+            }
             Self::MapEnts(p) => {
                 if let Some(p) = p {
                     p.xfile_serialize(ser, ())
@@ -655,7 +679,13 @@ impl<'a, const MAX_LOCAL_CLIENTS: usize> XFileSerialize<()> for XAssetGeneric<MA
                 }
             }
             // Self::Weapon(p) => if let Some(p) = p { p.xfile_serialize(ser, ()) } else { Ok(()) },
-            // Self::SndDriverGlobals(p) => if let Some(p) = p { p.xfile_serialize(ser, ()) } else { Ok(()) },
+            Self::SndDriverGlobals(p) => {
+                if let Some(p) = p {
+                    p.xfile_serialize(ser, ())
+                } else {
+                    Ok(())
+                }
+            }
             Self::Fx(p) => {
                 if let Some(p) = p {
                     p.xfile_serialize(ser, ())
