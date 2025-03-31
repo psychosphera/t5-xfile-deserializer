@@ -462,6 +462,7 @@ pub type Result<T> = core::result::Result<T, Error>;
 pub trait T5XFileDeserialize {
     fn stream_pos(&mut self) -> Result<u64>;
     fn stream_len(&mut self) -> Result<u64>;
+    fn silent(&self) -> bool;
 
     fn load_from_xfile<T: DeserializeOwned>(&mut self) -> Result<T>;
 

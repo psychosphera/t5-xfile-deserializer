@@ -78,7 +78,7 @@ I primarily created this to integrate into OpenT5 once it's done, but I figured 
 
 ## Todo
 1. Fix deserialization logic of remaining `XAssets`.
-2. Serialization.
+2. Serialization (mostly implemented, not at all debugged).
 3. Account for shared pointers. (All pointers get boxed currently, but that's definitely not correct semantically for a lot of them.)
 4. Relatedly, account for linked lists.
 5. Tidy up the deserializer's API (typestated now, but still a little janky).

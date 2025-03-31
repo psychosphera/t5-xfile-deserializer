@@ -544,6 +544,11 @@ impl<'a> T5XFileDeserializer<'a, T5XFileDeserializerInflated> {
 }
 
 impl<'a> T5XFileDeserializer<'a, T5XFileDeserializerDeserialize> {
+    /// Deserializes the next [`XAsset`].
+    ///
+    /// Returns [`Ok(Some)`] if one or more assets remain, [`Ok(None)`] if
+    /// zero assets remain, or [`Err`] if an error occurs during
+    /// deserialization.
     pub fn deserialize_next(&mut self) -> Result<Option<XAsset>> {
         let Some(asset) = self.xassets_raw.pop_front() else {
             return Ok(None);
@@ -574,6 +579,10 @@ impl<'a> T5XFileDeserializer<'a, T5XFileDeserializerDeserialize> {
         asset.map(Some)
     }
 
+    /// Deserializes the remaining [`XAsset`]s.
+    ///
+    /// Returns [`Ok`] if all remaining assets are deserialized successfully,
+    /// or [`Err`] if an error occurs during deserialization.
     pub fn deserialize_remaining(mut self) -> Result<Vec<XAsset>> {
         let mut deserialized_assets = Vec::new();
 
@@ -623,6 +632,10 @@ impl<'a> T5XFileDeserialize for T5XFileDeserializer<'a> {
 
     fn stream_len(&mut self) -> Result<u64> {
         StreamLen::stream_len(self.reader.as_mut().unwrap())
+    }
+
+    fn silent(&self) -> bool {
+        self.silent
     }
 
     fn load_from_xfile<T: DeserializeOwned>(&mut self) -> Result<T> {

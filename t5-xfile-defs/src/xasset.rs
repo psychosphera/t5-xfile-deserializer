@@ -601,8 +601,20 @@ impl<'a, const MAX_LOCAL_CLIENTS: usize> XFileSerialize<()> for XAssetGeneric<MA
                     Ok(())
                 }
             }
-            // Self::Material(p) => if let Some(p) = p { p.xfile_serialize(ser, ()) } else { Ok(()) },
-            // Self::TechniqueSet(p) => if let Some(p) = p { p.xfile_serialize(ser, ()) } else { Ok(()) },
+            Self::Material(p) => {
+                if let Some(p) = p {
+                    p.xfile_serialize(ser, ())
+                } else {
+                    Ok(())
+                }
+            }
+            Self::TechniqueSet(p) => {
+                if let Some(p) = p {
+                    p.xfile_serialize(ser, ())
+                } else {
+                    Ok(())
+                }
+            }
             Self::Image(p) => {
                 if let Some(p) = p {
                     p.xfile_serialize(ser, ())

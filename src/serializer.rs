@@ -177,7 +177,7 @@ impl T5XFileSerialize for T5XFileSerializer {
                 .script_strings
                 .iter()
                 .enumerate()
-                .find(|(_, &ref s)| s.as_str() == string.as_str())
+                .find(|(_, s)| s.as_str() == string.as_str())
                 .unwrap();
             Ok(ScriptString(i as _))
         }
