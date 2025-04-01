@@ -490,11 +490,15 @@ impl XFileSerialize<()> for XSurface {
         let tri_indices = Ptr32::from_slice(&self.tri_indices);
         let verts_blend = Ptr32::from_slice(&self.vert_info.verts_blend);
         let tension_data = Ptr32::from_slice(&self.vert_info.tension_data);
-        let vert_info = XSurfaceVertexInfoRaw { vert_count: self.vert_info.vert_count, verts_blend, tension_data };
+        let vert_info = XSurfaceVertexInfoRaw {
+            vert_count: self.vert_info.vert_count,
+            verts_blend,
+            tension_data,
+        };
         let verts0 = Ptr32::from_slice(&self.verts0);
         let vb0 = Ptr32::from_box(&self.vb0);
         let vert_list = Ptr32::from_slice(&self.vert_list);
-        let index_buffer= Ptr32::from_box(&self.index_buffer);
+        let index_buffer = Ptr32::from_box(&self.index_buffer);
         let surf = XSurfaceRaw {
             tile_mode: self.tile_mode,
             vert_list_count: self.vert_list.len() as _,
@@ -1245,9 +1249,7 @@ impl<'a> XFileDeserializeInto<Collmap, ()> for CollmapRaw<'a> {
 impl XFileSerialize<()> for Collmap {
     fn xfile_serialize(&self, ser: &mut impl T5XFileSerialize, _data: ()) -> Result<()> {
         let geom_list = Ptr32::from_box(&self.geom_list);
-        let collmap = CollmapRaw {
-            geom_list,
-        };
+        let collmap = CollmapRaw { geom_list };
         ser.store_into_xfile(collmap)?;
         self.geom_list.xfile_serialize(ser, ())
     }
@@ -1633,50 +1635,62 @@ impl<'a> XFileDeserializeInto<PhysConstraints, ()> for PhysConstraintsRaw<'a> {
 impl XFileSerialize<()> for PhysConstraints {
     fn xfile_serialize(&self, ser: &mut impl T5XFileSerialize, _data: ()) -> Result<()> {
         let name = XStringRaw::from_str(self.name.get());
-        let mut data = self.data.iter().map(|phys_constraint| {
-            let targetname = ser.get_or_insert_script_string(phys_constraint.targetname.get())?;
-            let target_ent1 = ser.get_or_insert_script_string(phys_constraint.target_ent1.get())?;
-            let target_bone1 = XStringRaw::from_str(phys_constraint.target_bone1.get());
-            let target_ent2 = ser.get_or_insert_script_string(phys_constraint.target_ent2.get())?;
-            let target_bone2 = XStringRaw::from_str(phys_constraint.target_bone2.get());
-            let material = Ptr32::from_box(&phys_constraint.material);
-            Ok(PhysConstraintRaw {
-                targetname,
-                pad: [0u8; 2],
-                type_: phys_constraint.type_ as _,
-                attach_point_type1: phys_constraint.attach_point_type1 as _,
-                target_index1: phys_constraint.target_index1 as _,
-                target_ent1,
-                pad_2: [0u8; 2],
-                target_bone1,
-                attach_point_type2: phys_constraint.attach_point_type2 as _,
-                target_index2: phys_constraint.target_index2 as _,
-                target_ent2,
-                pad_3: [0u8; 2],
-                target_bone2,
-                offset: phys_constraint.offset.get(),
-                pos: phys_constraint.pos.get(),
-                pos2: phys_constraint.pos2.get(),
-                dir: phys_constraint.dir.get(),
-                flags: phys_constraint.flags,
-                timeout: phys_constraint.timeout,
-                min_health: phys_constraint.min_health,
-                max_health: phys_constraint.max_health,
-                distance: phys_constraint.distance,
-                damp: phys_constraint.damp,
-                power: phys_constraint.power,
-                scale: phys_constraint.scale.get(),
-                spin_scale: phys_constraint.spin_scale,
-                min_angle: phys_constraint.min_angle,
-                max_angle: phys_constraint.max_angle,
-                material,
-                constraint_handle: phys_constraint.constraint_handle,
-                rope_index: phys_constraint.rope_index as _,
-                centity_num: phys_constraint.centity_num,
+        let mut data = self
+            .data
+            .iter()
+            .map(|phys_constraint| {
+                let targetname =
+                    ser.get_or_insert_script_string(phys_constraint.targetname.get())?;
+                let target_ent1 =
+                    ser.get_or_insert_script_string(phys_constraint.target_ent1.get())?;
+                let target_bone1 = XStringRaw::from_str(phys_constraint.target_bone1.get());
+                let target_ent2 =
+                    ser.get_or_insert_script_string(phys_constraint.target_ent2.get())?;
+                let target_bone2 = XStringRaw::from_str(phys_constraint.target_bone2.get());
+                let material = Ptr32::from_box(&phys_constraint.material);
+                Ok(PhysConstraintRaw {
+                    targetname,
+                    pad: [0u8; 2],
+                    type_: phys_constraint.type_ as _,
+                    attach_point_type1: phys_constraint.attach_point_type1 as _,
+                    target_index1: phys_constraint.target_index1 as _,
+                    target_ent1,
+                    pad_2: [0u8; 2],
+                    target_bone1,
+                    attach_point_type2: phys_constraint.attach_point_type2 as _,
+                    target_index2: phys_constraint.target_index2 as _,
+                    target_ent2,
+                    pad_3: [0u8; 2],
+                    target_bone2,
+                    offset: phys_constraint.offset.get(),
+                    pos: phys_constraint.pos.get(),
+                    pos2: phys_constraint.pos2.get(),
+                    dir: phys_constraint.dir.get(),
+                    flags: phys_constraint.flags,
+                    timeout: phys_constraint.timeout,
+                    min_health: phys_constraint.min_health,
+                    max_health: phys_constraint.max_health,
+                    distance: phys_constraint.distance,
+                    damp: phys_constraint.damp,
+                    power: phys_constraint.power,
+                    scale: phys_constraint.scale.get(),
+                    spin_scale: phys_constraint.spin_scale,
+                    min_angle: phys_constraint.min_angle,
+                    max_angle: phys_constraint.max_angle,
+                    material,
+                    constraint_handle: phys_constraint.constraint_handle,
+                    rope_index: phys_constraint.rope_index as _,
+                    centity_num: phys_constraint.centity_num,
+                })
             })
-        }).collect::<Result<Vec<PhysConstraintRaw>>>()?;
+            .collect::<Result<Vec<PhysConstraintRaw>>>()?;
         if data.len() > 16 {
-            return Err(Error::new(file_line_col!(), ErrorKind::BrokenInvariant("PhysConstraints::data must have 16 or less elements.".to_string())));
+            return Err(Error::new(
+                file_line_col!(),
+                ErrorKind::BrokenInvariant(
+                    "PhysConstraints::data must have 16 or less elements.".to_string(),
+                ),
+            ));
         }
         data.resize(16, PhysConstraintRaw::default());
         let data = data.try_into().unwrap();
@@ -1908,10 +1922,7 @@ impl XFileSerialize<()> for XModelPieces {
     fn xfile_serialize(&self, ser: &mut impl T5XFileSerialize, _data: ()) -> Result<()> {
         let name = XStringRaw::from_str(self.name.get());
         let pieces = FatPointerCountFirstU32::from_slice(&self.pieces);
-        let pieces = XModelPiecesRaw {
-            name,
-            pieces,
-        };
+        let pieces = XModelPiecesRaw { name, pieces };
 
         ser.store_into_xfile(pieces)?;
         self.name.xfile_serialize(ser, ())?;
@@ -1954,7 +1965,7 @@ impl XFileSerialize<()> for XModelPiece {
             model,
             offset: self.offset.get(),
         };
-        
+
         ser.store_into_xfile(piece)?;
         self.model.xfile_serialize(ser, ())
     }
