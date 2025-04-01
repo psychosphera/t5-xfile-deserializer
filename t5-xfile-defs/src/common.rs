@@ -61,6 +61,12 @@ impl From<[f32; 2]> for Vec2 {
     }
 }
 
+impl XFileSerialize<()> for Vec2 {
+    fn xfile_serialize(&self, ser: &mut impl T5XFileSerialize, _data: ()) -> Result<()> {
+        ser.store_into_xfile(self.0)
+    }
+}
+
 impl Vec2 {
     #[cfg(not(feature = "cgmath"))]
     pub fn get(self) -> [f32; 2] {
@@ -126,7 +132,7 @@ impl From<[f32; 3]> for Vec3 {
     }
 }
 
-impl XFileSerialize<()> for Vec2 {
+impl XFileSerialize<()> for Vec3 {
     fn xfile_serialize(&self, ser: &mut impl T5XFileSerialize, _data: ()) -> Result<()> {
         ser.store_into_xfile(self.0)
     }

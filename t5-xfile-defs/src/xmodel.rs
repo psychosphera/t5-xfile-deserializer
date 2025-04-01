@@ -1,4 +1,4 @@
-use alloc::{boxed::Box, format, string::String, vec::Vec};
+use alloc::{boxed::Box, format, vec::Vec};
 use bitflags::bitflags;
 use num::FromPrimitive;
 use num_derive::FromPrimitive;
@@ -76,7 +76,7 @@ pub struct XModel {
     pub num_root_bones: usize,
     pub numsurfs: usize,
     pub lod_ramp_type: XModelLodRampType,
-    pub bone_names: Vec<String>,
+    pub bone_names: Vec<XString>,
     pub parent_list: Vec<u8>,
     pub quats: Vec<i16>,
     pub trans: Vec<f32>,
@@ -150,7 +150,7 @@ impl<'a> XFileDeserializeInto<XModel, ()> for XModelRaw<'a> {
             .to_array(self.num_bones as _)
             .to_vec(de)?
             .into_iter()
-            .map(|s| s.to_string(de).unwrap_or_default())
+            .map(|s| XString(s.to_string(de).unwrap_or_default()))
             .collect();
         //dbg!(&bone_names);
         //dbg!(de.stream_pos()?);
@@ -286,8 +286,75 @@ impl<'a> XFileDeserializeInto<XModel, ()> for XModelRaw<'a> {
 }
 
 impl XFileSerialize<()> for XModel {
-    fn xfile_serialize(&self, _ser: &mut impl T5XFileSerialize, _data: ()) -> Result<()> {
-        todo!()
+    fn xfile_serialize(&self, ser: &mut impl T5XFileSerialize, _data: ()) -> Result<()> {
+        let name = XStringRaw::from_str(self.name.get());
+        let bone_names = Ptr32::from_slice(&self.bone_names);
+        let parent_list = Ptr32::from_slice(&self.parent_list);
+        let quats = Ptr32::from_slice(&self.quats);
+        let trans = Ptr32::from_slice(&self.trans);
+        let part_classification = Ptr32::from_slice(&self.part_classification);
+        let base_mat = Ptr32::from_slice(&self.base_mat);
+        let surfs = Ptr32::from_slice(&self.surfs);
+        let material_handles = Ptr32::from_slice(&self.material_handles);
+        let lod_info = self.lod_info.clone().map(|i| i.try_into().unwrap());
+        let coll_surfs = FatPointerCountLastU32::from_slice(&self.coll_surfs);
+        let bone_info = Ptr32::from_slice(&self.bone_info);
+        let high_mip_bounds = Ptr32::from_slice(&self.stream_info.high_mip_bounds);
+        let stream_info = XModelStreamInfoRaw { high_mip_bounds };
+        let phys_preset = Ptr32::from_box(&self.phys_preset);
+        let collmaps = FatPointerCountFirstU32::from_slice(&self.collmaps);
+        let phys_constraints = Ptr32::from_box(&self.phys_constraints);
+
+        let model = XModelRaw {
+            name,
+            num_bones: self.num_bones as _,
+            num_root_bones: self.num_root_bones as _,
+            numsurfs: self.numsurfs as _,
+            lod_ramp_type: self.lod_ramp_type as _,
+            bone_names,
+            parent_list,
+            quats,
+            trans,
+            part_classification,
+            base_mat,
+            surfs,
+            material_handles,
+            lod_info,
+            load_dist_auto_generated: self.load_dist_auto_generated,
+            pad: [0u8; 3],
+            coll_surfs,
+            contents: self.contents,
+            bone_info,
+            radius: self.radius,
+            mins: self.mins.get(),
+            maxs: self.maxs.get(),
+            num_lods: self.num_lods,
+            coll_lod: self.coll_lod,
+            stream_info,
+            mem_usage: self.mem_usage,
+            flags: self.flags,
+            bad: self.bad,
+            pad_2: [0u8; 3],
+            phys_preset,
+            collmaps,
+            phys_constraints,
+        };
+
+        ser.store_into_xfile(model)?;
+        self.name.xfile_serialize(ser, ())?;
+        self.bone_names.xfile_serialize(ser, ())?;
+        self.parent_list.xfile_serialize(ser, ())?;
+        self.quats.xfile_serialize(ser, ())?;
+        self.trans.xfile_serialize(ser, ())?;
+        self.part_classification.xfile_serialize(ser, ())?;
+        self.base_mat.xfile_serialize(ser, ())?;
+        self.surfs.xfile_serialize(ser, ())?;
+        self.material_handles.xfile_serialize(ser, ())?;
+        self.coll_surfs.xfile_serialize(ser, ())?;
+        self.bone_info.xfile_serialize(ser, ())?;
+        self.phys_preset.xfile_serialize(ser, ())?;
+        self.collmaps.xfile_serialize(ser, ())?;
+        self.phys_constraints.xfile_serialize(ser, ())
     }
 }
 
@@ -315,6 +382,17 @@ impl From<DObjAnimMatRaw> for DObjAnimMat {
             trans: value.trans.into(),
             trans_weight: value.trans_weight,
         }
+    }
+}
+
+impl XFileSerialize<()> for DObjAnimMat {
+    fn xfile_serialize(&self, ser: &mut impl T5XFileSerialize, _data: ()) -> Result<()> {
+        let mat = DObjAnimMatRaw {
+            quat: self.quat.get(),
+            trans: self.trans.get(),
+            trans_weight: self.trans_weight,
+        };
+        ser.store_into_xfile(mat)
     }
 }
 
@@ -407,6 +485,42 @@ impl<'a> XFileDeserializeInto<XSurface, ()> for XSurfaceRaw<'a> {
     }
 }
 
+impl XFileSerialize<()> for XSurface {
+    fn xfile_serialize(&self, ser: &mut impl T5XFileSerialize, _data: ()) -> Result<()> {
+        let tri_indices = Ptr32::from_slice(&self.tri_indices);
+        let verts_blend = Ptr32::from_slice(&self.vert_info.verts_blend);
+        let tension_data = Ptr32::from_slice(&self.vert_info.tension_data);
+        let vert_info = XSurfaceVertexInfoRaw { vert_count: self.vert_info.vert_count, verts_blend, tension_data };
+        let verts0 = Ptr32::from_slice(&self.verts0);
+        let vb0 = Ptr32::from_box(&self.vb0);
+        let vert_list = Ptr32::from_slice(&self.vert_list);
+        let index_buffer= Ptr32::from_box(&self.index_buffer);
+        let surf = XSurfaceRaw {
+            tile_mode: self.tile_mode,
+            vert_list_count: self.vert_list.len() as _,
+            flags: self.flags.bits(),
+            vert_count: self.verts0.len() as _,
+            tri_count: self.tri_indices.len() as u16 * 3,
+            base_tri_index: self.base_tri_index as _,
+            base_vert_index: self.base_vert_index as _,
+            tri_indices,
+            vert_info,
+            verts0,
+            vb0,
+            vert_list,
+            index_buffer,
+            part_bits: self.part_bits,
+        };
+
+        ser.store_into_xfile(surf)?;
+        self.vert_info.verts_blend.xfile_serialize(ser, ())?;
+        self.vert_info.tension_data.xfile_serialize(ser, ())?;
+        self.verts0.xfile_serialize(ser, ())?;
+        self.vert_list.xfile_serialize(ser, ())?;
+        self.tri_indices.xfile_serialize(ser, ())
+    }
+}
+
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
 pub(crate) struct XSurfaceVertexInfoRaw<'a> {
@@ -484,6 +598,20 @@ impl From<GfxPackedVertexRaw> for GfxPackedVertex {
     }
 }
 
+impl XFileSerialize<()> for GfxPackedVertex {
+    fn xfile_serialize(&self, ser: &mut impl T5XFileSerialize, _data: ()) -> Result<()> {
+        let packed_vertex = GfxPackedVertexRaw {
+            xyz: self.xyz.get(),
+            binormal_sign: self.binormal_sign,
+            color: self.color,
+            tex_coord: self.tex_coord,
+            normal: self.normal,
+            tangent: self.tangent,
+        };
+        ser.store_into_xfile(packed_vertex)
+    }
+}
+
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
 pub struct GfxColor(pub [u8; 4]);
@@ -538,6 +666,21 @@ impl<'a> XFileDeserializeInto<XRigidVertList, ()> for XRigidVertListRaw<'a> {
     }
 }
 
+impl XFileSerialize<()> for XRigidVertList {
+    fn xfile_serialize(&self, ser: &mut impl T5XFileSerialize, _data: ()) -> Result<()> {
+        let collision_tree = Ptr32::from_box(&self.collision_tree);
+        let vert_list = XRigidVertListRaw {
+            bone_offset: self.bone_offset as _,
+            vert_count: self.vert_count as _,
+            tri_offset: self.tri_offset as _,
+            tri_count: self.tri_count as _,
+            collision_tree,
+        };
+        ser.store_into_xfile(vert_list)?;
+        self.collision_tree.xfile_serialize(ser, ())
+    }
+}
+
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
 pub(crate) struct XSurfaceCollisionTreeRaw<'a> {
@@ -574,6 +717,22 @@ impl<'a> XFileDeserializeInto<XSurfaceCollisionTree, ()> for XSurfaceCollisionTr
     }
 }
 
+impl XFileSerialize<()> for XSurfaceCollisionTree {
+    fn xfile_serialize(&self, ser: &mut impl T5XFileSerialize, _data: ()) -> Result<()> {
+        let nodes = FatPointerCountFirstU32::from_slice(&self.nodes);
+        let leafs = FatPointerCountFirstU32::from_slice(&self.leafs);
+        let collision_tree = XSurfaceCollisionTreeRaw {
+            trans: self.trans.get(),
+            scale: self.scale.get(),
+            nodes,
+            leafs,
+        };
+        ser.store_into_xfile(collision_tree)?;
+        self.nodes.xfile_serialize(ser, ())?;
+        self.leafs.xfile_serialize(ser, ())
+    }
+}
+
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
 pub(crate) struct XSurfaceCollisionNodeRaw {
@@ -598,6 +757,17 @@ impl From<XSurfaceCollisionNodeRaw> for XSurfaceCollisionNode {
             child_begin_index: value.child_begin_index as _,
             child_count: value.child_count as _,
         }
+    }
+}
+
+impl XFileSerialize<()> for XSurfaceCollisionNode {
+    fn xfile_serialize(&self, ser: &mut impl T5XFileSerialize, _data: ()) -> Result<()> {
+        let node = XSurfaceCollisionNodeRaw {
+            aabb: self.aabb,
+            child_begin_index: self.child_begin_index as _,
+            child_count: self.child_count as _,
+        };
+        ser.store_into_xfile(node)
     }
 }
 
@@ -627,6 +797,15 @@ impl From<XSurfaceCollisionLeafRaw> for XSurfaceCollisionLeaf {
         Self {
             triangle_begin_index: value.triangle_begin_index as _,
         }
+    }
+}
+
+impl XFileSerialize<()> for XSurfaceCollisionLeaf {
+    fn xfile_serialize(&self, ser: &mut impl T5XFileSerialize, _data: ()) -> Result<()> {
+        let leaf = XSurfaceCollisionLeafRaw {
+            triangle_begin_index: self.triangle_begin_index as _,
+        };
+        ser.store_into_xfile(leaf)
     }
 }
 
@@ -691,6 +870,41 @@ impl TryInto<XModelLodInfo> for XModelLodInfoRaw {
     }
 }
 
+impl TryInto<XModelLodInfoRaw> for XModelLodInfo {
+    type Error = Error;
+    fn try_into(self) -> Result<XModelLodInfoRaw> {
+        if self.lod > MAX_LODS as u8 {
+            return Err(Error::new_with_offset(
+                file_line_col!(),
+                0,
+                ErrorKind::BrokenInvariant(format!("XModelLodInfo: lod ({}) > MAX_LODS", self.lod)),
+            ));
+        }
+
+        if self.smc_alloc_bits != 0 && (self.smc_alloc_bits < 4 || self.smc_alloc_bits > 9) {
+            return Err(Error::new_with_offset(
+                file_line_col!(),
+                0,
+                ErrorKind::BrokenInvariant(format!(
+                    "XModelLodInfo: smc_alloc_bits ({}) != 0, 4..=9",
+                    self.smc_alloc_bits
+                )),
+            ));
+        }
+
+        Ok(XModelLodInfoRaw {
+            dist: self.dist,
+            numsurfs: self.numsurfs as _,
+            surf_index: self.surf_index as _,
+            part_bits: self.part_bits,
+            lod: self.lod,
+            smc_index_plus_one: self.smc_index_plus_one as _,
+            smc_alloc_bits: self.smc_alloc_bits,
+            unused: 0,
+        })
+    }
+}
+
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
 pub(crate) struct XModelCollSurfRaw<'a> {
@@ -731,6 +945,23 @@ impl<'a> XFileDeserializeInto<XModelCollSurf, ()> for XModelCollSurfRaw<'a> {
     }
 }
 
+impl XFileSerialize<()> for XModelCollSurf {
+    fn xfile_serialize(&self, ser: &mut impl T5XFileSerialize, _data: ()) -> Result<()> {
+        let coll_tris = FatPointerCountLastU32::from_slice(&self.coll_tris);
+        let coll_surf = XModelCollSurfRaw {
+            coll_tris,
+            mins: self.mins.get(),
+            maxs: self.maxs.get(),
+            bone_idx: self.bone_idx as _,
+            contents: self.contents,
+            surf_flags: self.surf_flags,
+        };
+
+        ser.store_into_xfile(coll_surf)?;
+        self.coll_tris.xfile_serialize(ser, ())
+    }
+}
+
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
 pub(crate) struct XModelCollTriRaw {
@@ -755,6 +986,17 @@ impl From<XModelCollTriRaw> for XModelCollTri {
             svec: value.svec.into(),
             tvec: value.tvec.into(),
         }
+    }
+}
+
+impl XFileSerialize<()> for XModelCollTri {
+    fn xfile_serialize(&self, ser: &mut impl T5XFileSerialize, _data: ()) -> Result<()> {
+        let coll_tri = XModelCollTriRaw {
+            plane: self.plane.get(),
+            svec: self.svec.get(),
+            tvec: self.tvec.get(),
+        };
+        ser.store_into_xfile(coll_tri)
     }
 }
 
@@ -786,6 +1028,19 @@ impl From<XBoneInfoRaw> for XBoneInfo {
             radius_squared: value.radius_squared,
             collmap: value.collmap,
         }
+    }
+}
+
+impl XFileSerialize<()> for XBoneInfo {
+    fn xfile_serialize(&self, ser: &mut impl T5XFileSerialize, _data: ()) -> Result<()> {
+        let bone_info = XBoneInfoRaw {
+            bounds: [self.bounds[0].get(), self.bounds[1].get()],
+            offset: self.offset.get(),
+            radius_squared: self.radius_squared,
+            collmap: self.collmap,
+            pad: [0u8; 3],
+        };
+        ser.store_into_xfile(bone_info)
     }
 }
 
@@ -987,6 +1242,17 @@ impl<'a> XFileDeserializeInto<Collmap, ()> for CollmapRaw<'a> {
     }
 }
 
+impl XFileSerialize<()> for Collmap {
+    fn xfile_serialize(&self, ser: &mut impl T5XFileSerialize, _data: ()) -> Result<()> {
+        let geom_list = Ptr32::from_box(&self.geom_list);
+        let collmap = CollmapRaw {
+            geom_list,
+        };
+        ser.store_into_xfile(collmap)?;
+        self.geom_list.xfile_serialize(ser, ())
+    }
+}
+
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
 pub(crate) struct PhysGeomListRaw<'a> {
@@ -1015,6 +1281,18 @@ impl<'a> XFileDeserializeInto<PhysGeomList, ()> for PhysGeomListRaw<'a> {
     }
 }
 
+impl XFileSerialize<()> for PhysGeomList {
+    fn xfile_serialize(&self, ser: &mut impl T5XFileSerialize, _data: ()) -> Result<()> {
+        let geoms = FatPointerCountFirstU32::from_slice(&self.geoms);
+        let geom_list = PhysGeomListRaw {
+            geoms,
+            contents: self.contents,
+        };
+        ser.store_into_xfile(geom_list)?;
+        self.geoms.xfile_serialize(ser, ())
+    }
+}
+
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
 pub(crate) struct PhysGeomInfoRaw<'a> {
@@ -1027,7 +1305,7 @@ pub(crate) struct PhysGeomInfoRaw<'a> {
 assert_size!(PhysGeomInfoRaw, 68);
 
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[derive(Clone, Default, Debug, FromPrimitive)]
+#[derive(Copy, Clone, Default, Debug, FromPrimitive)]
 #[repr(i32)]
 pub enum PhysGeomType {
     #[default]
@@ -1063,6 +1341,21 @@ impl<'a> XFileDeserializeInto<PhysGeomInfo, ()> for PhysGeomInfoRaw<'a> {
             offset: self.offset.into(),
             half_lengths: self.half_lengths.into(),
         })
+    }
+}
+
+impl XFileSerialize<()> for PhysGeomInfo {
+    fn xfile_serialize(&self, ser: &mut impl T5XFileSerialize, _data: ()) -> Result<()> {
+        let brush = Ptr32::from_box(&self.brush);
+        let geom_info = PhysGeomInfoRaw {
+            brush,
+            type_: self.type_ as _,
+            orientation: self.orientation.get(),
+            offset: self.offset.get(),
+            half_lengths: self.half_lengths.get(),
+        };
+        ser.store_into_xfile(geom_info)?;
+        self.brush.xfile_serialize(ser, ())
     }
 }
 
@@ -1115,6 +1408,29 @@ impl<'a> XFileDeserializeInto<BrushWrapper, ()> for BrushWrapperRaw<'a> {
     }
 }
 
+impl XFileSerialize<()> for BrushWrapper {
+    fn xfile_serialize(&self, ser: &mut impl T5XFileSerialize, _data: ()) -> Result<()> {
+        let sides = FatPointerCountFirstU32::from_slice(&self.sides);
+        let verts = FatPointerCountFirstU32::from_slice(&self.verts);
+        let planes = Ptr32::from_slice(&self.planes);
+        let brush = BrushWrapperRaw {
+            mins: self.mins.get(),
+            contents: self.contents,
+            maxs: self.maxs.get(),
+            sides,
+            axial_cflags: self.axial_cflags,
+            axial_sflags: self.axial_sflags,
+            verts,
+            planes,
+        };
+
+        ser.store_into_xfile(brush)?;
+        self.sides.xfile_serialize(ser, ())?;
+        self.verts.xfile_serialize(ser, ())?;
+        self.planes.xfile_serialize(ser, ())
+    }
+}
+
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
 pub(crate) struct CBrushSideRaw<'a> {
@@ -1143,6 +1459,19 @@ impl<'a> XFileDeserializeInto<CBrushSide, ()> for CBrushSideRaw<'a> {
             cflags: self.cflags,
             sflags: self.sflags,
         })
+    }
+}
+
+impl XFileSerialize<()> for CBrushSide {
+    fn xfile_serialize(&self, ser: &mut impl T5XFileSerialize, _data: ()) -> Result<()> {
+        let plane = Ptr32::from_box(&self.plane);
+        let side = CBrushSideRaw {
+            plane,
+            cflags: self.cflags,
+            sflags: self.sflags,
+        };
+        ser.store_into_xfile(side)?;
+        self.plane.xfile_serialize(ser, ())
     }
 }
 
@@ -1249,6 +1578,19 @@ impl From<CPlaneRaw> for CPlane {
     }
 }
 
+impl XFileSerialize<()> for CPlane {
+    fn xfile_serialize(&self, ser: &mut impl T5XFileSerialize, _data: ()) -> Result<()> {
+        let plane = CPlaneRaw {
+            normal: self.normal.get(),
+            dist: self.dist,
+            type_: self.type_.0,
+            signbits: self.signbits.0,
+            pad: [0u8; 2],
+        };
+        ser.store_into_xfile(plane)
+    }
+}
+
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
 pub(crate) struct PhysConstraintsRaw<'a> {
@@ -1289,8 +1631,67 @@ impl<'a> XFileDeserializeInto<PhysConstraints, ()> for PhysConstraintsRaw<'a> {
 }
 
 impl XFileSerialize<()> for PhysConstraints {
-    fn xfile_serialize(&self, _ser: &mut impl T5XFileSerialize, _data: ()) -> Result<()> {
-        todo!()
+    fn xfile_serialize(&self, ser: &mut impl T5XFileSerialize, _data: ()) -> Result<()> {
+        let name = XStringRaw::from_str(self.name.get());
+        let mut data = self.data.iter().map(|phys_constraint| {
+            let targetname = ser.get_or_insert_script_string(phys_constraint.targetname.get())?;
+            let target_ent1 = ser.get_or_insert_script_string(phys_constraint.target_ent1.get())?;
+            let target_bone1 = XStringRaw::from_str(phys_constraint.target_bone1.get());
+            let target_ent2 = ser.get_or_insert_script_string(phys_constraint.target_ent2.get())?;
+            let target_bone2 = XStringRaw::from_str(phys_constraint.target_bone2.get());
+            let material = Ptr32::from_box(&phys_constraint.material);
+            Ok(PhysConstraintRaw {
+                targetname,
+                pad: [0u8; 2],
+                type_: phys_constraint.type_ as _,
+                attach_point_type1: phys_constraint.attach_point_type1 as _,
+                target_index1: phys_constraint.target_index1 as _,
+                target_ent1,
+                pad_2: [0u8; 2],
+                target_bone1,
+                attach_point_type2: phys_constraint.attach_point_type2 as _,
+                target_index2: phys_constraint.target_index2 as _,
+                target_ent2,
+                pad_3: [0u8; 2],
+                target_bone2,
+                offset: phys_constraint.offset.get(),
+                pos: phys_constraint.pos.get(),
+                pos2: phys_constraint.pos2.get(),
+                dir: phys_constraint.dir.get(),
+                flags: phys_constraint.flags,
+                timeout: phys_constraint.timeout,
+                min_health: phys_constraint.min_health,
+                max_health: phys_constraint.max_health,
+                distance: phys_constraint.distance,
+                damp: phys_constraint.damp,
+                power: phys_constraint.power,
+                scale: phys_constraint.scale.get(),
+                spin_scale: phys_constraint.spin_scale,
+                min_angle: phys_constraint.min_angle,
+                max_angle: phys_constraint.max_angle,
+                material,
+                constraint_handle: phys_constraint.constraint_handle,
+                rope_index: phys_constraint.rope_index as _,
+                centity_num: phys_constraint.centity_num,
+            })
+        }).collect::<Result<Vec<PhysConstraintRaw>>>()?;
+        if data.len() > 16 {
+            return Err(Error::new(file_line_col!(), ErrorKind::BrokenInvariant("PhysConstraints::data must have 16 or less elements.".to_string())));
+        }
+        data.resize(16, PhysConstraintRaw::default());
+        let data = data.try_into().unwrap();
+        let phys_constraints = PhysConstraintsRaw {
+            name,
+            count: self.count as _,
+            data,
+        };
+        ser.store_into_xfile(phys_constraints)?;
+        for phys_constraint in self.data.iter() {
+            phys_constraint.target_bone1.xfile_serialize(ser, ())?;
+            phys_constraint.target_bone2.xfile_serialize(ser, ())?;
+            phys_constraint.material.xfile_serialize(ser, ())?;
+        }
+        Ok(())
     }
 }
 
@@ -1336,7 +1737,7 @@ pub(crate) struct PhysConstraintRaw<'a> {
 assert_size!(PhysConstraintRaw, 168);
 
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[derive(Clone, Default, Debug, FromPrimitive)]
+#[derive(Copy, Clone, Default, Debug, FromPrimitive)]
 #[repr(i32)]
 pub enum ConstraintType {
     #[default]
@@ -1354,7 +1755,7 @@ pub enum ConstraintType {
 }
 
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[derive(Clone, Default, Debug, FromPrimitive)]
+#[derive(Copy, Clone, Default, Debug, FromPrimitive)]
 #[repr(i32)]
 pub enum AttachPointType {
     #[default]
@@ -1503,6 +1904,21 @@ impl<'a> XFileDeserializeInto<XModelPieces, ()> for XModelPiecesRaw<'a> {
     }
 }
 
+impl XFileSerialize<()> for XModelPieces {
+    fn xfile_serialize(&self, ser: &mut impl T5XFileSerialize, _data: ()) -> Result<()> {
+        let name = XStringRaw::from_str(self.name.get());
+        let pieces = FatPointerCountFirstU32::from_slice(&self.pieces);
+        let pieces = XModelPiecesRaw {
+            name,
+            pieces,
+        };
+
+        ser.store_into_xfile(pieces)?;
+        self.name.xfile_serialize(ser, ())?;
+        self.pieces.xfile_serialize(ser, ())
+    }
+}
+
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Default, Debug, Deserialize)]
 pub(crate) struct XModelPieceRaw<'a> {
@@ -1528,5 +1944,18 @@ impl<'a> XFileDeserializeInto<XModelPiece, ()> for XModelPieceRaw<'a> {
         let offset = self.offset.into();
 
         Ok(XModelPiece { model, offset })
+    }
+}
+
+impl XFileSerialize<()> for XModelPiece {
+    fn xfile_serialize(&self, ser: &mut impl T5XFileSerialize, _data: ()) -> Result<()> {
+        let model = Ptr32::from_box(&self.model);
+        let piece = XModelPieceRaw {
+            model,
+            offset: self.offset.get(),
+        };
+        
+        ser.store_into_xfile(piece)?;
+        self.model.xfile_serialize(ser, ())
     }
 }
